@@ -187,7 +187,8 @@ GitHub 上に CI は一切なく、品質ゲートは開発者のマシンで実
 - `.github/actions/setup-node-pnpm` と `slack-notify` は現在未参照だが、ワークフローを復元する
   場合に備えて残している。
 - 留意すべき影響: Windows を検証するものが無くなった。依存・脆弱性の更新も自動 PR では届かない —
-  `pnpm audit --prod` は手動の作業になる。GitHub は Dependabot の**アラート**自体は引き続き
+  `pnpm audit --prod`（脆弱性）と `pnpm --filter openai-agent outdated openai undici socks`
+  （SDK・HTTP/proxy 層の追従。上流を見る必要はなく npm レジストリに直接聞く）は手動の作業になる。GitHub は Dependabot の**アラート**自体は引き続き
   報告する（2026-07-26 時点でデフォルトブランチに 5 件）。無くなったのは自動更新 PR だけである。
 
 ## 下位のルールとコマンド

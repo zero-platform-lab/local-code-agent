@@ -17,7 +17,7 @@ import {
  * 徹する。
  *
  * 参照側は `task.messageStore.clineMessages` のように**このストアを直接**触る
- * （Task 側の getter/setter プロキシは撤去済み。docs/task-builder-plan.md の Phase 5c）。
+ * （Task 側の getter/setter プロキシは撤去済み）。
  */
 export class TaskMessageStore {
 	apiConversationHistory: ApiMessage[] = []

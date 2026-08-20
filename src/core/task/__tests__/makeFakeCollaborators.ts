@@ -15,8 +15,6 @@ import { TaskMessageStore } from "../TaskMessageStore"
  * 実体化しない）。`mistakeTracker` と `messageQueueService` だけ実インスタンスにして
  * あるのは、前者が field mutation を、後者が constructor の `on("stateChanged")`
  * 登録を必要とするため。
- *
- * docs/task-builder-plan.md の Phase 2b に対応。
  */
 export interface MakeFakeCollaboratorsOptions extends Partial<TaskCollaborators> {
 	/** TaskMessageStore は vscode 非依存なので実インスタンスをデフォルトにする（fake だと

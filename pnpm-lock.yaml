@@ -258,6 +258,9 @@ importers:
       '@types/node':
         specifier: ^24.1.0
         version: 24.2.1
+      '@vitest/coverage-v8':
+        specifier: 3.2.7
+        version: 3.2.7(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0))
       vitest:
         specifier: ^3.2.3
         version: 3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0)
@@ -302,6 +305,9 @@ importers:
       '@types/node':
         specifier: ^24.1.0
         version: 24.2.1
+      '@vitest/coverage-v8':
+        specifier: 3.2.7
+        version: 3.2.7(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0))
       ajv:
         specifier: ^8.18.0
         version: 8.18.0
@@ -317,21 +323,6 @@ importers:
       zod-to-json-schema:
         specifier: ^3.25.1
         version: 3.25.1(zod@3.25.76)
-
-  packages/vscode-shim:
-    devDependencies:
-      '@openai-agent/config-eslint':
-        specifier: workspace:^
-        version: link:../config-eslint
-      '@openai-agent/config-typescript':
-        specifier: workspace:^
-        version: link:../config-typescript
-      '@types/node':
-        specifier: ^24.1.0
-        version: 24.2.1
-      vitest:
-        specifier: ^3.2.3
-        version: 3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0)
 
   src:
     dependencies:
@@ -886,6 +877,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.4.1(vite@8.1.5(@types/node@20.17.57)(esbuild@0.25.9)(jiti@2.4.2)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0))
+      '@vitest/coverage-v8':
+        specifier: 3.2.7
+        version: 3.2.7(vitest@3.2.7)
       '@vitest/ui':
         specifier: ^3.2.3
         version: 3.2.4(vitest@3.2.7)
@@ -1031,11 +1025,6 @@ packages:
     resolution: {integrity: sha512-wfbi91pM3py96oIiJEz7qIpyXDytgr9zQC1HEWwlGNVRAEmItuU/0a41ZUKu1sJGyhhOIpc4t5vk4PYzt8wpsg==}
     engines: {node: ^22.18.0 || >=24.11.0}
 
-  '@babel/parser@7.29.7':
-    resolution: {integrity: sha512-hnORnjP/1P/zFEndoeX+n+t1RwWRJiJpM/jO7FW32Kn9r5+sJB2JWOdYo4L6k78j15eCwY3Gm/7364B1EMwtNg==}
-    engines: {node: '>=6.0.0'}
-    hasBin: true
-
   '@babel/parser@7.29.8':
     resolution: {integrity: sha512-E8lTAYNB1KW+FH+VGJuZM1ioAx2E6oVlvQFRrf5P8ZZmsiJXYAD9vTFV7yyEURNzgh1dFqMZuO6tUwcARbqFCA==}
     engines: {node: '>=6.0.0'}
@@ -1084,10 +1073,6 @@ packages:
 
   '@babel/types@7.27.1':
     resolution: {integrity: sha512-+EzkxvLNfiUeKMgy/3luqfsCWFRXLb7U6wNQTk60tovuckwB15B191tJWvpp4HjiQWdJkCxO3Wbvc6jlk3Xb2Q==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/types@7.29.7':
-    resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.8':
@@ -8656,10 +8641,6 @@ snapshots:
       '@babel/template': 8.0.0
       '@babel/types': 8.0.4
 
-  '@babel/parser@7.29.7':
-    dependencies:
-      '@babel/types': 7.29.8
-
   '@babel/parser@7.29.8':
     dependencies:
       '@babel/types': 7.29.8
@@ -8706,11 +8687,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
-
-  '@babel/types@7.29.7':
-    dependencies:
-      '@babel/helper-string-parser': 7.29.7
-      '@babel/helper-validator-identifier': 7.29.7
 
   '@babel/types@7.29.8':
     dependencies:
@@ -10836,6 +10812,44 @@ snapshots:
       test-exclude: 7.0.2
       tinyrainbow: 2.0.0
       vitest: 3.2.7(@types/debug@4.1.12)(@types/node@20.17.50)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitest/coverage-v8@3.2.7(vitest@3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0))':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@bcoe/v8-coverage': 1.0.2
+      ast-v8-to-istanbul: 0.3.12
+      debug: 4.4.3
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-lib-source-maps: 5.0.6
+      istanbul-reports: 3.1.7
+      magic-string: 0.30.21
+      magicast: 0.3.5
+      std-env: 3.10.0
+      test-exclude: 7.0.2
+      tinyrainbow: 2.0.0
+      vitest: 3.2.7(@types/debug@4.1.12)(@types/node@24.2.1)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitest/coverage-v8@3.2.7(vitest@3.2.7)':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@bcoe/v8-coverage': 1.0.2
+      ast-v8-to-istanbul: 0.3.12
+      debug: 4.4.3
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-lib-source-maps: 5.0.6
+      istanbul-reports: 3.1.7
+      magic-string: 0.30.21
+      magicast: 0.3.5
+      std-env: 3.10.0
+      test-exclude: 7.0.2
+      tinyrainbow: 2.0.0
+      vitest: 3.2.7(@types/debug@4.1.12)(@types/node@20.17.57)(@vitest/ui@3.2.4)(esbuild@0.25.9)(jiti@2.4.2)(jsdom@26.1.0)(terser@5.47.1)(tsx@4.19.4)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -13955,8 +13969,8 @@ snapshots:
 
   magicast@0.3.5:
     dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/parser': 7.29.8
+      '@babel/types': 7.29.8
       source-map-js: 1.2.1
 
   make-dir@4.0.0:

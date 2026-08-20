@@ -13,7 +13,7 @@ TGI) and Azure OpenAI. All other LLM provider backends were deleted, not stubbed
 The primary chat view is contributed to the **secondary side bar** (right), like GitHub
 Copilot / Codex.
 
-## Monorepo layout (pnpm workspaces + turbo)
+## Repository layout (pnpm workspaces + turbo)
 
 - `src/` — the extension host. Workspace package name is `openai-agent`.
 - `webview-ui/` — React webview (`@openai-agent/vscode-webview`).
@@ -104,6 +104,50 @@ Copilot / Codex.
   leave a stub. Verify completeness with an independent audit.
 - **Completion is external:** do not report work as done on your own sense of "finished." Back it
   with verification output (tests, typecheck, a real run), or it is not done.
+
+## Documentation standards (learned from review)
+
+Rules distilled from a full expert-review + proofreading cycle of `docs/architecture.md`.
+Apply them to every doc written or revised in this repo.
+
+**Accuracy — verify every countable claim against code:**
+
+- Count the **canonical source**, not directory listings. "28 tools" was the number of `.ts`
+  files in `core/tools/` (including `BaseTool`, helpers); the real number is `toolNames` in
+  `packages/types/src/tool.ts`. Same trap: `.tsx` file count ≠ component count.
+- "All X goes through Y" claims must be checked **per path**. "All outbound goes through
+  `getProxyDispatcher()`" was false: remote MCP (SSE/StreamableHTTP) uses plain `fetch`.
+- Enumerate opt-in exceptions when claiming isolation ("no external comms except the LLM"
+  needs "…plus web_fetch / remote MCP when explicitly enabled").
+- Don't cite deprecated features as current (e.g. the removed `browser` tool group).
+
+**Framing — don't inherit it from older docs:**
+
+- Describe what the code _is_, in plain words, not what an upstream doc called it
+  ("monorepo" overstated a single-product repo that is simply split into pnpm workspaces).
+- Keep current-state description separate from judgment. Opinions ("this split is excess")
+  go into a clearly-labeled remarks section, stated with honest severity — say explicitly
+  when something is a maintenance-cost nit, not a defect.
+- State each number in exactly one place; duplicated counts drift independently and rot.
+
+**Japanese register (technical documents):**
+
+- 常体（〜である）で統一。読者への呼びかけ（「あなた」）や比喩（頭脳・司令塔・門番・水際）は使わない。
+- 主述のねじれを許さない（例:「API エラーは再試行し」→「API エラーが発生した場合は再試行し」）。
+- 直訳調・造語を避ける: 押し戻す→送り返す、束ねる→バンドルする、実起動→実際に起動、
+  文脈→コンテキストウィンドウ、裏の git→シャドウ git。
+- 表記を統一する: 用語は 1 対象 1 語（ループ/サイクルを混在させない）、「〜等」でなく「〜など」、
+  中黒「・」は名詞の並列のみ、和文に生の英語（opt-in）を混ぜない、「（＝X）」でなく「（X と呼ぶ）」。
+- 節参照・数字は裸にしない（「6 で判定」→「ステップ 6 で判定」、「§1」→「§01」）。
+
+**Structure & diagrams:**
+
+- Two-part split for architecture docs: 概要 (no prior knowledge assumed) then 内部実装
+  (for developers). Give the doc a TOC with anchors.
+- Diagram grammar must be declared: arrow direction (dependency arrows point at the
+  dependee), color legend, and each figure's caption states what edges mean.
+- In sequence diagrams, don't draw in-process function groups as if they were separate
+  processes without saying so.
 
 ## Security scanning (local, dev-only)
 

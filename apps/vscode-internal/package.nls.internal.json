@@ -1,0 +1,9 @@
+{
+	"extension.displayName": "Local Code Agent",
+	"extension.description": "ローカル環境の OpenAI 互換エンドポイント（vLLM / Ollama / TGI）・Azure OpenAI に接続する AI コーディングエージェント",
+	"views.contextMenu.label": "Local Code Agent",
+	"views.terminalMenu.label": "Local Code Agent",
+	"views.activitybar.title": "Local Code Agent",
+	"views.sidebar.name": "Local Code Agent",
+	"configuration.title": "Local Code Agent"
+}

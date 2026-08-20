@@ -1,0 +1,8 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"//": "コスト削減のため Renovate を無効化（自動 PR ごとに CI が走るのを止める）。再開する場合は enabled を true にする。",
+	"enabled": false,
+	"extends": ["config:recommended"],
+	"forkProcessing": "enabled",
+	"ignoreDeps": ["@vscode/vsce"]
+}

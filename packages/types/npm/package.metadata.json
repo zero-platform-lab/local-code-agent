@@ -1,0 +1,22 @@
+{
+	"name": "@openai-agent/types",
+	"version": "1.115.0",
+	"description": "TypeScript type definitions for OpenAI Compatible Agent.",
+	"publishConfig": {
+		"access": "public",
+		"name": "@openai-agent/types",
+		"registry": "https://registry.npmjs.org/"
+	},
+	"author": "Example Org",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/example-org/local-agent.git"
+	},
+	"bugs": {
+		"url": "https://github.com/example-org/local-agent/issues"
+	},
+	"homepage": "https://github.com/example-org/local-agent",
+	"keywords": ["openai", "agent", "ai"],
+	"files": ["dist"]
+}

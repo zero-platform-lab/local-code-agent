@@ -1,0 +1,34 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"lint": {},
+		"check-types": {},
+		"bundle": {
+			"outputs": ["dist/**"],
+			"dependsOn": ["@openai-agent/types#build"]
+		},
+		"test": {
+			"dependsOn": ["@openai-agent/types#build", "openai-agent#bundle"]
+		},
+		"format": {},
+		"clean": {
+			"cache": false
+		},
+		"bundle:internal": {
+			"cache": false
+		},
+		"vsix:internal": {
+			"cache": false
+		},
+		"build": {
+			"outputs": ["dist/**"],
+			"inputs": ["src/**", "package.json", "tsconfig.json", "tsup.config.ts", "vite.config.ts"]
+		},
+		"watch:tsc": {
+			"cache": false
+		},
+		"test:coverage": {
+			"dependsOn": ["@openai-agent/types#build", "openai-agent#bundle"]
+		}
+	}
+}

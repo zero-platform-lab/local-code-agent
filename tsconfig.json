@@ -1,0 +1,8 @@
+{
+	"extends": "@openai-agent/config-typescript/base.json",
+	"compilerOptions": {
+		"types": ["node"]
+	},
+	"exclude": ["node_modules"],
+	"include": ["scripts/*.ts"]
+}

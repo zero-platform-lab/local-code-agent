@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName%",
 	"description": "%extension.description%",
 	"publisher": "internal",
-	"version": "0.8.5",
+	"version": "0.1.0",
 	"galleryBanner": {
 		"color": "#617A91",
 		"theme": "dark"
@@ -497,8 +497,6 @@
 		"pretty-bytes": "^7.0.0",
 		"proper-lockfile": "^4.1.2",
 		"ps-tree": "^1.2.0",
-		"puppeteer-chromium-resolver": "^24.0.0",
-		"puppeteer-core": "^23.4.0",
 		"reconnecting-eventsource": "^1.6.4",
 		"safe-stable-stringify": "^2.5.0",
 		"sanitize-filename": "^1.6.3",

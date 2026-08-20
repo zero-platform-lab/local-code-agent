@@ -126,25 +126,54 @@ function buildDispatcher(url: string): Dispatcher | undefined {
 	}
 }
 
+/** proxy の解決結果と、その由来。 */
+export type ProxyResolution = {
+	/**
+	 * 実際に使う proxy URL。未設定のときと、VS Code 管理へ委ねるときは undefined。
+	 * 後者で URL を返せないのは、解決を持っているのが VS Code 側で拡張からは
+	 * 見えないため（"何も通していない" とは意味が違う）。
+	 */
+	url: string | undefined
+	source: "none" | "extension-setting" | "vscode-managed" | "vscode-http-proxy" | "env"
+}
+
 /**
- * outbound に使う undici Dispatcher を返す。設定が無ければ undefined。
+ * outbound proxy をどこから取るかを 1 箇所で決める。
  *
  * 優先順:
  * 1. 拡張独自 `openai-agent.proxyUrl`（あれば VS Code 管理より優先。http(s)/socks5 対応）
- * 2. 本物の VS Code 管理下なら undefined（VS Code の proxy 処理に委ねる）
+ * 2. 本物の VS Code 管理下なら委ねる（拡張は dispatcher を張らない）
  * 3. VS Code `http.proxy` / env（CLI や proxySupport="off" のとき）
+ *
+ * 実際の通信（getProxyDispatcher）と接続テストの診断表示が、どちらもここを通る。
+ * 別々に解決していると「実際は拡張設定の SOCKS 経由で飛んでいるのに、診断は
+ * `Proxy: (none)` と表示する」というズレが出る（実際に起きていた）。診断は切り分けの
+ * ための機能なので、そこが実態とズレると用を成さない。
+ */
+export function resolveEffectiveProxy(): ProxyResolution {
+	const explicit = getExtensionProxyUrl()
+	if (explicit) return { url: explicit, source: "extension-setting" }
+
+	if (isVsCodeManagedProxy()) return { url: undefined, source: "vscode-managed" }
+
+	const url = resolveProxyUrl()
+	if (!url) return { url: undefined, source: "none" }
+
+	const env = process.env
+	const fromEnv =
+		env.HTTPS_PROXY === url || env.https_proxy === url || env.HTTP_PROXY === url || env.http_proxy === url
+	return { url, source: fromEnv ? "env" : "vscode-http-proxy" }
+}
+
+/**
+ * outbound に使う undici Dispatcher を返す。設定が無ければ undefined。
+ * 解決そのものは resolveEffectiveProxy に委ねる。
  *
  * 同期版。コンストラクタから呼ぶことがあるため await できるとは限らない。
  */
 export function getProxyDispatcher(): Dispatcher | undefined {
-	const explicit = getExtensionProxyUrl()
-	if (explicit) return buildDispatcher(explicit)
-
-	if (isVsCodeManagedProxy()) return undefined
-
-	const url = resolveProxyUrl()
+	const { url } = resolveEffectiveProxy()
 	if (!url) return undefined
-
 	return buildDispatcher(url)
 }
 

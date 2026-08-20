@@ -1,0 +1,14 @@
+{
+	"name": "@openai-agent/vscode-internal",
+	"description": "Internal build for OpenAI Compatible Agent VSCode extension.",
+	"private": true,
+	"packageManager": "pnpm@10.8.1",
+	"scripts": {
+		"bundle:internal": "node esbuild.mjs --production",
+		"vsix:internal": "cd build && mkdirp ../../../bin && npx vsce package --no-dependencies --out ../../../bin",
+		"clean": "rimraf build .turbo"
+	},
+	"devDependencies": {
+		"@openai-agent/build": "workspace:^"
+	}
+}

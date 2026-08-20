@@ -1,0 +1,5 @@
+{
+	"comment": "循環依存のベースライン。cyclicEdges = 同一 SCC 内の辺（＝いずれかの循環に関与する辺）。新規の循環辺はCIで拒否される。減らしたら `node scripts/check-circular-deps.mjs --update` で締め直す。",
+	"count": 0,
+	"cyclicEdges": []
+}

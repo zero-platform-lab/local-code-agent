@@ -1,0 +1,15 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"bundle:internal": {
+			"dependsOn": ["^build", "@openai-agent/vscode-webview#build:internal"],
+			"outputs": ["build/**"]
+		},
+		"vsix:internal": {
+			"dependsOn": ["bundle:internal"],
+			"inputs": ["build/**"],
+			"outputs": ["../../../bin/**"]
+		}
+	}
+}

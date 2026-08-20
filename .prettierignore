@@ -1,0 +1,28 @@
+# prettier の除外設定。
+#
+# 以前は .prettierrc.json に "ignore" キーで書かれていたが、**prettier に ignore という
+# オプションは無い**ため実行ごとに `[warn] Ignored unknown option` を出しつつ何も除外して
+# いなかった。除外は本ファイルで行う（prettier 3 は .gitignore も併せて読む）。
+#
+# 注意: .gitignore は**リポジトリ直下のものだけ**が読まれる。src/.gitignore のような
+# ネストした .gitignore は効かないので、そこで無視しているビルド生成物は明示する。
+
+# 依存とビルド生成物
+node_modules/
+dist/
+out/
+build/
+.next/
+.venv/
+
+# webview のビルド成果物を拡張バンドル用にコピーしたもの（src/.gitignore で無視されている）
+src/webview-ui/
+
+# 生成ファイル
+pnpm-lock.yaml
+
+# ベンダリングしたアイコン定義（上流の形をそのまま保つ）
+src/assets/vscode-material-icons/
+
+# 各開発者のローカル設定
+.claude/settings.local.json

@@ -58,7 +58,6 @@ pnpm workspaces + turbo によるモノレポ。
 | `packages/types`（`@openai-agent/types`）      | 共有型（設定・イベント・モード・API スキーマ）。zod ベース                |
 | `packages/core`（`@openai-agent/core`）        | プラットフォーム非依存のコア（task-history / worktree / custom-tools 等） |
 | `packages/ipc`                                 | 拡張ホスト側のソケット IPC 実装（依存元は `src` のみ）                    |
-| `packages/vscode-shim`                         | Node 環境で VS Code API を模倣する互換レイヤ                              |
 | `packages/build`                               | esbuild ユーティリティ、`package.json` 生成                               |
 | `apps/vscode-internal`                         | 拡張ビルド設定（`patchBranding` を含む）                                  |
 | `apps/vscode-e2e`                              | 拡張を実起動して行う統合テスト                                            |

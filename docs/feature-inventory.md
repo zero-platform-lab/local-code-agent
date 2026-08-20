@@ -135,4 +135,4 @@ language / about /（auto）
 3. 効果が大きい順の目安: ~~マルチプロバイダ残骸~~（済） → ~~ターミナル（zsh / p10k）系~~（済） →
    ~~TTS / sound~~（済） → checkpoints → 自律モード群。
 
-関連: [ARCHITECTURE.md](ARCHITECTURE.md) / [mcp.md](mcp.md) / [webview.md](webview.md)
+関連: [architecture.md](architecture.md) / [mcp.md](mcp.md) / [webview.md](webview.md)

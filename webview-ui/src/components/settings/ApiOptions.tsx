@@ -83,12 +83,22 @@ const ApiOptions = ({ apiConfiguration, setApiConfigurationField, errorMessage, 
 						apiKey: apiConfiguration?.openAiApiKey,
 						customHeaders: {},
 						openAiHeaders: customHeaders ?? {},
+						// モデル一覧もそのプロファイルの経路で取りに行く。
+						openAiProxyMode: apiConfiguration?.openAiProxyMode,
+						openAiProxyUrl: apiConfiguration?.openAiProxyUrl,
 					},
 				})
 			}
 		},
 		250,
-		[selectedProvider, apiConfiguration?.openAiBaseUrl, apiConfiguration?.openAiApiKey, customHeaders],
+		[
+			selectedProvider,
+			apiConfiguration?.openAiBaseUrl,
+			apiConfiguration?.openAiApiKey,
+			apiConfiguration?.openAiProxyMode,
+			apiConfiguration?.openAiProxyUrl,
+			customHeaders,
+		],
 	)
 
 	useEffect(() => {

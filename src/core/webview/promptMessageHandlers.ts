@@ -31,6 +31,7 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
 			message.values.baseUrl,
 			message.values.apiKey,
 			message.values.openAiHeaders,
+			{ mode: message.values.openAiProxyMode, url: message.values.openAiProxyUrl },
 		)
 
 		provider.postMessageToWebview({ type: "openAiModels", openAiModels })

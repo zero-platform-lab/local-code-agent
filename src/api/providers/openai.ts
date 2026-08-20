@@ -2,7 +2,7 @@ import OpenAI, { AzureOpenAI } from "openai"
 
 import type { Dispatcher } from "undici"
 
-import { getProxyDispatcher } from "../../utils/proxyDispatcher"
+import { getProxyDispatcher, type ProxyOverride } from "../../utils/proxyDispatcher"
 
 import {
 	type ModelInfo,
@@ -83,6 +83,16 @@ function attachSentRequest(err: Error, req: object): Error {
 // TODO: Rename this to OpenAICompatibleHandler. Also, I think the
 // `OpenAINativeHandler` can subclass from this, since it's obviously
 // compatible with the OpenAI API. We can also rename it to `OpenAIHandler`.
+/**
+ * API 設定プロファイルの proxy 指定を dispatcher 用の形へ落とす。
+ *
+ * 全体設定ではなくプロファイル側を見るのは、SOCKS 経由のモデルと直結のモデルが
+ * 同一環境に混在するため。全体で 1 つしか持てないと、片方が必ず通らない。
+ */
+function proxyOverrideOf(options: Pick<ApiHandlerOptions, "openAiProxyMode" | "openAiProxyUrl">): ProxyOverride {
+	return { mode: options.openAiProxyMode, url: options.openAiProxyUrl }
+}
+
 export class OpenAiHandler extends BaseProvider implements SingleCompletionHandler {
 	protected options: ApiHandlerOptions
 	protected client: OpenAI
@@ -124,7 +134,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 		// 企業 proxy 尊重（VS Code の http.proxy / HTTPS_PROXY 等）。
 		// OpenAI SDK 5.x は内部で Node の built-in fetch を使うが、それは HTTPS_PROXY を
 		// 自動では見ないため、fetchOptions.dispatcher を通じて undici の ProxyAgent を渡す。
-		const proxyDispatcher = getProxyDispatcher()
+		const proxyDispatcher = getProxyDispatcher(proxyOverrideOf(this.options))
 		const fetchOptions: { dispatcher: Dispatcher } | undefined = proxyDispatcher
 			? { dispatcher: proxyDispatcher }
 			: undefined
@@ -969,7 +979,12 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 	}
 }
 
-export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiHeaders?: Record<string, string>) {
+export async function getOpenAiModels(
+	baseUrl?: string,
+	apiKey?: string,
+	openAiHeaders?: Record<string, string>,
+	proxy?: ProxyOverride,
+) {
 	try {
 		if (!baseUrl) {
 			return []
@@ -993,7 +1008,7 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 		// testOpenAiConnection と同じく、企業 proxy を尊重するため
 		// undici dispatcher を明示指定した fetch で叩く。axios だと
 		// Node の built-in fetch 経路（後段の SDK と同じ）と挙動が食い違う。
-		const dispatcher = getProxyDispatcher()
+		const dispatcher = getProxyDispatcher(proxy)
 		const url = `${trimmedBaseUrl.replace(/\/+$/, "")}/models`
 		const init: RequestInit & { dispatcher?: Dispatcher } = { method: "GET", headers }
 		if (dispatcher) init.dispatcher = dispatcher
@@ -1157,6 +1172,9 @@ function renderHumanReadable(d: ApiConnectionTestDiagnostics): string {
 	// あって拡張からは読めないので、(none) と出すと proxy 環境の切り分けを誤らせる。
 	else if (d.proxyResolvedFrom === "vscode-managed")
 		lines.push(`Proxy: VS Code の解決に委譲 (http.proxySupport)  ← URL は VS Code 側が保持`)
+	// 「このモデルは直結」と「そもそも proxy 設定が無い」も別物。全体に proxy を
+	// 入れた環境で直結を選んだのか、単に未設定なのかが読めないと切り分けられない。
+	else if (d.proxyResolvedFrom === "profile-direct") lines.push(`Proxy: 使用しない（このモデルの設定で直結を指定）`)
 	else lines.push(`Proxy: (none)`)
 	if (d.responseStatus !== undefined) {
 		lines.push(`Response: HTTP ${d.responseStatus}`)
@@ -1300,6 +1318,8 @@ export async function testOpenAiConnection(
 	modelId?: string,
 	useAzure?: boolean,
 	azureApiVersion?: string,
+	/** テスト対象プロファイルの proxy 指定。省略時は拡張全体の解決に従う。 */
+	proxy?: ProxyOverride,
 ): Promise<ApiConnectionTestResult> {
 	if (!baseUrl || !baseUrl.trim()) {
 		return { success: false, message: "Base URL が未設定です。" }
@@ -1338,9 +1358,9 @@ export async function testOpenAiConnection(
 		? `${base}/deployments/${encodeURIComponent(model)}/chat/completions?api-version=${azureApiVersion || azureOpenAiDefaultApiVersion}`
 		: `${base}/chat/completions`
 
-	const dispatcher = getProxyDispatcher()
+	const dispatcher = getProxyDispatcher(proxy)
 	// 実通信と同じ解決を使う。別々に引くと診断が実態とズレる。
-	const { url: proxyUrl, source: proxySource } = resolveEffectiveProxy()
+	const { url: proxyUrl, source: proxySource } = resolveEffectiveProxy(proxy)
 	const controller = new AbortController()
 	// 本番リクエストと同じ上限（`openai-agent.apiRequestTimeout`）を使う。接続テストだけ
 	// 固定 15 秒だと、応答の遅いローカルモデル（大きな system prompt のプレフィルで初回

@@ -536,12 +536,13 @@
 		"title": "Advanced settings"
 	},
 	"proxy": {
-		"followDefault": {
-			"label": "Follow VS Code proxy settings (default)",
-			"description": "When on, the extension uses VS Code's `http.proxy` / `HTTPS_PROXY` env for all outbound traffic (LLM requests, connection test, web_fetch). Turn it off to set an independent proxy below."
-		},
-		"url": {
-			"label": "Proxy URL (http(s):// or socks5://)"
+		"model": {
+			"label": "Proxy for this model",
+			"description": "Route individual models differently when some reach the endpoint through SOCKS and others connect directly. Defaults to VS Code's `http.proxy` / environment variables. If VS Code has a proxy set, pick \"Do not use (direct)\" for models that must bypass it.",
+			"inherit": "Follow VS Code setting",
+			"direct": "Do not use (direct)",
+			"custom": "Set for this model",
+			"urlLabel": "Proxy URL for this model (http(s):// or socks5://)"
 		}
 	},
 	"advanced": {

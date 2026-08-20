@@ -29,7 +29,7 @@ type SettingsMessageHandler = (provider: WebviewMessageHost, message: WebviewMes
  * webview から書き換えを許可する VSCode 設定のホワイトリスト。
  * ここに無いキーは拒否する（任意の VSCode 設定を webview から触れないようにするため）。
  */
-const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv", "openai-agent.proxyUrl"])
+const ALLOWED_VSCODE_SETTINGS = new Set(["terminal.integrated.inheritEnv"])
 
 /**
  * 文字列の配列だけを残す（webview から来る値の防御的な正規化）。

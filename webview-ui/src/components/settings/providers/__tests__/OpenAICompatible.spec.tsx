@@ -4,7 +4,6 @@ import { OpenAICompatible } from "../OpenAICompatible"
 import { ProviderSettings } from "@openai-agent/types"
 
 // Mock the vscrui Checkbox component
-vi.mock("../../ProxySettingsControl", () => ({ ProxySettingsControl: () => null }))
 vi.mock("vscrui", () => ({
 	Checkbox: ({ children, checked, onChange }: any) => (
 		<label data-testid={`checkbox-${children?.toString().replace(/\s+/g, "-").toLowerCase()}`}>
@@ -66,6 +65,16 @@ vi.mock("@src/i18n/TranslationContext", () => ({
 vi.mock("@src/components/ui", () => ({
 	Button: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
 	StandardTooltip: ({ children, content }: any) => <div title={content}>{children}</div>,
+	// ModelProxySettingsControl が使う。ネイティブ select に落として素直に操作できる形にする。
+	Select: ({ children, value, onValueChange }: any) => (
+		<select value={value} onChange={(e: any) => onValueChange?.(e.target.value)} data-testid="select-root">
+			{children}
+		</select>
+	),
+	SelectTrigger: ({ children }: any) => <>{children}</>,
+	SelectValue: () => null,
+	SelectContent: ({ children }: any) => <>{children}</>,
+	SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
 }))
 
 // Mock other components

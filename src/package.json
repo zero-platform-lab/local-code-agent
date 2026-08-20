@@ -409,11 +409,6 @@
 					"maximum": 200,
 					"description": "%settings.codeIndex.embeddingBatchSize.description%"
 				},
-				"openai-agent.proxyUrl": {
-					"type": "string",
-					"default": "",
-					"markdownDescription": "拡張の全 outbound 通信（LLM リクエスト / 接続テスト / web_fetch）で使う proxy。空欄なら VS Code の `http.proxy` / 環境変数に従う。`http://host:port` / `https://host:port` / `socks5://host:port`（認証は `user:pass@` を付ける）に対応。"
-				},
 				"openai-agent.debug": {
 					"type": "boolean",
 					"default": false,

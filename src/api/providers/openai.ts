@@ -1007,7 +1007,7 @@ export async function getOpenAiModels(baseUrl?: string, apiKey?: string, openAiH
 	}
 }
 
-import { resolveProxyUrl } from "../../utils/proxyDispatcher"
+import { resolveEffectiveProxy, type ProxyResolution } from "../../utils/proxyDispatcher"
 
 /**
  * 接続テストの1プローブ（1 リクエスト）の結果。
@@ -1052,7 +1052,7 @@ export interface ApiConnectionTestDiagnostics {
 	// 実際に送信したリクエストボディ（接続テストの補完 payload）。中身に機密は無い。
 	requestBodyPreview?: string
 	proxyUrl: string | undefined
-	proxyResolvedFrom: "none" | "vscode-http-proxy" | "env" | "unknown"
+	proxyResolvedFrom: ProxyResolution["source"]
 	elapsedMs: number
 	// HTTP 応答が来た場合
 	responseStatus?: number
@@ -1145,16 +1145,6 @@ function redactHeaderValue(name: string, value: string): string {
 	return `${value.slice(0, 2)}…${value.slice(-2)} <${value.length} chars>`
 }
 
-function resolveProxySource(url: string | undefined): ApiConnectionTestDiagnostics["proxyResolvedFrom"] {
-	if (!url) return "none"
-	const env = process.env
-	if (env.HTTPS_PROXY === url || env.https_proxy === url || env.HTTP_PROXY === url || env.http_proxy === url) {
-		return "env"
-	}
-	// vscode 設定側かどうかは resolveProxyUrl の実装順から逆算する。
-	return "vscode-http-proxy"
-}
-
 function renderHumanReadable(d: ApiConnectionTestDiagnostics): string {
 	const lines: string[] = []
 	lines.push(`--- 接続テスト診断 (${d.elapsedMs} ms) ---`)
@@ -1163,6 +1153,10 @@ function renderHumanReadable(d: ApiConnectionTestDiagnostics): string {
 	// testOpenAiConnection は診断構築時に必ず requestBodyPreview を入れる（分岐なし）。
 	lines.push(`Request body: ${d.requestBodyPreview}`)
 	if (d.proxyUrl) lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})`)
+	// 「VS Code が解決を握っている」は「何も通していない」とは別物。URL は VS Code 側に
+	// あって拡張からは読めないので、(none) と出すと proxy 環境の切り分けを誤らせる。
+	else if (d.proxyResolvedFrom === "vscode-managed")
+		lines.push(`Proxy: VS Code の解決に委譲 (http.proxySupport)  ← URL は VS Code 側が保持`)
 	else lines.push(`Proxy: (none)`)
 	if (d.responseStatus !== undefined) {
 		lines.push(`Response: HTTP ${d.responseStatus}`)
@@ -1240,7 +1234,8 @@ export async function runConnectionProbe(args: {
 	model: string
 	label: string
 	withTools: boolean
-	timeoutMs: number
+	/** undefined は「タイムアウト無し」。ウォッチドッグを張らない。 */
+	timeoutMs: number | undefined
 }): Promise<ConnectionProbeResult> {
 	const { url, headers, dispatcher, model, label, withTools, timeoutMs } = args
 	const body = {
@@ -1252,10 +1247,14 @@ export async function runConnectionProbe(args: {
 	const requestBody = JSON.stringify(body)
 	const controller = new AbortController()
 	let didTimeout = false
-	const timeoutId = setTimeout(() => {
-		didTimeout = true
-		controller.abort()
-	}, timeoutMs)
+	// setTimeout(fn, undefined) は遅延 0 として即発火するので、無制限のときは張らない。
+	const timeoutId =
+		timeoutMs === undefined
+			? undefined
+			: setTimeout(() => {
+					didTimeout = true
+					controller.abort()
+				}, timeoutMs)
 	const startedAt = Date.now()
 	const result: ConnectionProbeResult = {
 		label,
@@ -1340,9 +1339,19 @@ export async function testOpenAiConnection(
 		: `${base}/chat/completions`
 
 	const dispatcher = getProxyDispatcher()
-	const proxyUrl = resolveProxyUrl()
+	// 実通信と同じ解決を使う。別々に引くと診断が実態とズレる。
+	const { url: proxyUrl, source: proxySource } = resolveEffectiveProxy()
 	const controller = new AbortController()
-	const timeoutId = setTimeout(() => controller.abort(), 15_000)
+	// 本番リクエストと同じ上限（`openai-agent.apiRequestTimeout`）を使う。接続テストだけ
+	// 固定 15 秒だと、応答の遅いローカルモデル（大きな system prompt のプレフィルで初回
+	// チャンクまで数分かかる）を「繋がらない」と誤判定する。
+	//
+	// undefined は「タイムアウト無し」の意味なので、ウォッチドッグ自体を張らない。
+	// setTimeout(fn, undefined) は遅延 0 として即発火するため、そのまま渡すと
+	// 無制限を選んだ利用者の接続テストが必ず即死する。
+	const connectionTimeoutMs = getApiRequestTimeout()
+	const timeoutId =
+		connectionTimeoutMs === undefined ? undefined : setTimeout(() => controller.abort(), connectionTimeoutMs)
 	const startedAt = Date.now()
 
 	// 実際に投げるボディ。診断にもそのまま載せて「何を送ったか」を見えるようにする。
@@ -1359,7 +1368,7 @@ export async function testOpenAiConnection(
 		})),
 		requestBodyPreview: requestBody,
 		proxyUrl,
-		proxyResolvedFrom: resolveProxySource(proxyUrl),
+		proxyResolvedFrom: proxySource,
 		elapsedMs: 0,
 		humanReadable: "",
 	}
@@ -1414,8 +1423,9 @@ export async function testOpenAiConnection(
 
 		// ② tool calling プローブ: ①（通常）が HTTP 2xx を返せたので、同じ transport で
 		// tools 付きの実リクエスト形を投げる。①との差は tools だけなので、②だけ詰まれば
-		// 「tool calling が引き金」と一意に切り分けられる。tools 有りは体感でも遅いことが
-		// あるため、①より長め（20s）で待つ。stream:false で tools 単独の影響を見る。
+		// 「tool calling が引き金」と一意に切り分けられる。stream:false で tools 単独の
+		// 影響を見る。上限は①と同じ `openai-agent.apiRequestTimeout`——tools 有りは体感でも
+		// 遅いが、①が本番と同じ上限を持つ以上ここだけ短くする理由が無い。
 		const toolCallProbe = await runConnectionProbe({
 			url,
 			headers,
@@ -1423,7 +1433,7 @@ export async function testOpenAiConnection(
 			model,
 			label: "② tool calling (tools 有り)",
 			withTools: true,
-			timeoutMs: 20_000,
+			timeoutMs: connectionTimeoutMs,
 		})
 		diagnostics.toolCallProbe = toolCallProbe
 

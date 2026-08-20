@@ -46,6 +46,7 @@ export const apiConfigMessageHandlers: Partial<Record<WebviewMessage["type"], Ap
 			message?.values?.modelId,
 			message?.values?.useAzure,
 			message?.values?.azureApiVersion,
+			{ mode: message?.values?.openAiProxyMode, url: message?.values?.openAiProxyUrl },
 		)
 		// 診断ブロックは拡張の Output Channel にも記録する。
 		// 「設定画面を見ずに事後で読み返す」経路として重要。ヘッダ値・API キーは

@@ -17,7 +17,7 @@ import { useAppTranslation } from "@src/i18n/TranslationContext"
 import { Button, StandardTooltip } from "@src/components/ui"
 import { vscode } from "@src/utils/vscode"
 
-import { ProxySettingsControl } from "../ProxySettingsControl"
+import { ModelProxySettingsControl } from "../ModelProxySettingsControl"
 import { convertHeadersToObject } from "../utils/headers"
 import { inputEventTransform, urlInputEventTransform, noTransform } from "../transforms"
 import { ModelPicker } from "../ModelPicker"
@@ -154,6 +154,9 @@ export const OpenAICompatible = ({
 				modelId: apiConfiguration?.openAiModelId,
 				useAzure: apiConfiguration?.openAiUseAzure,
 				azureApiVersion: apiConfiguration?.azureApiVersion,
+				// 接続テストは本番と同じ経路で叩かないと相性確認にならない。
+				openAiProxyMode: apiConfiguration?.openAiProxyMode,
+				openAiProxyUrl: apiConfiguration?.openAiProxyUrl,
 			},
 		})
 	}, [
@@ -162,6 +165,8 @@ export const OpenAICompatible = ({
 		apiConfiguration?.openAiModelId,
 		apiConfiguration?.openAiUseAzure,
 		apiConfiguration?.azureApiVersion,
+		apiConfiguration?.openAiProxyMode,
+		apiConfiguration?.openAiProxyUrl,
 		customHeaders,
 	])
 
@@ -284,7 +289,10 @@ export const OpenAICompatible = ({
 					})}
 				</div>
 			</div>
-			<ProxySettingsControl />
+			<ModelProxySettingsControl
+				apiConfiguration={apiConfiguration}
+				setApiConfigurationField={setApiConfigurationField}
+			/>
 			<div>
 				<Checkbox
 					checked={azureApiVersionSelected}

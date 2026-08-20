@@ -3,12 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { ProxyAgent, Agent } from "undici"
 
-import {
-	getProxyDispatcher,
-	getExtensionProxyUrl,
-	resolveProxyUrl,
-	_resetProxyDispatcherCache,
-} from "../proxyDispatcher"
+import { getProxyDispatcher, resolveProxyUrl, _resetProxyDispatcherCache } from "../proxyDispatcher"
 
 // vscode.workspace.getConfiguration("http").get("proxy") を制御する。
 const getMock = vi.fn<(key: string) => string | undefined>()
@@ -139,47 +134,22 @@ describe("getProxyDispatcher", () => {
 	})
 })
 
-describe("getExtensionProxyUrl（拡張独自 proxy 設定）", () => {
-	it("openai-agent.proxyUrl があればそれを返す", () => {
-		getMock.mockImplementation((key: string) => (key === "proxyUrl" ? "socks5://127.0.0.1:1080" : undefined))
-		expect(getExtensionProxyUrl()).toBe("socks5://127.0.0.1:1080")
+// SOCKS は VS Code の `http.proxy` では指定できない（非対応）。Model 単位の指定が
+// 唯一の入口なので、スキームごとの dispatcher 生成はそちら経由で押さえる。
+describe("getProxyDispatcher — Model 単位の指定を最優先", () => {
+	it("http(s):// は ProxyAgent（VS Code 管理下でも上書き）", () => {
+		getMock.mockImplementation((key: string) => (key === "proxySupport" ? "override" : undefined))
+		expect(getProxyDispatcher({ mode: "custom", url: "http://ext-proxy:3128" })).toBeInstanceOf(ProxyAgent)
 	})
 
-	it("空白のみは未設定扱い", () => {
-		getMock.mockImplementation((key: string) => (key === "proxyUrl" ? "   " : undefined))
-		expect(getExtensionProxyUrl()).toBeUndefined()
-	})
-
-	it("vscode API が投げても落ちず undefined", () => {
-		getMock.mockImplementation(() => {
-			throw new Error("vscode unavailable")
-		})
-		expect(getExtensionProxyUrl()).toBeUndefined()
-	})
-})
-
-describe("getProxyDispatcher — 拡張独自 proxy を最優先", () => {
-	it("http(s):// の拡張 proxy は ProxyAgent（VS Code 管理下でも上書き）", () => {
-		getMock.mockImplementation((key: string) => {
-			if (key === "proxyUrl") return "http://ext-proxy:3128"
-			if (key === "proxySupport") return "override"
-			return undefined
-		})
-		expect(getProxyDispatcher()).toBeInstanceOf(ProxyAgent)
-	})
-
-	it("socks5:// の拡張 proxy は SOCKS dispatcher（Agent で ProxyAgent ではない）", () => {
-		getMock.mockImplementation((key: string) =>
-			key === "proxyUrl" ? "socks5://user:pass@127.0.0.1:1080" : undefined,
-		)
-		const d = getProxyDispatcher()
+	it("socks5:// は SOCKS dispatcher（Agent で ProxyAgent ではない）", () => {
+		const d = getProxyDispatcher({ mode: "custom", url: "socks5://user:pass@127.0.0.1:1080" })
 		expect(d).toBeInstanceOf(Agent)
 		expect(d).not.toBeInstanceOf(ProxyAgent)
 	})
 
 	it("socks4:// も SOCKS dispatcher を返す（type=4 経路）", () => {
-		getMock.mockImplementation((key: string) => (key === "proxyUrl" ? "socks4://127.0.0.1:1080" : undefined))
-		expect(getProxyDispatcher()).toBeInstanceOf(Agent)
+		expect(getProxyDispatcher({ mode: "custom", url: "socks4://127.0.0.1:1080" })).toBeInstanceOf(Agent)
 	})
 
 	it("拡張 proxy が不正 URL なら undefined（落ちない）", () => {
@@ -187,7 +157,7 @@ describe("getProxyDispatcher — 拡張独自 proxy を最優先", () => {
 		expect(getProxyDispatcher()).toBeUndefined()
 	})
 
-	it("拡張 proxy 未設定なら従来ロジック（env の ProxyAgent）に委ねる", () => {
+	it("Model 単位の指定が無ければ従来ロジック（env の ProxyAgent）に委ねる", () => {
 		process.env.HTTPS_PROXY = "http://env:3128"
 		expect(getProxyDispatcher()).toBeInstanceOf(ProxyAgent)
 	})

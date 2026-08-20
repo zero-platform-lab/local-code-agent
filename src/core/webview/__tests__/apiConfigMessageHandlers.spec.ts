@@ -201,6 +201,8 @@ describe("apiConfigMessageHandlers", () => {
 					modelId: "gpt-4o-mini",
 					useAzure: true,
 					azureApiVersion: "2024-08-01-preview",
+					openAiProxyMode: "custom",
+					openAiProxyUrl: "socks5://127.0.0.1:1080",
 				},
 			})
 
@@ -211,6 +213,8 @@ describe("apiConfigMessageHandlers", () => {
 				"gpt-4o-mini",
 				true,
 				"2024-08-01-preview",
+				// 接続テストは本番と同じ経路で叩かないと相性確認にならないので proxy 指定も渡す。
+				{ mode: "custom", url: "socks5://127.0.0.1:1080" },
 			)
 			expect(h.postMessageToWebview).toHaveBeenCalledExactlyOnceWith({
 				type: "apiConnectionTest",
@@ -240,7 +244,7 @@ describe("apiConfigMessageHandlers", () => {
 			})
 		})
 
-		it("values が無くても undefined 3 つで呼ぶ", async () => {
+		it("values が無くても undefined で呼ぶ（proxy 指定は空のまま）", async () => {
 			const h = setup()
 
 			await call("testApiConnection", h.provider, {})
@@ -252,6 +256,8 @@ describe("apiConfigMessageHandlers", () => {
 				undefined,
 				undefined,
 				undefined,
+				// 未指定は継承扱い。解決側で inherit と同じ経路に落ちる。
+				{ mode: undefined, url: undefined },
 			)
 		})
 
@@ -267,6 +273,7 @@ describe("apiConfigMessageHandlers", () => {
 				undefined,
 				undefined,
 				undefined,
+				{ mode: undefined, url: undefined },
 			)
 		})
 	})

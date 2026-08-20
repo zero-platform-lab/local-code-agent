@@ -473,12 +473,13 @@
 		"title": "詳細設定"
 	},
 	"proxy": {
-		"followDefault": {
-			"label": "VS Code の proxy 設定に従う（既定）",
-			"description": "ON のとき、拡張の全 outbound 通信（LLM リクエスト / 接続テスト / web_fetch）で VS Code の `http.proxy` / 環境変数を使う。独立した proxy を指定するには OFF にして下の URL 欄に入力する。"
-		},
-		"url": {
-			"label": "Proxy URL（http(s):// または socks5://）"
+		"model": {
+			"label": "このモデルの Proxy",
+			"description": "SOCKS 経由のモデルと直結のモデルが混在する環境で、モデルごとに経路を分けるための設定。既定は VS Code の `http.proxy` / 環境変数に従う。VS Code 側に proxy を入れている場合、直結にしたいモデルは「使わない（直結）」を選ぶ。",
+			"inherit": "VS Code の設定に従う",
+			"direct": "使わない（直結）",
+			"custom": "このモデルで指定",
+			"urlLabel": "このモデルの Proxy URL（http(s):// または socks5://）"
 		}
 	},
 	"advanced": {

@@ -1,10 +1,9 @@
 /**
  * HTTP(S) / SOCKS5 proxy dispatcher for outbound requests.
  *
- * 拡張独自の proxy 設定（VS Code 設定 `openai-agent.proxyUrl`）を最優先で見る。
- * 空なら従来どおり VS Code の `http.proxy` / `HTTPS_PROXY` 等に追従する。
- * これ 1 箇所を SDK・接続テスト・web_fetch の全経路が通るため、ここで解決した
- * dispatcher が outbound すべてに効く。
+ * Model（API 設定プロファイル）単位の指定を最優先で見る。指定が無ければ VS Code の
+ * `http.proxy` / `HTTPS_PROXY` 等に追従する。これ 1 箇所を SDK・接続テスト・web_fetch の
+ * 全経路が通るため、ここで解決した dispatcher が outbound すべてに効く。
  *
  * - `http(s)://…`  → undici の ProxyAgent（HTTP CONNECT）
  * - `socks5://…` / `socks5h://…` / `socks4://…` → socks で張った socket を undici に
@@ -18,24 +17,9 @@ import * as vscode from "vscode"
 import { ProxyAgent, Agent, buildConnector, type Dispatcher } from "undici"
 import { SocksClient } from "socks"
 
-let cached: { url: string | undefined; dispatcher: Dispatcher | undefined } = {
-	url: undefined,
-	dispatcher: undefined,
-}
-
-/**
- * 拡張独自の proxy URL（VS Code 設定 `openai-agent.proxyUrl`）。
- * 空／未設定なら undefined を返し、VS Code / env のフォールバックに委ねる。
- */
-export function getExtensionProxyUrl(): string | undefined {
-	try {
-		const v = vscode.workspace.getConfiguration("openai-agent").get<string>("proxyUrl")
-		return v && v.trim() ? v.trim() : undefined
-	} catch {
-		// vscode API が使えない環境（テスト等）は未設定扱い。
-		return undefined
-	}
-}
+// URL 単位でキャッシュする。単一エントリだと、SOCKS 経由のモデルと直結のモデルを
+// 交互に使うたびに dispatcher を作り直すことになる（接続プールも毎回捨てる）。
+const cached = new Map<string, Dispatcher>()
 
 /**
  * VS Code の `http.proxy` 設定と `HTTPS_PROXY` / `HTTP_PROXY` 環境変数から proxy URL を解決する。
@@ -114,11 +98,12 @@ export function buildSocksDispatcher(parsed: URL): Dispatcher {
 
 /** proxy URL に対応する undici Dispatcher を作る。スキームで http / socks を分岐。 */
 function buildDispatcher(url: string): Dispatcher | undefined {
-	if (cached.url === url && cached.dispatcher) return cached.dispatcher
+	const hit = cached.get(url)
+	if (hit) return hit
 	try {
 		const parsed = new URL(url)
 		const dispatcher = isSocksUrl(parsed.protocol) ? buildSocksDispatcher(parsed) : new ProxyAgent({ uri: url })
-		cached = { url, dispatcher }
+		cached.set(url, dispatcher)
 		return dispatcher
 	} catch {
 		// URL 不正 / undici が使えない環境は proxy 無し扱い。
@@ -134,14 +119,25 @@ export type ProxyResolution = {
 	 * 見えないため（"何も通していない" とは意味が違う）。
 	 */
 	url: string | undefined
-	source: "none" | "extension-setting" | "vscode-managed" | "vscode-http-proxy" | "env"
+	source: "none" | "profile" | "profile-direct" | "vscode-managed" | "vscode-http-proxy" | "env"
+}
+
+/**
+ * Model（API 設定プロファイル）単位の proxy 指定。
+ *
+ * `direct` が要るのは、**全体設定を上書きして直結に落とす**ため。全体に SOCKS を
+ * 入れた環境に直結のモデルが混在する場合、「未設定＝継承」しか無いと直結を表現できない。
+ */
+export type ProxyOverride = {
+	mode?: "inherit" | "direct" | "custom"
+	url?: string
 }
 
 /**
  * outbound proxy をどこから取るかを 1 箇所で決める。
  *
  * 優先順:
- * 1. 拡張独自 `openai-agent.proxyUrl`（あれば VS Code 管理より優先。http(s)/socks5 対応）
+ * 1. Model 単位の指定（`direct` なら proxy 無し、`custom` ならその URL。http(s)/socks5 対応）
  * 2. 本物の VS Code 管理下なら委ねる（拡張は dispatcher を張らない）
  * 3. VS Code `http.proxy` / env（CLI や proxySupport="off" のとき）
  *
@@ -150,9 +146,14 @@ export type ProxyResolution = {
  * `Proxy: (none)` と表示する」というズレが出る（実際に起きていた）。診断は切り分けの
  * ための機能なので、そこが実態とズレると用を成さない。
  */
-export function resolveEffectiveProxy(): ProxyResolution {
-	const explicit = getExtensionProxyUrl()
-	if (explicit) return { url: explicit, source: "extension-setting" }
+export function resolveEffectiveProxy(override?: ProxyOverride): ProxyResolution {
+	if (override?.mode === "direct") return { url: undefined, source: "profile-direct" }
+
+	if (override?.mode === "custom") {
+		const perModel = override.url?.trim()
+		if (perModel) return { url: perModel, source: "profile" }
+		// "custom" を選んだが URL 未入力。設定途中で通信を壊さないよう継承に落とす。
+	}
 
 	if (isVsCodeManagedProxy()) return { url: undefined, source: "vscode-managed" }
 
@@ -171,13 +172,13 @@ export function resolveEffectiveProxy(): ProxyResolution {
  *
  * 同期版。コンストラクタから呼ぶことがあるため await できるとは限らない。
  */
-export function getProxyDispatcher(): Dispatcher | undefined {
-	const { url } = resolveEffectiveProxy()
+export function getProxyDispatcher(override?: ProxyOverride): Dispatcher | undefined {
+	const { url } = resolveEffectiveProxy(override)
 	if (!url) return undefined
 	return buildDispatcher(url)
 }
 
 /** テスト用にキャッシュを破棄する。 */
 export function _resetProxyDispatcherCache(): void {
-	cached = { url: undefined, dispatcher: undefined }
+	cached.clear()
 }

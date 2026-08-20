@@ -114,6 +114,18 @@ const apiModelIdProviderModelSchema = baseProviderSettingsSchema.extend({
 	apiModelId: z.string().optional(),
 })
 
+/**
+ * Model 単位の proxy をどう決めるか。
+ *
+ * - `inherit` … 拡張全体の設定に委ねる（`openai-agent.proxyUrl` → VS Code → env）。未設定時の既定
+ * - `direct`  … このモデルは proxy を通さない。**全体設定を上書きして直結に落とす**ための指定で、
+ *               全体に SOCKS を入れた環境に直結のモデルが混在する場合はこれが要る
+ * - `custom`  … このモデル専用の proxy URL を使う（`openAiProxyUrl`）
+ */
+export const openAiProxyModeSchema = z.enum(["inherit", "direct", "custom"])
+
+export type OpenAiProxyMode = z.infer<typeof openAiProxyModeSchema>
+
 const openAiSchema = baseProviderSettingsSchema.extend({
 	openAiBaseUrl: z.string().optional(),
 	openAiApiKey: z.string().optional(),
@@ -132,6 +144,11 @@ const openAiSchema = baseProviderSettingsSchema.extend({
 	// 実験的: 旧 400 の真因は read_file の strict:true だったため、reasoning+tools が今なら
 	// 通る endpoint がある。非対応なら 400/ハングをウォッチドッグ・4xx 終端で表面化する。
 	openAiReasoningWithTools: z.boolean().optional(),
+	// Model 単位の proxy。未設定は "inherit" 扱いで、既存プロファイルの挙動は変わらない。
+	openAiProxyMode: openAiProxyModeSchema.optional(),
+	// "custom" のときだけ意味を持つ。http(s):// と socks5:// に対応。
+	// "custom" なのに空なら "inherit" として扱う（設定途中で通信を壊さない）。
+	openAiProxyUrl: z.string().optional(),
 })
 
 const fakeAiSchema = baseProviderSettingsSchema.extend({

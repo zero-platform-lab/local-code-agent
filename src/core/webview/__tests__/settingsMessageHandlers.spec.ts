@@ -586,7 +586,9 @@ describe("settingsMessageHandlers", () => {
 			expect(showErrorMessageMock).not.toHaveBeenCalled()
 		})
 
-		it("openai-agent.proxyUrl（拡張独自 proxy）を文字列値で更新できる", async () => {
+		// proxy は Model（API 設定プロファイル）単位の設定へ移し、拡張独自の
+		// VS Code 設定は廃止した。許可リストから外れたことを固定する。
+		it("openai-agent.proxyUrl は許可されない", async () => {
 			const h = setup()
 
 			await call("updateVSCodeSetting", h.provider, {
@@ -594,10 +596,8 @@ describe("settingsMessageHandlers", () => {
 				value: "socks5://127.0.0.1:1080",
 			})
 
-			expect(configUpdates()).toEqual([
-				{ section: undefined, key: "openai-agent.proxyUrl", value: "socks5://127.0.0.1:1080", target: true },
-			])
-			expect(showErrorMessageMock).not.toHaveBeenCalled()
+			expect(configUpdates()).toEqual([])
+			expect(showErrorMessageMock).toHaveBeenCalled()
 		})
 
 		// 【不変条件】ホワイトリスト外は 1 件も書かれない。

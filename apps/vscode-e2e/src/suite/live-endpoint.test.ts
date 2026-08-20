@@ -18,8 +18,17 @@ import { waitFor } from "./utils"
  *     pnpm --filter @openai-agent/vscode-e2e test:live
  */
 suite("Live endpoint", function () {
-	// 実モデルは応答が遅い。ローカルの 20B 級でも数十秒かかる。
-	// 2 ターン回すテストは 1 ターン分では収まらないので余裕を持たせる。
+	// 実モデルは応答が遅い。とくに**最初の 1〜2 リクエスト**は、13 ツール分の
+	// system prompt を丸ごとプレフィルするため初回チャンクまで 4 分を超えることがある
+	// （ローカル Ollama gpt-oss:20b-64k で実測）。モデルの重みをロード済みにしても
+	// 縮まない——効くのはプレフィックスの KV キャッシュで、それは同じ system prompt を
+	// 一度通すまで温まらない。3 本目以降は数十秒に落ちる。
+	//
+	// 各 waitFor はクライアント側の上限（`openai-agent.apiRequestTimeout` 既定 600 秒）
+	// より短くしないこと。テストが製品より先に諦めると、繋がっているのに失敗する。
+	//
+	// mocha の this.timeout はテスト 1 件あたり。試行を回すテストは
+	// 試行回数 × 1 回分の上限がここに収まるようにする。
 	this.timeout(900_000)
 
 	test("drives a task to an assistant response", async function () {
@@ -53,7 +62,7 @@ suite("Live endpoint", function () {
 
 		// モデルの賢さではなく「繋がること」を見る。応答が返り、ストリームを
 		// 解釈できて、UI へ流れるところまで。
-		await waitFor(() => modelReplies().length > 0, { timeout: 240_000, interval: 1_000 })
+		await waitFor(() => modelReplies().length > 0, { timeout: 600_000, interval: 1_000 })
 
 		const [reply] = modelReplies()
 		assert.ok(reply, "エンドポイントからの応答が UI まで届いている")
@@ -136,7 +145,7 @@ suite("Live endpoint", function () {
 			// 「文章が返ってきたら諦める」にはしない。gpt-oss は前置きの文章を
 			// 流してからツールを呼ぶことがあり、それで打ち切ると自分のテストの
 			// 都合で取りこぼす（実際に 3 回とも取りこぼした）。時間で切る。
-			await waitFor(async () => (await read()).length > 0, { timeout: 90_000, interval: 1_000 }).catch(
+			await waitFor(async () => (await read()).length > 0, { timeout: 240_000, interval: 1_000 }).catch(
 				() => undefined,
 			)
 

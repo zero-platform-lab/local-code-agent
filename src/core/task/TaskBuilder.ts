@@ -22,8 +22,6 @@ import type { TaskProviderRef } from "./taskProviderRef"
  * インスタンスを host として要求するため、Task constructor 内で構築するのが自然
  * （2-phase init 回避）。それら以外の collaborator は Task の外で組み立て可能で、
  * テストが fake を注入できるようにするための factory。
- *
- * docs/task-builder-plan.md の Phase 2a に対応。
  */
 export interface TaskCollaborators {
 	apiConfiguration: ProviderSettings

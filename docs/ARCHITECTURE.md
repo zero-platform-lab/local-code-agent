@@ -58,7 +58,6 @@ pnpm workspaces + turbo によるモノレポ。
 | `packages/types`（`@openai-agent/types`）      | 共有型（設定・イベント・モード・API スキーマ）。zod ベース                |
 | `packages/core`（`@openai-agent/core`）        | プラットフォーム非依存のコア（task-history / worktree / custom-tools 等） |
 | `packages/ipc`                                 | 拡張ホスト側のソケット IPC 実装（依存元は `src` のみ）                    |
-| `packages/vscode-shim`                         | Node 環境で VS Code API を模倣する互換レイヤ                              |
 | `packages/build`                               | esbuild ユーティリティ、`package.json` 生成                               |
 | `apps/vscode-internal`                         | 拡張ビルド設定（`patchBranding` を含む）                                  |
 | `apps/vscode-e2e`                              | 拡張を実起動して行う統合テスト                                            |
@@ -116,7 +115,7 @@ sequenceDiagram
 
 ## 4. エージェント中核（Task）
 
-`src/core/task/` は **79 の production モジュール（トップレベル）＋ 82 のテスト**で構成され、リポジトリで最も情報密度が高い領域。`Task.ts` はかつての god-object を分割し切った結果 **747 行の facade** となり、状態と手続きは collaborator 群・純関数モジュール群へ責務分散している（背景は `docs/god-object-refactor.md` / `docs/task-builder-plan.md`）。
+`src/core/task/` は **79 の production モジュール（トップレベル）＋ 82 のテスト**で構成され、リポジトリで最も情報密度が高い領域。`Task.ts` はかつての god-object を分割し切った結果 **747 行の facade** となり、状態と手続きは collaborator 群・純関数モジュール群へ責務分散している。
 
 ### 4.1 Task の位置づけ
 
@@ -446,8 +445,6 @@ pnpm --filter openai-agent vsix # .vsix を生成
 
 設計背景:
 
-- `docs/god-object-refactor.md` — `ClineProvider` / `Task` / `webviewMessageHandler` の god-object 分割の設計方針・実測・技法（getter/setter プロキシ / 狭い interface / 純関数＋小クラス / フェーズ表判定）。
-- `docs/task-builder-plan.md` — `Task` constructor 47 依存の分解計画。`buildTaskCollaborators` / collaborator 注入 / proxy 撤去（Phase 5a–5c）の実装記録。
 - `AGENTS.md` — リポジトリ運用規約（Settings View パターン等）。
 - 開発者ローカルの自動メモリ（リポジトリ外）に、god-object 分割・ローカル CI・循環ガードの経緯を記録。
 

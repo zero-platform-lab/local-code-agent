@@ -18,7 +18,7 @@ Copilot / Codex.
 - `src/` — the extension host. Workspace package name is `openai-agent`.
 - `webview-ui/` — React webview (`@openai-agent/vscode-webview`).
 - `packages/types/` — shared types & zod schemas (`@openai-agent/types`).
-- `packages/core`, `packages/build`, `packages/ipc`, `packages/vscode-shim`, `packages/config-*`.
+- `packages/core`, `packages/build`, `packages/ipc`, `packages/config-*`.
 - `apps/vscode-internal/` — the **internal branded distribution build** that produces the `.vsix`.
 - `apps/vscode-e2e/` — `@vscode/test-electron` end-to-end tests.
 

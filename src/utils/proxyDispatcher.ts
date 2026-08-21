@@ -215,14 +215,37 @@ export function _resetProxyDispatcherCache(): void {
 /**
  * dispatcher を効かせる必要があるときだけ undici の `fetch` を使う。
  *
- * **VS Code は拡張ホストのグローバル `fetch` を差し替える**
- * （`vs/workbench/api/node/extensionHostProcess.js` の `globalThis.fetch = ...`）。
- * 差し替え版は `cache` など既知の init しか見ず、undici の `dispatcher` を認識しないので、
- * 渡しても黙って捨てられる。結果、proxy を指定したのに直接接続され、内部ホスト名なら
- * `ENOTFOUND` で失敗する。診断だけが「proxy を使っている」と表示するので気付きにくい。
+ * **なぜグローバル `fetch` ではいけないか**
  *
- * dispatcher が無いときはグローバル `fetch` のままにする。そこは VS Code の proxy 解決
- * （認証・PAC 込み）に委ねる場所で、undici に持ち替えるとその処理を失う。
+ * VS Code は拡張ホストの起動時に通信層を一通り差し替える
+ * （`vs/workbench/api/node/extensionHostProcess.js`）。`globalThis.fetch` に加えて
+ * `node:http` / `node:net` / `node:tls` も包む（`createFetchPatch` / `createHttpPatch` /
+ * `createNetPatch` / `createTlsPatch`）。拡張が何を使っても企業 proxy と企業 CA が効くように
+ * するためで、設定 `http.proxySupport` の既定 `override` は説明文どおり
+ * "override request options" として振る舞う。
+ *
+ * `fetch` の差し替えは `@vscode/proxy-agent` の `createFetchPatch` で、渡した init を
+ * 展開したうえで **`dispatcher` を自前の agent に差し替えて**元の fetch へ渡す:
+ *
+ *     const modifiedInit = { ...init, dispatcher: await getProxyAgent(...) }
+ *     return originalFetch(input, modifiedInit)
+ *
+ * つまり `fetch(url, { dispatcher })` は無視されるのではなく**上書きされる**。例外も警告も
+ * 出ない（仕様どおりの正常系のため）。結果、proxy を指定したのに直接接続され、内部ホスト名
+ * なら `ENOTFOUND` で失敗する。**この経路で失敗しても診断は proxy 名を出し続けるので、
+ * 実際にそれで原因特定が遅れた**（`proxyApplied` を診断に足したのはそのため）。
+ *
+ * **代替案と、それを採らなかった理由**
+ *
+ * `http.proxySupport` を `"on"` にすると、proxy-agent は `init.dispatcher` が指定済みの
+ * ときだけ手を出さなくなる（`doResolveProxy` の条件を参照）。設定 1 つで済むが、
+ * 利用者に変更を強いるうえ VS Code 全体の proxy 挙動が変わる。拡張側で完結させるため、
+ * ここでは undici を直接呼ぶ。`globalThis.__vscodeOriginalFetch` に退避された素の fetch を
+ * 使う手もあるが、VS Code の内部実装への依存になるので採らない。
+ *
+ * **dispatcher が無いときはグローバル `fetch` のまま**にする。そこは VS Code の proxy 解決
+ * （認証・PAC・企業 CA の注入込み）に委ねる場所で、undici に持ち替えるとその処理を失う。
+ * 経路をモデル単位で分けたいのは稀な構成なので、既定は VS Code に任せる側へ倒してある。
  */
 export function fetchThrough(dispatcher: Dispatcher | undefined, url: string, init: RequestInit): Promise<Response> {
 	if (!dispatcher) {

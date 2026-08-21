@@ -2,86 +2,93 @@
 //
 // Model（API 設定プロファイル）単位の proxy コントロール。
 //
-// 値は VS Code 設定ではなくプロファイルに書く。ここを取り違えると、プロファイルを
-// 切り替えても proxy が変わらない（＝混在環境で片方が必ず通らない）という、この機能が
-// 存在する理由そのものを失う。書き込み先を固定する。
+// 3 状態をチェックボックス 1 つと URL 欄で表す。URL 欄は常に出す（OFF では無効化）。
+// 値は VS Code 設定ではなくプロファイルに書く——ここを取り違えると、プロファイルを
+// 切り替えても proxy が変わらず、この機能が存在する理由そのものを失う。
 
 import { render, screen, fireEvent } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import type { ProviderSettings } from "@openai-agent/types"
 
 vi.mock("@src/i18n/TranslationContext", () => ({
 	useAppTranslation: () => ({ t: (key: string) => key }),
 }))
 
-vi.mock("@vscode/webview-ui-toolkit/react", () => ({
-	VSCodeTextField: ({ children, value, onInput, "data-testid": testId }: any) => (
-		<div>
+vi.mock("vscrui", () => ({
+	Checkbox: ({ children, checked, onChange, "data-testid": testId }: any) => (
+		<label>
+			<input
+				type="checkbox"
+				checked={checked}
+				onChange={(e) => onChange(e.target.checked)}
+				data-testid={testId}
+			/>
 			{children}
-			<input value={value} onChange={onInput} data-testid={testId} />
-		</div>
+		</label>
 	),
 }))
 
-vi.mock("@src/components/ui", () => ({
-	Select: ({ children, value, onValueChange }: any) => (
-		<select value={value} onChange={(e: any) => onValueChange?.(e.target.value)} data-testid="select-root">
+// VSCodeTextField は web component で value セッターを持たず fireEvent が値を差し込めない。
+vi.mock("@vscode/webview-ui-toolkit/react", () => ({
+	VSCodeTextField: ({ children, value, onInput, disabled, "data-testid": testId }: any) => (
+		<div>
 			{children}
-		</select>
+			<input value={value} onChange={onInput} disabled={disabled} data-testid={testId} />
+		</div>
 	),
-	SelectTrigger: ({ children }: any) => <>{children}</>,
-	SelectValue: () => null,
-	SelectContent: ({ children }: any) => <>{children}</>,
-	SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
 }))
 
 import { ModelProxySettingsControl } from "../ModelProxySettingsControl"
 
 const setField = vi.fn()
-
-const renderWith = (apiConfiguration: any) =>
-	render(<ModelProxySettingsControl apiConfiguration={apiConfiguration} setApiConfigurationField={setField} />)
+const renderWith = (apiConfiguration: Partial<ProviderSettings>) =>
+	render(
+		<ModelProxySettingsControl
+			apiConfiguration={apiConfiguration as ProviderSettings}
+			setApiConfigurationField={setField}
+		/>,
+	)
 
 beforeEach(() => setField.mockReset())
 
 describe("ModelProxySettingsControl", () => {
-	it("未設定は inherit として表示する", () => {
+	it("未設定では OFF、URL 欄は出ているが無効", () => {
 		renderWith({})
-		expect(screen.getByTestId("select-root")).toHaveValue("inherit")
+		expect(screen.getByTestId("model-proxy-enable-checkbox")).not.toBeChecked()
+		// 条件付きで消さない。消すと値が残っているのに消えたように見える。
+		expect(screen.getByTestId("model-proxy-url-input")).toBeDisabled()
 	})
 
-	it("選んだモードをプロファイルへ書く", () => {
+	it("ON にすると direct（URL が空のため）を書く", () => {
 		renderWith({})
-		fireEvent.change(screen.getByTestId("select-root"), { target: { value: "direct" } })
+		fireEvent.click(screen.getByTestId("model-proxy-enable-checkbox"))
 		expect(setField).toHaveBeenCalledWith("openAiProxyMode", "direct")
 	})
 
-	it("URL 欄は custom のときだけ出る", () => {
-		const { rerender } = renderWith({ openAiProxyMode: "inherit" })
-		expect(screen.queryByTestId("model-proxy-url-input")).toBeNull()
-
-		// direct でも URL は不要（proxy を使わないため）。
-		rerender(
-			<ModelProxySettingsControl
-				apiConfiguration={{ openAiProxyMode: "direct" } as any}
-				setApiConfigurationField={setField}
-			/>,
-		)
-		expect(screen.queryByTestId("model-proxy-url-input")).toBeNull()
-
-		rerender(
-			<ModelProxySettingsControl
-				apiConfiguration={{ openAiProxyMode: "custom" } as any}
-				setApiConfigurationField={setField}
-			/>,
-		)
-		expect(screen.getByTestId("model-proxy-url-input")).toBeInTheDocument()
+	it("URL が入った状態で ON にすると custom を書く", () => {
+		renderWith({ openAiProxyUrl: "socks5://127.0.0.1:1080" })
+		fireEvent.click(screen.getByTestId("model-proxy-enable-checkbox"))
+		expect(setField).toHaveBeenCalledWith("openAiProxyMode", "custom")
 	})
 
-	it("URL をプロファイルへ書く", () => {
-		renderWith({ openAiProxyMode: "custom" })
+	it("OFF にすると inherit へ戻す", () => {
+		renderWith({ openAiProxyMode: "custom", openAiProxyUrl: "socks5://h:1080" })
+		fireEvent.click(screen.getByTestId("model-proxy-enable-checkbox"))
+		expect(setField).toHaveBeenCalledWith("openAiProxyMode", "inherit")
+	})
+
+	it("ON のとき URL を入れると URL と custom の両方を書く", () => {
+		renderWith({ openAiProxyMode: "direct" })
 		fireEvent.change(screen.getByTestId("model-proxy-url-input"), {
 			target: { value: "socks5://127.0.0.1:1080" },
 		})
 		expect(setField).toHaveBeenCalledWith("openAiProxyUrl", "socks5://127.0.0.1:1080")
+		expect(setField).toHaveBeenCalledWith("openAiProxyMode", "custom")
+	})
+
+	it("ON のとき URL を消すと direct へ落ちる", () => {
+		renderWith({ openAiProxyMode: "custom", openAiProxyUrl: "socks5://h:1080" })
+		fireEvent.change(screen.getByTestId("model-proxy-url-input"), { target: { value: "" } })
+		expect(setField).toHaveBeenCalledWith("openAiProxyMode", "direct")
 	})
 })

@@ -474,12 +474,10 @@
 	},
 	"proxy": {
 		"model": {
-			"label": "このモデルの Proxy",
-			"description": "このモデルの通信にだけ適用される proxy です。既定では VS Code の `http.proxy` / 環境変数に従います。VS Code は SOCKS に対応していないため、SOCKS 経由で繋ぐモデルはここで指定してください。",
-			"inherit": "VS Code の設定に従う",
-			"direct": "使わない（直結）",
-			"custom": "個別に指定",
-			"urlLabel": "このモデルの Proxy URL（http(s):// または socks5://）"
+			"enable": "このモデル専用の Proxy を使う",
+			"description": "OFF のときは VS Code の `http.proxy` / 環境変数に従います。VS Code は SOCKS に対応していないため、SOCKS 経由で繋ぐモデルはここで指定してください。",
+			"urlLabel": "Proxy URL（http(s):// または socks5://）",
+			"blankIsDirect": "空欄にすると proxy を使わず直結します。"
 		}
 	},
 	"advanced": {

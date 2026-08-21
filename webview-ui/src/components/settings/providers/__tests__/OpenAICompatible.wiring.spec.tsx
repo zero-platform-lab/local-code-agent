@@ -53,16 +53,6 @@ vi.mock("@src/components/ui", () => ({
 		</button>
 	),
 	StandardTooltip: ({ children }: any) => <>{children}</>,
-	// ModelProxySettingsControl が使う。ネイティブ select に落として素直に操作できる形にする。
-	Select: ({ children, value, onValueChange }: any) => (
-		<select value={value} onChange={(e: any) => onValueChange?.(e.target.value)} data-testid="select-root">
-			{children}
-		</select>
-	),
-	SelectTrigger: ({ children }: any) => <>{children}</>,
-	SelectValue: () => null,
-	SelectContent: ({ children }: any) => <>{children}</>,
-	SelectItem: ({ children, value }: any) => <option value={value}>{children}</option>,
 }))
 
 vi.mock("../../ModelPicker", () => ({

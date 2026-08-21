@@ -106,8 +106,10 @@ describe("ErrorBoundary — what it shows for different failures", () => {
 
 		await waitFor(() => expect(enhanceErrorWithSourceMaps).toHaveBeenCalled())
 		expect(screen.getByText(/at raw-frame/)).toBeInTheDocument()
-		// React always supplies a component stack, so the section stays visible.
-		expect(screen.getByText("errorBoundary.componentStack")).toBeInTheDocument()
+		// The component stack is only put on state by the async componentDidCatch, so the section
+		// is not rendered yet at the moment enhanceErrorWithSourceMaps is *called*. Waiting on the
+		// call alone raced the re-render and failed under load (parallel workers + coverage).
+		expect(await screen.findByText("errorBoundary.componentStack")).toBeInTheDocument()
 	})
 
 	it("passes the component stack from React to the source mapper", async () => {

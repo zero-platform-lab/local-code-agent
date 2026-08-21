@@ -475,7 +475,7 @@
 	"proxy": {
 		"model": {
 			"enable": "このモデル専用の Proxy を使う",
-			"description": "OFF のときは VS Code の `http.proxy` / 環境変数に従います。VS Code は SOCKS に対応していないため、SOCKS 経由で繋ぐモデルはここで指定してください。",
+			"description": "OFF のときは VS Code の `http.proxy` / 環境変数に従います。`http.proxy` はマシン全体で 1 つなので、モデルごとに経路を変えたいときにここで指定します。`http(s)://` と `socks5://` に対応します。",
 			"urlLabel": "Proxy URL（http(s):// または socks5://）",
 			"blankIsDirect": "空欄にすると proxy を使わず直結します。"
 		}

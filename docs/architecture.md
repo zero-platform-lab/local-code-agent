@@ -207,7 +207,7 @@ UI は独立した React + Vite アプリケーションで、サンドボック
 | `runRecursiveClineLoop`   | スタックが空になるまで回す最上位ループ。中断確認と連続失敗の上限判定を行う              |
 | `prepareRequestCycle`     | メンション展開・環境情報の付加・ユーザーメッセージの履歴登録                            |
 | `runOneRequest`           | ストリーミング状態の初期化と API リクエストの発行                                       |
-| `runOneApiIteration`      | 1 リクエスト分の実行。ストリーム処理・途中エラーの処理・完了処理を束ねる                |
+| `runOneApiIteration`      | 1 リクエスト分の実行。ストリーム処理・途中エラーの処理・完了処理をまとめる              |
 | `runStreamingLoop`        | 中断と競合させながらストリームの断片を順に取り出す                                      |
 | `processStreamChunk`      | 断片を種類別（テキスト / 推論 / 使用量 / ツール呼び出し）に振り分ける薄いディスパッチャ |
 | `presentAssistantMessage` | 応答内容の提示とツール実行。再入ロックにより並行実行を防ぐ                              |

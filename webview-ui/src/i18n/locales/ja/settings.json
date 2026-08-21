@@ -462,11 +462,11 @@
 		},
 		"zdotdir": {
 			"label": "ZDOTDIR処理を有効にする",
-			"description": "zshシェル統合が失敗したり、ドットファイルと競合したりする場合にこれをオンにします。<0>詳細情報</0>"
+			"description": "zshシェル統合が失敗したり、ドットファイルと競合したりする場合に有効にします。<0>詳細情報</0>"
 		},
 		"inheritEnv": {
 			"label": "環境変数を継承",
-			"description": "親VS Codeプロセスから環境変数を継承するには、これをオンにします。<0>詳細情報</0>"
+			"description": "親VS Codeプロセスから環境変数を継承する場合に有効にします。<0>詳細情報</0>"
 		}
 	},
 	"advancedSettings": {
@@ -475,10 +475,10 @@
 	"proxy": {
 		"model": {
 			"label": "このモデルの Proxy",
-			"description": "SOCKS 経由のモデルと直結のモデルが混在する環境で、モデルごとに経路を分けるための設定。既定は VS Code の `http.proxy` / 環境変数に従う。VS Code 側に proxy を入れている場合、直結にしたいモデルは「使わない（直結）」を選ぶ。",
+			"description": "このモデルの通信にだけ適用される proxy です。既定では VS Code の `http.proxy` / 環境変数に従います。VS Code は SOCKS に対応していないため、SOCKS 経由で繋ぐモデルはここで指定してください。",
 			"inherit": "VS Code の設定に従う",
 			"direct": "使わない（直結）",
-			"custom": "このモデルで指定",
+			"custom": "個別に指定",
 			"urlLabel": "このモデルの Proxy URL（http(s):// または socks5://）"
 		}
 	},
@@ -611,7 +611,7 @@
 	},
 	"includeMaxOutputTokens": "最大出力トークンを含める",
 	"includeMaxOutputTokensDescription": "APIリクエストで最大出力トークンパラメータを送信します。一部のプロバイダーはこれをサポートしていない場合があります。",
-	"limitMaxTokensDescription": "レスポンスの最大トークン数を制限する",
+	"limitMaxTokensDescription": "レスポンスの最大トークン数を制限します",
 	"maxOutputTokensLabel": "最大出力トークン",
 	"maxTokensGenerateDescription": "レスポンスで生成する最大トークン数",
 	"ui": {
@@ -625,11 +625,11 @@
 		}
 	},
 	"skills": {
-		"description": "エージェントにコンテキスト指示を提供するスキルを管理します。スキルはタスクに関連する場合に自動的に適用されます。<DocsLink>詳細を見る</DocsLink>",
+		"description": "Agentにコンテキスト指示を提供するスキルを管理します。スキルはタスクに関連する場合に自動的に適用されます。<DocsLink>詳細を見る</DocsLink>",
 		"workspaceSkills": "ワークスペーススキル",
 		"globalSkills": "グローバルスキル",
 		"noWorkspaceSkills": "このプロジェクトにはまだスキルがありません。",
-		"noGlobalSkills": "グローバルスキルが設定されていません。すべてのプロジェクトで利用可能なエージェント機能を追加するには、作成してください。",
+		"noGlobalSkills": "グローバルスキルが設定されていません。すべてのプロジェクトで利用できるAgentの機能を追加するには、作成してください。",
 		"addSkill": "スキルを追加",
 		"editSkill": "スキルを編集",
 		"deleteSkill": "スキルを削除",

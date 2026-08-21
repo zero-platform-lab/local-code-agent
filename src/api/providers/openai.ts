@@ -2,7 +2,8 @@ import OpenAI, { AzureOpenAI } from "openai"
 
 import type { Dispatcher } from "undici"
 
-import { getProxyDispatcher, type ProxyOverride } from "../../utils/proxyDispatcher"
+import { getProxyDispatcher, fetchThrough, type ProxyOverride } from "../../utils/proxyDispatcher"
+import { fetch as undiciFetch } from "undici"
 
 import {
 	type ModelInfo,
@@ -132,12 +133,16 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 		this.requestTimeoutMs = timeout
 
 		// 企業 proxy 尊重（VS Code の http.proxy / HTTPS_PROXY 等）。
-		// OpenAI SDK 5.x は内部で Node の built-in fetch を使うが、それは HTTPS_PROXY を
-		// 自動では見ないため、fetchOptions.dispatcher を通じて undici の ProxyAgent を渡す。
+		// SDK は内部で built-in fetch を使うが、それは HTTPS_PROXY を自動では見ないため
+		// dispatcher を渡す。ただし **VS Code は拡張ホストのグローバル fetch を差し替えて
+		// おり、差し替え版は dispatcher を認識しない**（proxyDispatcher.ts の fetchThrough
+		// 参照）。そのため dispatcher を渡すときは fetch 実装ごと undici のものにする。
 		const proxyDispatcher = getProxyDispatcher(proxyOverrideOf(this.options))
 		const fetchOptions: { dispatcher: Dispatcher } | undefined = proxyDispatcher
 			? { dispatcher: proxyDispatcher }
 			: undefined
+		// dispatcher が無いときは触らない。そこは VS Code の proxy 解決に委ねる場所。
+		const clientFetch = proxyDispatcher ? (undiciFetch as unknown as typeof fetch) : undefined
 
 		if (isAzureAiInference) {
 			// Azure AI Inference Service (e.g., for DeepSeek) uses a different path structure
@@ -148,6 +153,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				defaultQuery: { "api-version": this.options.azureApiVersion || "2024-05-01-preview" },
 				timeout,
 				fetchOptions,
+				...(clientFetch ? { fetch: clientFetch } : {}),
 			})
 		} else if (isAzureOpenAi) {
 			// Azure API shape slightly differs from the core API shape:
@@ -159,6 +165,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				defaultHeaders: headers,
 				timeout,
 				fetchOptions,
+				...(clientFetch ? { fetch: clientFetch } : {}),
 			})
 		} else {
 			this.client = new OpenAI({
@@ -167,6 +174,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 				defaultHeaders: headers,
 				timeout,
 				fetchOptions,
+				...(clientFetch ? { fetch: clientFetch } : {}),
 			})
 		}
 	}
@@ -1010,9 +1018,7 @@ export async function getOpenAiModels(
 		// Node の built-in fetch 経路（後段の SDK と同じ）と挙動が食い違う。
 		const dispatcher = getProxyDispatcher(proxy)
 		const url = `${trimmedBaseUrl.replace(/\/+$/, "")}/models`
-		const init: RequestInit & { dispatcher?: Dispatcher } = { method: "GET", headers }
-		if (dispatcher) init.dispatcher = dispatcher
-		const response = await fetch(url, init)
+		const response = await fetchThrough(dispatcher, url, { method: "GET", headers })
 		if (!response.ok) return []
 		const data = (await response.json()) as { data?: Array<{ id?: string }> }
 		const modelsArray = data?.data?.map((model) => model.id).filter((id): id is string => !!id) || []
@@ -1022,7 +1028,7 @@ export async function getOpenAiModels(
 	}
 }
 
-import { resolveEffectiveProxy, type ProxyResolution } from "../../utils/proxyDispatcher"
+import { resolveEffectiveProxy, getLastProxyDispatcherError, type ProxyResolution } from "../../utils/proxyDispatcher"
 
 /**
  * 接続テストの1プローブ（1 リクエスト）の結果。
@@ -1068,6 +1074,15 @@ export interface ApiConnectionTestDiagnostics {
 	requestBodyPreview?: string
 	proxyUrl: string | undefined
 	proxyResolvedFrom: ProxyResolution["source"]
+	/**
+	 * 解決した proxy が**実際に適用されたか**。
+	 *
+	 * dispatcher の構築に失敗すると proxy 無しの直接接続に落ちる。proxy 名だけ表示して
+	 * いると「指定したのに素通しされている」ことに気付けないので、別に持つ。
+	 */
+	proxyApplied: boolean
+	/** 適用されなかった場合の理由（構築失敗時のみ）。 */
+	proxyError?: string
 	elapsedMs: number
 	// HTTP 応答が来た場合
 	responseStatus?: number
@@ -1167,7 +1182,12 @@ function renderHumanReadable(d: ApiConnectionTestDiagnostics): string {
 	for (const h of d.requestHeaders) lines.push(`  ${h.name}: ${h.redactedValue}`)
 	// testOpenAiConnection は診断構築時に必ず requestBodyPreview を入れる（分岐なし）。
 	lines.push(`Request body: ${d.requestBodyPreview}`)
-	if (d.proxyUrl) lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})`)
+	if (d.proxyUrl && !d.proxyApplied) {
+		// 指定はあるのに適用されていない。これを黙って proxy 名だけ出すと、素通しされて
+		// いるのに proxy 経由だと誤読させる（実際にそれで原因特定が遅れた）。
+		lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})  ← ★適用されていません`)
+		if (d.proxyError) lines.push(`  proxy を使えなかった理由: ${d.proxyError}`)
+	} else if (d.proxyUrl) lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})`)
 	// 「VS Code が解決を握っている」は「何も通していない」とは別物。URL は VS Code 側に
 	// あって拡張からは読めないので、(none) と出すと proxy 環境の切り分けを誤らせる。
 	else if (d.proxyResolvedFrom === "vscode-managed")
@@ -1282,14 +1302,12 @@ export async function runConnectionProbe(args: {
 		timedOut: false,
 	}
 	try {
-		const init: RequestInit & { dispatcher?: Dispatcher } = {
+		const response = await fetchThrough(dispatcher, url, {
 			method: "POST",
 			headers,
 			body: requestBody,
 			signal: controller.signal,
-		}
-		if (dispatcher) init.dispatcher = dispatcher
-		const response = await fetch(url, init)
+		})
 		result.status = response.status
 		const rawText = await response.text()
 		result.responseBodyPreview = rawText.slice(0, 400)
@@ -1389,19 +1407,20 @@ export async function testOpenAiConnection(
 		requestBodyPreview: requestBody,
 		proxyUrl,
 		proxyResolvedFrom: proxySource,
+		proxyApplied: !!dispatcher,
+		proxyError:
+			proxyUrl && !dispatcher ? (getLastProxyDispatcherError() ?? "dispatcher を構築できなかった") : undefined,
 		elapsedMs: 0,
 		humanReadable: "",
 	}
 
 	try {
-		const init: RequestInit & { dispatcher?: Dispatcher } = {
+		const response = await fetchThrough(dispatcher, url, {
 			method: "POST",
 			headers,
 			body: requestBody,
 			signal: controller.signal,
-		}
-		if (dispatcher) init.dispatcher = dispatcher
-		const response = await fetch(url, init)
+		})
 		clearTimeout(timeoutId)
 		diagnostics.elapsedMs = Date.now() - startedAt
 		diagnostics.responseStatus = response.status

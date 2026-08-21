@@ -1,6 +1,4 @@
-import type { Dispatcher } from "undici"
-
-import { getProxyDispatcher } from "../../utils/proxyDispatcher"
+import { getProxyDispatcher, fetchThrough } from "../../utils/proxyDispatcher"
 import { DEFAULT_HEADERS } from "../../api/providers/constants"
 import { formatResponse } from "../prompts/responses"
 
@@ -54,14 +52,12 @@ export async function fetchUrlAsText(url: string, maxLength?: number | null): Pr
 	const controller = new AbortController()
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 	try {
-		const init: RequestInit & { dispatcher?: Dispatcher } = {
+		const response = await fetchThrough(dispatcher, url, {
 			method: "GET",
 			redirect: "follow",
 			signal: controller.signal,
 			headers: { ...DEFAULT_HEADERS, accept: "text/html,application/xhtml+xml,text/plain,*/*" },
-		}
-		if (dispatcher) init.dispatcher = dispatcher
-		const response = await fetch(url, init)
+		})
 		const contentType = response.headers.get("content-type") ?? ""
 		const raw = await response.text()
 		const text = /html/i.test(contentType) ? htmlToText(raw) : raw

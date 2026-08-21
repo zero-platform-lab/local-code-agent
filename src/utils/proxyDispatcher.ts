@@ -14,7 +14,7 @@
  */
 
 import * as vscode from "vscode"
-import { ProxyAgent, Agent, buildConnector, type Dispatcher } from "undici"
+import { ProxyAgent, Agent, buildConnector, fetch as undiciFetch, type Dispatcher } from "undici"
 import { SocksClient } from "socks"
 
 // URL 単位でキャッシュする。単一エントリだと、SOCKS 経由のモデルと直結のモデルを
@@ -87,8 +87,18 @@ export function buildSocksDispatcher(parsed: URL): Dispatcher {
 				},
 			})
 				.then(({ socket }) => {
-					// 既存 socket を渡すと、https のときは undici が TLS 化して返す。
-					undiciConnect({ ...opts, httpSocket: socket } as Parameters<typeof undiciConnect>[0], callback)
+					// undici の connector は `httpSocket` を **TLS 更新のときしか受け付けない**
+					// （`assert(!httpSocket, 'httpSocket can only be sent on TLS update')`）。
+					// https は既存 socket を渡せば undici が TLS 化して返す。
+					if (String(opts.protocol) === "https:") {
+						undiciConnect({ ...opts, httpSocket: socket } as Parameters<typeof undiciConnect>[0], callback)
+						return
+					}
+					// 平文 HTTP は TLS 更新が無いので connector に渡せない。渡すと ERR_ASSERTION で
+					// 落ちる（ローカルの vLLM / Ollama を SOCKS 越しに使う構成が該当した）。
+					// SOCKS で張った socket をそのまま返す。
+					socket.setNoDelay(true)
+					;(callback as (err: Error | null, sock: unknown) => void)(null, socket)
 				})
 				.catch((err: Error) => callback(err, null))
 		},
@@ -97,16 +107,34 @@ export function buildSocksDispatcher(parsed: URL): Dispatcher {
 }
 
 /** proxy URL に対応する undici Dispatcher を作る。スキームで http / socks を分岐。 */
+/**
+ * 直近の dispatcher 構築失敗の理由。
+ *
+ * 失敗すると proxy 無しの直接接続に落ちるが、それを黙って行うと「proxy を指定したのに
+ * 素通しされている」ことに気付けない。診断へ載せるために残す。
+ */
+let lastBuildError: string | undefined
+
+/** 直近の dispatcher 構築失敗の理由（成功していれば undefined）。 */
+export function getLastProxyDispatcherError(): string | undefined {
+	return lastBuildError
+}
+
 function buildDispatcher(url: string): Dispatcher | undefined {
 	const hit = cached.get(url)
-	if (hit) return hit
+	if (hit) {
+		lastBuildError = undefined
+		return hit
+	}
 	try {
 		const parsed = new URL(url)
 		const dispatcher = isSocksUrl(parsed.protocol) ? buildSocksDispatcher(parsed) : new ProxyAgent({ uri: url })
 		cached.set(url, dispatcher)
+		lastBuildError = undefined
 		return dispatcher
-	} catch {
-		// URL 不正 / undici が使えない環境は proxy 無し扱い。
+	} catch (error) {
+		// URL 不正 / undici が使えない環境は proxy 無し扱い。ただし理由は捨てない。
+		lastBuildError = error instanceof Error ? error.message : String(error)
 		return undefined
 	}
 }
@@ -181,4 +209,26 @@ export function getProxyDispatcher(override?: ProxyOverride): Dispatcher | undef
 /** テスト用にキャッシュを破棄する。 */
 export function _resetProxyDispatcherCache(): void {
 	cached.clear()
+	lastBuildError = undefined
+}
+
+/**
+ * dispatcher を効かせる必要があるときだけ undici の `fetch` を使う。
+ *
+ * **VS Code は拡張ホストのグローバル `fetch` を差し替える**
+ * （`vs/workbench/api/node/extensionHostProcess.js` の `globalThis.fetch = ...`）。
+ * 差し替え版は `cache` など既知の init しか見ず、undici の `dispatcher` を認識しないので、
+ * 渡しても黙って捨てられる。結果、proxy を指定したのに直接接続され、内部ホスト名なら
+ * `ENOTFOUND` で失敗する。診断だけが「proxy を使っている」と表示するので気付きにくい。
+ *
+ * dispatcher が無いときはグローバル `fetch` のままにする。そこは VS Code の proxy 解決
+ * （認証・PAC 込み）に委ねる場所で、undici に持ち替えるとその処理を失う。
+ */
+export function fetchThrough(dispatcher: Dispatcher | undefined, url: string, init: RequestInit): Promise<Response> {
+	if (!dispatcher) {
+		return fetch(url, init)
+	}
+	return undiciFetch(url, { ...init, dispatcher } as Parameters<
+		typeof undiciFetch
+	>[1]) as unknown as Promise<Response>
 }

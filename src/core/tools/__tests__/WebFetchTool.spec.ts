@@ -1,13 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vitest"
 
-const { getProxyDispatcherMock } = vi.hoisted(() => ({ getProxyDispatcherMock: vi.fn() }))
-vi.mock("../../../utils/proxyDispatcher", () => ({ getProxyDispatcher: getProxyDispatcherMock }))
+const { getProxyDispatcherMock, fetchThroughMock } = vi.hoisted(() => ({
+	getProxyDispatcherMock: vi.fn(),
+	fetchThroughMock: vi.fn(),
+}))
+// dispatcher の受け渡しは fetchThrough が担う（VS Code がグローバル fetch を差し替えるため、
+// init に dispatcher を積むだけでは効かない）。ここではそこへ正しく渡すかだけを見る。
+vi.mock("../../../utils/proxyDispatcher", () => ({
+	getProxyDispatcher: getProxyDispatcherMock,
+	fetchThrough: fetchThroughMock,
+}))
 
 import { WebFetchTool, fetchUrlAsText, htmlToText, toFetchError } from "../WebFetchTool"
 import type { ToolCallbacks } from "../BaseTool"
 
 const originalFetch = globalThis.fetch
-const fetchMock = vi.fn()
+const fetchMock = fetchThroughMock
 
 function response(status: number, body: string, contentType: string | null): Response {
 	return {
@@ -20,7 +28,7 @@ function response(status: number, body: string, contentType: string | null): Res
 beforeEach(() => {
 	vi.clearAllMocks()
 	getProxyDispatcherMock.mockReturnValue(undefined)
-	globalThis.fetch = fetchMock as unknown as typeof fetch
+	globalThis.fetch = vi.fn() as unknown as typeof fetch
 })
 
 describe("htmlToText", () => {
@@ -63,18 +71,18 @@ describe("fetchUrlAsText", () => {
 		expect(out).not.toContain("efghij")
 	})
 
-	it("proxy dispatcher があれば fetch に渡す", async () => {
+	it("proxy dispatcher があれば fetchThrough へ渡す", async () => {
 		const dispatcher = { marker: true }
 		getProxyDispatcherMock.mockReturnValue(dispatcher)
 		fetchMock.mockResolvedValue(response(200, "ok", "text/plain"))
 		await fetchUrlAsText("https://x.test/proxied")
-		expect((fetchMock.mock.calls[0][1] as { dispatcher?: unknown }).dispatcher).toBe(dispatcher)
+		expect(fetchMock.mock.calls[0][0]).toBe(dispatcher)
 	})
 
-	it("proxy が無ければ dispatcher を付けない", async () => {
+	it("proxy が無ければ dispatcher 無しで呼ぶ", async () => {
 		fetchMock.mockResolvedValue(response(200, "ok", "text/plain"))
 		await fetchUrlAsText("https://x.test/direct")
-		expect((fetchMock.mock.calls[0][1] as { dispatcher?: unknown }).dispatcher).toBeUndefined()
+		expect(fetchMock.mock.calls[0][0]).toBeUndefined()
 	})
 
 	it("content-type ヘッダが無ければ unknown 表示・生のまま", async () => {

@@ -1904,14 +1904,15 @@ describe("getOpenAiModels", () => {
 		expect(result).toEqual(["a", 123])
 	})
 
-	it("attaches a proxy dispatcher to the fetch init when a proxy is configured", async () => {
+	// VS Code は拡張ホストのグローバル fetch を差し替え、undici の dispatcher を認識しない。
+	// proxy が要るときはグローバル fetch を通ってはいけない（undici の fetch へ回す）。
+	it("does not go through the patched global fetch when a proxy is configured", async () => {
 		process.env.HTTPS_PROXY = "http://proxy.local:3128"
 		_resetProxyDispatcherCache()
 		try {
 			mockedFetch.mockResolvedValueOnce(fetchOk({ data: [{ id: "m1" }] }))
 			await getOpenAiModels("https://api.example.com/v1", "test-key")
-			const [, init] = mockedFetch.mock.calls.at(-1) as [string, any]
-			expect(init.dispatcher).toBeDefined()
+			expect(mockedFetch).not.toHaveBeenCalled()
 		} finally {
 			delete process.env.HTTPS_PROXY
 			_resetProxyDispatcherCache()

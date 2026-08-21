@@ -11,7 +11,7 @@ MCP は、外部プロセスが公開する「ツール」と「リソース」�
 各モジュールが「実際に何をするか」を一文ずつ:
 
 - `src/services/mcp/McpServerManager.ts` — McpHub の **シングルトン番人**。複数の webview（provider）があっても MCP サーバ群は 1 セットだけ動くよう、`getInstance` が `initializationPromise` で多重初期化を防ぎ、provider を集合で追跡して（`unregisterProvider`）、`cleanup()` で明示破棄する。（接続ごとの参照カウント `registerClient`/`unregisterClient` で 0 になったら `dispose()` するのは McpHub 側の役割。）
-- `src/services/mcp/McpHub.ts` — MCP サブシステムの **中枢（オーケストレータ）**。設定ファイルの読み込み・接続の張り直し・ツール呼び出しの受け口・webview への状態通知を束ねる。ただし判断ロジックと状態保持は下記の leaf モジュールへ委譲し、自身は「副作用の実行順序」を持つ。
+- `src/services/mcp/McpHub.ts` — MCP サブシステムの **中枢（オーケストレータ）**。設定ファイルの読み込み・接続の張り直し・ツール呼び出しの受け口・webview への状態通知をまとめる。ただし判断ロジックと状態保持は下記の leaf モジュールへ委譲し、自身は「副作用の実行順序」を持つ。
 - `src/services/mcp/McpConnectionStore.ts` — **接続集合の所有者**。接続配列と「サニタイズ名 → 実名」の対応表を持ち、`add`/`remove`/`find`/`withSource` のような意図の名前で操作させる（呼び出し側に生配列を触らせない）。問い合わせの中身は `mcpConnectionRegistry.ts` の純関数に委譲する。
 - `src/services/mcp/McpConfigWatcher.ts` — **設定ファイル監視の配管**。グローバル設定・プロジェクト `.agent/mcp.json` の**ファイル変更を 500ms デバウンス**し、ワークスペースフォルダ変更は**即時**に「再取り込みせよ」と McpHub に伝えるだけ。実際の再取り込みはしない。
 - `src/services/mcp/serverUpdatePlan.ts` — 「新しい設定」と「現在の接続」から **どのサーバを削除/接続/張り直すかを決める純関数**。副作用を持たず計画だけ返すので、fake 入力で網羅テストできる。

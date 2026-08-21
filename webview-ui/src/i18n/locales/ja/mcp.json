@@ -5,12 +5,12 @@
 	"instructions": "手順",
 	"enableToggle": {
 		"title": "MCPサーバーを有効化",
-		"description": "これをONにすると、Agentが接続されたMCPサーバーのツールを使えるようになるよ。Agentの機能が増える！追加ツールを使わないなら、APIトークンのコストを抑えるためにOFFにしてね。"
+		"description": "有効にすると、Agentが接続済みのMCPサーバーのツールを使えるようになり、機能が広がります。これらの追加ツールを使わない場合は、APIトークンのコストを抑えるために無効にしてください。"
 	},
 	"enableServerCreation": {
 		"title": "MCPサーバー作成を有効化",
-		"description": "これをONにすると、Agentが<1>新しい</1>カスタムMCPサーバーを作るのを手伝ってくれるよ。<0>サーバー作成について詳しく</0>",
-		"hint": "ヒント: APIトークンのコストを抑えたいときは、Agentに新しいMCPサーバーを作らせないときにこの設定をOFFにしてね。"
+		"description": "有効にすると、Agentが<1>新しい</1>カスタムMCPサーバーの作成を支援します。<0>サーバー作成について詳しく</0>",
+		"hint": "ヒント: APIトークンのコストを抑えるため、Agentに新しいMCPサーバーを作成させないときはこの設定を無効にしてください。"
 	},
 	"editGlobalMCP": "グローバルMCPを編集",
 	"editProjectMCP": "プロジェクトMCPを編集",
@@ -47,7 +47,7 @@
 	},
 	"deleteDialog": {
 		"title": "MCPサーバーを削除",
-		"description": "本当にMCPサーバー「{{serverName}}」を削除する？この操作は元に戻せないよ。",
+		"description": "MCPサーバー「{{serverName}}」を削除してもよろしいですか？この操作は取り消せません。",
 		"cancel": "キャンセル",
 		"delete": "削除"
 	},

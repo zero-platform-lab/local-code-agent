@@ -538,10 +538,10 @@
 	"proxy": {
 		"model": {
 			"label": "Proxy for this model",
-			"description": "Route individual models differently when some reach the endpoint through SOCKS and others connect directly. Defaults to VS Code's `http.proxy` / environment variables. If VS Code has a proxy set, pick \"Do not use (direct)\" for models that must bypass it.",
+			"description": "A proxy that applies only to this model's traffic. Defaults to VS Code's `http.proxy` / environment variables. VS Code cannot express SOCKS, so set it here for models reached over SOCKS.",
 			"inherit": "Follow VS Code setting",
 			"direct": "Do not use (direct)",
-			"custom": "Set for this model",
+			"custom": "Set individually",
 			"urlLabel": "Proxy URL for this model (http(s):// or socks5://)"
 		}
 	},

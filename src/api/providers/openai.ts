@@ -1028,7 +1028,7 @@ export async function getOpenAiModels(
 	}
 }
 
-import { resolveEffectiveProxy, type ProxyResolution } from "../../utils/proxyDispatcher"
+import { resolveEffectiveProxy, getLastProxyDispatcherError, type ProxyResolution } from "../../utils/proxyDispatcher"
 
 /**
  * 接続テストの1プローブ（1 リクエスト）の結果。
@@ -1074,6 +1074,15 @@ export interface ApiConnectionTestDiagnostics {
 	requestBodyPreview?: string
 	proxyUrl: string | undefined
 	proxyResolvedFrom: ProxyResolution["source"]
+	/**
+	 * 解決した proxy が**実際に適用されたか**。
+	 *
+	 * dispatcher の構築に失敗すると proxy 無しの直接接続に落ちる。proxy 名だけ表示して
+	 * いると「指定したのに素通しされている」ことに気付けないので、別に持つ。
+	 */
+	proxyApplied: boolean
+	/** 適用されなかった場合の理由（構築失敗時のみ）。 */
+	proxyError?: string
 	elapsedMs: number
 	// HTTP 応答が来た場合
 	responseStatus?: number
@@ -1173,7 +1182,12 @@ function renderHumanReadable(d: ApiConnectionTestDiagnostics): string {
 	for (const h of d.requestHeaders) lines.push(`  ${h.name}: ${h.redactedValue}`)
 	// testOpenAiConnection は診断構築時に必ず requestBodyPreview を入れる（分岐なし）。
 	lines.push(`Request body: ${d.requestBodyPreview}`)
-	if (d.proxyUrl) lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})`)
+	if (d.proxyUrl && !d.proxyApplied) {
+		// 指定はあるのに適用されていない。これを黙って proxy 名だけ出すと、素通しされて
+		// いるのに proxy 経由だと誤読させる（実際にそれで原因特定が遅れた）。
+		lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})  ← ★適用されていません`)
+		if (d.proxyError) lines.push(`  proxy を使えなかった理由: ${d.proxyError}`)
+	} else if (d.proxyUrl) lines.push(`Proxy: ${d.proxyUrl}  (source: ${d.proxyResolvedFrom})`)
 	// 「VS Code が解決を握っている」は「何も通していない」とは別物。URL は VS Code 側に
 	// あって拡張からは読めないので、(none) と出すと proxy 環境の切り分けを誤らせる。
 	else if (d.proxyResolvedFrom === "vscode-managed")
@@ -1393,6 +1407,9 @@ export async function testOpenAiConnection(
 		requestBodyPreview: requestBody,
 		proxyUrl,
 		proxyResolvedFrom: proxySource,
+		proxyApplied: !!dispatcher,
+		proxyError:
+			proxyUrl && !dispatcher ? (getLastProxyDispatcherError() ?? "dispatcher を構築できなかった") : undefined,
 		elapsedMs: 0,
 		humanReadable: "",
 	}

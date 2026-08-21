@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName%",
 	"description": "%extension.description%",
 	"publisher": "internal",
-	"version": "0.2.1",
+	"version": "0.2.2",
 	"galleryBanner": {
 		"color": "#617A91",
 		"theme": "dark"

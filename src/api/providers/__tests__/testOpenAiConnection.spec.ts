@@ -371,11 +371,22 @@ describe("runConnectionProbe", () => {
 		expect(b.parallel_tool_calls).toBe(true)
 	})
 
-	it("dispatcher を渡すと fetch の init.dispatcher に載せる", async () => {
+	// VS Code は拡張ホストのグローバル fetch を差し替え、undici の dispatcher を認識しない。
+	// そのため dispatcher があるときはグローバル fetch を**使ってはいけない**
+	// （undici の fetch へ回す。詳細は utils/__tests__/fetchThrough.spec.ts）。
+	it("dispatcher を渡すとグローバル fetch を経由しない", async () => {
 		mockedFetch.mockResolvedValue(ok(200))
 		const dispatcher = { marker: true } as never
-		await runConnectionProbe({ ...base, dispatcher, label: "L", withTools: false, timeoutMs: 5000 })
-		expect(mockedFetch.mock.calls[0][1].dispatcher).toBe(dispatcher)
+		await runConnectionProbe({ ...base, dispatcher, label: "L", withTools: false, timeoutMs: 5000 }).catch(
+			() => undefined,
+		)
+		expect(mockedFetch).not.toHaveBeenCalled()
+	})
+
+	it("dispatcher が無ければグローバル fetch を使う（VS Code の proxy 解決に委ねる）", async () => {
+		mockedFetch.mockResolvedValue(ok(200))
+		await runConnectionProbe({ ...base, dispatcher: undefined, label: "L", withTools: false, timeoutMs: 5000 })
+		expect(mockedFetch).toHaveBeenCalledOnce()
 	})
 
 	it("timeoutMs 経過で abort し timedOut=true（didTimeout 経路）", async () => {

@@ -14,7 +14,7 @@
  */
 
 import * as vscode from "vscode"
-import { ProxyAgent, Agent, buildConnector, type Dispatcher } from "undici"
+import { ProxyAgent, Agent, buildConnector, fetch as undiciFetch, type Dispatcher } from "undici"
 import { SocksClient } from "socks"
 
 // URL 単位でキャッシュする。単一エントリだと、SOCKS 経由のモデルと直結のモデルを
@@ -181,4 +181,25 @@ export function getProxyDispatcher(override?: ProxyOverride): Dispatcher | undef
 /** テスト用にキャッシュを破棄する。 */
 export function _resetProxyDispatcherCache(): void {
 	cached.clear()
+}
+
+/**
+ * dispatcher を効かせる必要があるときだけ undici の `fetch` を使う。
+ *
+ * **VS Code は拡張ホストのグローバル `fetch` を差し替える**
+ * （`vs/workbench/api/node/extensionHostProcess.js` の `globalThis.fetch = ...`）。
+ * 差し替え版は `cache` など既知の init しか見ず、undici の `dispatcher` を認識しないので、
+ * 渡しても黙って捨てられる。結果、proxy を指定したのに直接接続され、内部ホスト名なら
+ * `ENOTFOUND` で失敗する。診断だけが「proxy を使っている」と表示するので気付きにくい。
+ *
+ * dispatcher が無いときはグローバル `fetch` のままにする。そこは VS Code の proxy 解決
+ * （認証・PAC 込み）に委ねる場所で、undici に持ち替えるとその処理を失う。
+ */
+export function fetchThrough(dispatcher: Dispatcher | undefined, url: string, init: RequestInit): Promise<Response> {
+	if (!dispatcher) {
+		return fetch(url, init)
+	}
+	return undiciFetch(url, { ...init, dispatcher } as Parameters<
+		typeof undiciFetch
+	>[1]) as unknown as Promise<Response>
 }

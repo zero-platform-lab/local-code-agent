@@ -29,7 +29,7 @@
 ## インストール
 
 ```bash
-code --install-extension openai-agent-0.4.1.vsix
+code --install-extension openai-agent-<version>.vsix
 ```
 
 アクティビティバーに「Local Code Agent」のアイコンが表示されます。  

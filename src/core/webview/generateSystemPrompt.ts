@@ -7,7 +7,7 @@ import { SYSTEM_PROMPT } from "../prompts/system"
 import { MultiSearchReplaceDiffStrategy } from "../diff/strategies/multi-search-replace"
 import { Package } from "../../shared/package"
 
-import type { CustomModePrompts, ProviderSettings } from "@openai-agent/types"
+import type { AutonomyMode, CustomModePrompts, ProviderSettings } from "@openai-agent/types"
 import type { CustomModesManager } from "../config/CustomModesManager"
 import type { McpHub } from "../../services/mcp/McpHub"
 import type { SkillsManager } from "../../services/skills/SkillsManager"
@@ -26,6 +26,7 @@ interface GenerateSystemPromptHost {
 		experiments?: Record<string, boolean>
 		language?: string
 		enableSubfolderRules?: boolean
+		autonomyMode?: AutonomyMode
 	}>
 	getMcpHub(): McpHub | undefined
 	getSkillsManager(): SkillsManager | undefined
@@ -41,6 +42,7 @@ export const generateSystemPrompt = async (provider: GenerateSystemPromptHost, m
 		experiments,
 		language,
 		enableSubfolderRules,
+		autonomyMode,
 	} = await provider.getState()
 
 	const diffStrategy = new MultiSearchReplaceDiffStrategy()
@@ -83,6 +85,7 @@ export const generateSystemPrompt = async (provider: GenerateSystemPromptHost, m
 				.getConfiguration(Package.name)
 				.get<boolean>("newTaskRequireTodos", false),
 			isStealthModel: modelInfo?.isStealthModel,
+			autonomyMode,
 		},
 		undefined, // todoList
 		undefined, // modelId

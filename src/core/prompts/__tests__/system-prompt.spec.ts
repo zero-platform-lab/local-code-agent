@@ -640,6 +640,56 @@ describe("SYSTEM_PROMPT", () => {
 		expect(skillsManager.getSkillsForMode).toHaveBeenCalledWith("architect")
 	})
 
+	it("settings.autonomyMode を渡すと AUTONOMY MODE セクションが入る", async () => {
+		const prompt = await SYSTEM_PROMPT(
+			mockContext,
+			"/test/path",
+			false,
+			undefined,
+			undefined,
+			"code",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				todoListEnabled: true,
+				useAgentRules: false,
+				newTaskRequireTodos: false,
+				autonomyMode: "plan",
+			},
+		)
+
+		expect(prompt).toContain("AUTONOMY MODE")
+		expect(prompt).toContain("read-only")
+	})
+
+	it("settings.autonomyMode が無ければセクションごと入らない（既存プロンプトとの互換）", async () => {
+		const prompt = await SYSTEM_PROMPT(
+			mockContext,
+			"/test/path",
+			false,
+			undefined,
+			undefined,
+			"code",
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			{
+				todoListEnabled: true,
+				useAgentRules: false,
+				newTaskRequireTodos: false,
+			},
+		)
+
+		expect(prompt).not.toContain("AUTONOMY MODE")
+	})
+
 	afterAll(() => {
 		vi.restoreAllMocks()
 	})

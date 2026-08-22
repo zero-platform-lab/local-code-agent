@@ -36,7 +36,6 @@ const ALL_TOGGLES_ON = {
 	alwaysAllowWriteOutsideWorkspace: true,
 	alwaysAllowWriteProtected: true,
 	alwaysAllowMcp: true,
-	alwaysAllowModeSwitch: true,
 	alwaysAllowSubtasks: true,
 	alwaysAllowExecute: true,
 	alwaysAllowFollowupQuestions: true,
@@ -91,7 +90,6 @@ const APPROVABLE_REQUESTS: Array<{ name: string; ask: ClineAsk; text?: string; i
 		text: toolText({ tool: "editedExistingFile", path: ".agentignore" }),
 		isProtected: true,
 	},
-	{ name: "モード切替(switchMode)", ask: "tool", text: toolText({ tool: "switchMode", mode: "code" }) },
 	{ name: "サブタスク開始(newTask)", ask: "tool", text: toolText({ tool: "newTask" }) },
 	{ name: "サブタスク終了(finishTask)", ask: "tool", text: toolText({ tool: "finishTask" }) },
 	{ name: "コマンド実行", ask: "command", text: "npm run build" },
@@ -234,18 +232,6 @@ describe("checkAutoApproval", () => {
 				state: { autoApprovalEnabled: true, alwaysAllowReadOnly: true },
 				ask: "tool",
 				text: toolText({ tool: "newFileCreated" }),
-			},
-			{
-				name: "subtasks だけ on で switchMode",
-				state: { autoApprovalEnabled: true, alwaysAllowSubtasks: true },
-				ask: "tool",
-				text: toolText({ tool: "switchMode" }),
-			},
-			{
-				name: "modeSwitch だけ on で newTask",
-				state: { autoApprovalEnabled: true, alwaysAllowModeSwitch: true },
-				ask: "tool",
-				text: toolText({ tool: "newTask" }),
 			},
 			{
 				name: "mcp だけ on でコマンド実行",
@@ -580,20 +566,6 @@ describe("checkAutoApproval", () => {
 				expect(result.decision).toBe("approve")
 			},
 		)
-
-		it.each([
-			{ toggle: true, expected: "approve" },
-			{ toggle: false, expected: "ask" },
-			{ toggle: undefined, expected: "ask" },
-		])("switchMode: alwaysAllowModeSwitch=$toggle → $expected", async ({ toggle, expected }) => {
-			const result = await checkAutoApproval({
-				state: { autoApprovalEnabled: true, alwaysAllowModeSwitch: toggle },
-				ask: "tool",
-				text: toolText({ tool: "switchMode", mode: "code" }),
-			})
-
-			expect(result.decision).toBe(expected)
-		})
 
 		it.each([
 			{ tool: "newTask", toggle: true, expected: "approve" },

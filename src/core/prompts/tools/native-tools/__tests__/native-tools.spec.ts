@@ -28,7 +28,6 @@ const EXPECTED_TOOL_NAMES = [
 	"edit_file",
 	"edit",
 	"search_files",
-	"switch_mode",
 	"update_todo_list",
 	"write_to_file",
 ]

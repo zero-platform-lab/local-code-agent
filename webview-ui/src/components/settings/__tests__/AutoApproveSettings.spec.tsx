@@ -79,7 +79,6 @@ const state = vi.hoisted(() => ({
 	alwaysAllowWrite: false,
 	alwaysAllowExecute: false,
 	alwaysAllowMcp: false,
-	alwaysAllowModeSwitch: false,
 	alwaysAllowSubtasks: false,
 	alwaysAllowFollowupQuestions: false,
 }))

@@ -247,12 +247,6 @@
 		"wantsToUseTool": "AgentはMCPサーバー{{serverName}}でツールを使用したい",
 		"wantsToAccessResource": "AgentはMCPサーバー{{serverName}}のリソースにアクセスしたい"
 	},
-	"modes": {
-		"wantsToSwitch": "Agentは<code>{{mode}}</code>モードに切り替えたい",
-		"wantsToSwitchWithReason": "Agentは次の理由で<code>{{mode}}</code>モードに切り替えたい: {{reason}}",
-		"didSwitch": "Agentは<code>{{mode}}</code>モードに切り替えました",
-		"didSwitchWithReason": "Agentは次の理由で<code>{{mode}}</code>モードに切り替えました: {{reason}}"
-	},
 	"subtasks": {
 		"wantsToCreate": "Agentは<code>{{mode}}</code>モードで新しいサブタスクを作成したい",
 		"wantsToFinish": "Agentはこのサブタスクを終了したい",

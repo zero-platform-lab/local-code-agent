@@ -234,7 +234,6 @@ const fullState = () => ({
 	alwaysAllowWriteProtected: true,
 	alwaysAllowExecute: true,
 	alwaysAllowMcp: true,
-	alwaysAllowModeSwitch: true,
 	alwaysAllowSubtasks: true,
 	allowedCommands: ["ls"],
 	deniedCommands: ["rm"],

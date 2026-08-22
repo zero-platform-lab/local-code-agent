@@ -33,7 +33,6 @@ describe("toolDispatch — coverage", () => {
 				"search_files",
 				"search_replace",
 				"skill",
-				"switch_mode",
 				"update_todo_list",
 				"use_mcp_tool",
 				"web_fetch",

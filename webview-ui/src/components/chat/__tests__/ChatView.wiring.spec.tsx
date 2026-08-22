@@ -206,7 +206,6 @@ const setState = (state: Record<string, unknown>) => {
 		organizationAllowList: { allowAll: true, providers: {} },
 		mode: "code",
 		setMode: vi.fn(),
-		alwaysAllowModeSwitch: false,
 		customModes: [],
 		messageQueue: [],
 		showWorktreesInHomeScreen: false,
@@ -1015,22 +1014,13 @@ describe("ChatView wiring", () => {
 			expect(posted()).toContainEqual({ type: "mode", text: "architect" })
 		})
 
-		it("does not switch mode on auto-approval unless it is allowed", () => {
+		it("自動承認の経路ではモードを切り替えない（切替はユーザーのクリックのみ）", () => {
 			const setMode = vi.fn()
 			renderChatView(followupState({ setMode }))
 
 			fireEvent.click(screen.getByTestId("row-1001-suggest-auto"))
 
 			expect(setMode).not.toHaveBeenCalled()
-		})
-
-		it("switches mode on auto-approval when it is allowed", () => {
-			const setMode = vi.fn()
-			renderChatView(followupState({ setMode, alwaysAllowModeSwitch: true }))
-
-			fireEvent.click(screen.getByTestId("row-1001-suggest-auto"))
-
-			expect(setMode).toHaveBeenCalledWith("architect")
 		})
 	})
 

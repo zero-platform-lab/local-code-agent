@@ -20,7 +20,6 @@ describe("AutoApproveToggle", () => {
 		alwaysAllowReadOnly: true,
 		alwaysAllowWrite: false,
 		alwaysAllowMcp: false,
-		alwaysAllowModeSwitch: true,
 		alwaysAllowSubtasks: false,
 		alwaysAllowExecute: true,
 		alwaysAllowFollowupQuestions: false,

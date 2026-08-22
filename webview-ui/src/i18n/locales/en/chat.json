@@ -293,12 +293,6 @@
 		"wantsToUseTool": "Agent wants to use a tool on the {{serverName}} MCP server",
 		"wantsToAccessResource": "Agent wants to access a resource on the {{serverName}} MCP server"
 	},
-	"modes": {
-		"wantsToSwitch": "Agent wants to switch to {{mode}} mode",
-		"wantsToSwitchWithReason": "Agent wants to switch to {{mode}} mode because: {{reason}}",
-		"didSwitch": "Agent switched to {{mode}} mode",
-		"didSwitchWithReason": "Agent switched to {{mode}} mode because: {{reason}}"
-	},
 	"subtasks": {
 		"wantsToCreate": "Agent wants to create a new subtask in {{mode}} mode",
 		"wantsToFinish": "Agent wants to mark this as completed",

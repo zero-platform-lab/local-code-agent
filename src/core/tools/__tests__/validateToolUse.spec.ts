@@ -8,8 +8,14 @@ import { TOOL_GROUPS } from "../../../shared/tools"
 import { validateToolUse, isToolAllowedForMode, isValidToolName } from "../validateToolUse"
 
 const codeMode = modes.find((m) => m.slug === "code")?.slug || "code"
-const architectMode = modes.find((m) => m.slug === "architect")?.slug || "architect"
-const askMode = modes.find((m) => m.slug === "ask")?.slug || "ask"
+// 組み込みモードは code の 1 件だけ。「read と mcp しか持たないモード」は
+// カスタムモードで表現できるので、グループによるツール制限はそちらで検証する。
+const readOnlyMode: ModeConfig = {
+	slug: "read-only-mode",
+	name: "Read Only",
+	roleDefinition: "You investigate",
+	groups: ["read", "mcp"],
+}
 
 describe("mode-validator", () => {
 	describe("isToolAllowedForMode", () => {
@@ -28,22 +34,17 @@ describe("mode-validator", () => {
 			})
 		})
 
-		describe("architect mode", () => {
+		describe("read と mcp だけを持つモード", () => {
 			it("allows configured tools", () => {
-				// Architect mode has read and mcp groups
-				const architectTools = [...TOOL_GROUPS.read.tools, ...TOOL_GROUPS.mcp.tools]
-				architectTools.forEach((tool) => {
-					expect(isToolAllowedForMode(tool, architectMode, [])).toBe(true)
+				const allowed = [...TOOL_GROUPS.read.tools, ...TOOL_GROUPS.mcp.tools]
+				allowed.forEach((tool) => {
+					expect(isToolAllowedForMode(tool, readOnlyMode.slug, [readOnlyMode])).toBe(true)
 				})
 			})
-		})
 
-		describe("ask mode", () => {
-			it("allows configured tools", () => {
-				// Ask mode has read and mcp groups
-				const askTools = [...TOOL_GROUPS.read.tools, ...TOOL_GROUPS.mcp.tools]
-				askTools.forEach((tool) => {
-					expect(isToolAllowedForMode(tool, askMode, [])).toBe(true)
+			it("編集グループのツールは許可しない", () => {
+				TOOL_GROUPS.edit.tools.forEach((tool) => {
+					expect(isToolAllowedForMode(tool, readOnlyMode.slug, [readOnlyMode])).toBe(false)
 				})
 			})
 		})
@@ -179,15 +180,15 @@ describe("mode-validator", () => {
 			)
 		})
 
-		it("throws error for disallowed tools in architect mode", () => {
-			// execute_command is a valid tool but not allowed in architect mode
-			expect(() => validateToolUse("execute_command", "architect", [])).toThrow(
-				'Tool "execute_command" is not allowed in architect mode.',
+		it("throws error for disallowed tools in a read-only mode", () => {
+			// execute_command は正当なツールだが、command グループを持たないモードでは通さない
+			expect(() => validateToolUse("execute_command", readOnlyMode.slug, [readOnlyMode])).toThrow(
+				`Tool "execute_command" is not allowed in ${readOnlyMode.slug} mode.`,
 			)
 		})
 
-		it("does not throw for allowed tools in architect mode", () => {
-			expect(() => validateToolUse("read_file", "architect", [])).not.toThrow()
+		it("does not throw for allowed tools in a read-only mode", () => {
+			expect(() => validateToolUse("read_file", readOnlyMode.slug, [readOnlyMode])).not.toThrow()
 		})
 
 		it("throws error when tool requirement is not met", () => {

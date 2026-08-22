@@ -20,7 +20,7 @@ import {
 
 import { experimentDefault } from "../../shared/experiments"
 import { EMBEDDING_MODEL_PROFILES } from "../../shared/embeddingModels"
-import { type Mode, defaultModeSlug } from "../../shared/modes"
+import { type Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { formatLanguage } from "../../shared/language"
 
 /** getState() の戻り型（webview 送信用に一部フィールドを除いた ExtensionState）。 */
@@ -74,7 +74,11 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		terminalShellIntegrationDisabled: stateValues.terminalShellIntegrationDisabled ?? true,
 		terminalCommandDelay: stateValues.terminalCommandDelay ?? 0,
 		terminalZdotdir: stateValues.terminalZdotdir ?? false,
-		mode: stateValues.mode ?? defaultModeSlug,
+		// 保存済みの mode が解決できないときは既定へ落とす。`??` は null/undefined しか
+		// 拾わないため、削除された組み込みモード（architect など）の slug が残っていると
+		// そのまま通ってしまう。その状態では isToolAllowedForMode の `if (!mode) return false`
+		// に落ちて、常時ツール以外がすべて拒否される。
+		mode: resolveMode(stateValues.mode, extras.customModes),
 		language: stateValues.language ?? formatLanguage(vscode.env.language),
 		mcpEnabled: stateValues.mcpEnabled ?? true,
 		mcpServers: extras.mcpServers,
@@ -122,4 +126,16 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		includeCurrentCost: stateValues.includeCurrentCost ?? true,
 		maxGitStatusFiles: stateValues.maxGitStatusFiles ?? DEFAULT_MAX_GIT_STATUS_FILES,
 	}
+}
+
+/**
+ * 保存された mode slug を、実在するモードへ解決する。組み込みにもカスタムにも
+ * 見つからなければ既定モードを返す。
+ */
+function resolveMode(saved: string | undefined, customModes: StateForWebview["customModes"]): Mode {
+	if (!saved) {
+		return defaultModeSlug
+	}
+
+	return getModeBySlug(saved, customModes) ? (saved as Mode) : defaultModeSlug
 }

@@ -51,7 +51,7 @@ vi.mock("../../../utils/path")
  */
 describe("CustomModesManager.exportModeWithRules — prompt overrides", () => {
 	let manager: CustomModesManager
-	let builtInArchitect: ModeConfig
+	let builtInCode: ModeConfig
 
 	const mockStoragePath = `${path.sep}mock${path.sep}settings`
 	const mockSettingsPath = path.join(mockStoragePath, "settings", GlobalFileNames.customModes)
@@ -99,8 +99,8 @@ describe("CustomModesManager.exportModeWithRules — prompt overrides", () => {
 		manager = new CustomModesManager(mockContext, vi.fn())
 
 		const { modes } = await import("../../../shared/modes")
-		// architect は 4 フィールドすべてに既定値を持つ組み込み mode。
-		builtInArchitect = modes.find((m) => m.slug === "architect")!
+		// 組み込み mode は code の 1 件だけ。customInstructions は持たない。
+		builtInCode = modes.find((m) => m.slug === "code")!
 	})
 
 	afterEach(() => {
@@ -109,61 +109,61 @@ describe("CustomModesManager.exportModeWithRules — prompt overrides", () => {
 
 	describe("上書きが無い場合", () => {
 		it("undefined と {} は同じ YAML を返す", async () => {
-			expect(await exportYaml("architect", undefined)).toBe(await exportYaml("architect", {}))
+			expect(await exportYaml("code", undefined)).toBe(await exportYaml("code", {}))
 		})
 
-		it("組み込みの 4 フィールドがそのまま出る（エクスポートは差分ではなく完全なスナップショット）", async () => {
-			const exported = await exportedMode("architect", {})
+		it("組み込みのフィールドがそのまま出る（エクスポートは差分ではなく完全なスナップショット）", async () => {
+			const exported = await exportedMode("code", {})
 
-			expect(exported.roleDefinition).toBe(builtInArchitect.roleDefinition)
-			expect(exported.description).toBe(builtInArchitect.description)
-			expect(exported.whenToUse).toBe(builtInArchitect.whenToUse)
-			expect(exported.customInstructions).toBe(builtInArchitect.customInstructions)
+			expect(exported.roleDefinition).toBe(builtInCode.roleDefinition)
+			expect(exported.description).toBe(builtInCode.description)
+			expect(exported.whenToUse).toBe(builtInCode.whenToUse)
+			expect(exported.customInstructions).toBe(builtInCode.customInstructions)
 		})
 
 		it("上書き由来のフィールドは 1 つも無い（＝組み込みと完全一致）", async () => {
-			const exported = await exportedMode("architect", {})
+			const exported = await exportedMode("code", {})
 
 			for (const field of ["roleDefinition", "description", "whenToUse", "customInstructions"] as const) {
-				expect(exported[field]).toBe(builtInArchitect[field])
+				expect(exported[field]).toBe(builtInCode[field])
 			}
 		})
 	})
 
 	describe("本物の上書きがある場合", () => {
 		it("上書きしたフィールドだけが変わる", async () => {
-			const exported = await exportedMode("architect", { roleDefinition: "MY ROLE" })
+			const exported = await exportedMode("code", { roleDefinition: "MY ROLE" })
 
 			expect(exported.roleDefinition).toBe("MY ROLE")
 			// 残りは組み込みのまま
-			expect(exported.description).toBe(builtInArchitect.description)
-			expect(exported.whenToUse).toBe(builtInArchitect.whenToUse)
-			expect(exported.customInstructions).toBe(builtInArchitect.customInstructions)
+			expect(exported.description).toBe(builtInCode.description)
+			expect(exported.whenToUse).toBe(builtInCode.whenToUse)
+			expect(exported.customInstructions).toBe(builtInCode.customInstructions)
 		})
 
 		it.each(["roleDefinition", "description", "whenToUse", "customInstructions"] as const)(
 			"%s の上書きが出力に反映される",
 			async (field) => {
-				const exported = await exportedMode("architect", { [field]: `OVERRIDDEN ${field}` })
+				const exported = await exportedMode("code", { [field]: `OVERRIDDEN ${field}` })
 
 				expect(exported[field]).toBe(`OVERRIDDEN ${field}`)
 			},
 		)
 
 		it("複数フィールドの上書きをすべて反映する", async () => {
-			const exported = await exportedMode("architect", {
+			const exported = await exportedMode("code", {
 				roleDefinition: "MY ROLE",
 				customInstructions: "MY INSTRUCTIONS",
 			})
 
 			expect(exported.roleDefinition).toBe("MY ROLE")
 			expect(exported.customInstructions).toBe("MY INSTRUCTIONS")
-			expect(exported.whenToUse).toBe(builtInArchitect.whenToUse)
+			expect(exported.whenToUse).toBe(builtInCode.whenToUse)
 		})
 
 		it("上書きがあると、上書き無しの YAML とは異なる", async () => {
-			expect(await exportYaml("architect", { roleDefinition: "MY ROLE" })).not.toBe(
-				await exportYaml("architect", undefined),
+			expect(await exportYaml("code", { roleDefinition: "MY ROLE" })).not.toBe(
+				await exportYaml("code", undefined),
 			)
 		})
 	})
@@ -172,20 +172,20 @@ describe("CustomModesManager.exportModeWithRules — prompt overrides", () => {
 		it("上書きが無い場合とバイト単位で同一になる", async () => {
 			// エクスポートは同じ値で上書きするだけなので no-op。
 			// これが「エクスポート経路に scrub が不要」の根拠。
-			const withRedundant = await exportYaml("architect", {
-				customInstructions: builtInArchitect.customInstructions,
+			const withRedundant = await exportYaml("code", {
+				customInstructions: builtInCode.customInstructions,
 			})
 
-			expect(withRedundant).toBe(await exportYaml("architect", undefined))
+			expect(withRedundant).toBe(await exportYaml("code", undefined))
 		})
 
 		it("漏れた上書き（本物 + 既定と同じ値）は、きれいな上書きと同一になる", async () => {
 			// #273 で修正した漏れは globalState には残るが、エクスポート結果には現れない。
-			const leaked = await exportYaml("architect", {
+			const leaked = await exportYaml("code", {
 				roleDefinition: "MY ROLE",
-				customInstructions: builtInArchitect.customInstructions,
+				customInstructions: builtInCode.customInstructions,
 			})
-			const clean = await exportYaml("architect", { roleDefinition: "MY ROLE" })
+			const clean = await exportYaml("code", { roleDefinition: "MY ROLE" })
 
 			expect(leaked).toBe(clean)
 		})
@@ -193,24 +193,24 @@ describe("CustomModesManager.exportModeWithRules — prompt overrides", () => {
 		it.each(["roleDefinition", "description", "whenToUse", "customInstructions"] as const)(
 			"%s を既定と同じ値で上書きしても出力は変わらない",
 			async (field) => {
-				const redundant = await exportYaml("architect", { [field]: builtInArchitect[field] })
+				const redundant = await exportYaml("code", { [field]: builtInCode[field] })
 
-				expect(redundant).toBe(await exportYaml("architect", undefined))
+				expect(redundant).toBe(await exportYaml("code", undefined))
 			},
 		)
 	})
 
 	describe("falsy な上書きは無視される", () => {
 		it("空文字は上書きとして扱わない", async () => {
-			const exported = await exportedMode("architect", { roleDefinition: "", customInstructions: "" })
+			const exported = await exportedMode("code", { roleDefinition: "", customInstructions: "" })
 
-			expect(exported.roleDefinition).toBe(builtInArchitect.roleDefinition)
-			expect(exported.customInstructions).toBe(builtInArchitect.customInstructions)
+			expect(exported.roleDefinition).toBe(builtInCode.roleDefinition)
+			expect(exported.customInstructions).toBe(builtInCode.customInstructions)
 		})
 
 		it("空文字だけの上書きは上書き無しと同一の YAML になる", async () => {
-			expect(await exportYaml("architect", { roleDefinition: "", whenToUse: "" })).toBe(
-				await exportYaml("architect", undefined),
+			expect(await exportYaml("code", { roleDefinition: "", whenToUse: "" })).toBe(
+				await exportYaml("code", undefined),
 			)
 		})
 	})

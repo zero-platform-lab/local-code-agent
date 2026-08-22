@@ -217,7 +217,7 @@ describe("SYSTEM_PROMPT", () => {
 			false, // supportsImages
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -238,7 +238,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			mockMcpHub, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes,
 			undefined, // globalCustomInstructions
@@ -257,7 +257,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // explicitly undefined mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes,
 			undefined, // globalCustomInstructions
@@ -303,7 +303,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -382,7 +382,7 @@ describe("SYSTEM_PROMPT", () => {
 
 	it("should use promptComponent roleDefinition when available", async () => {
 		const customModePrompts = {
-			["architect"]: {
+			["code"]: {
 				roleDefinition: "Custom prompt role definition",
 				customInstructions: "Custom prompt instructions",
 			},
@@ -394,7 +394,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect" as Mode, // mode
+			"code" as Mode, // mode
 			customModePrompts, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -411,7 +411,7 @@ describe("SYSTEM_PROMPT", () => {
 
 	it("should fallback to modeConfig roleDefinition when promptComponent has no roleDefinition", async () => {
 		const customModePrompts = {
-			["architect"]: {
+			["code"]: {
 				customInstructions: "Custom prompt instructions",
 				// No roleDefinition provided
 			},
@@ -423,7 +423,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect" as Mode, // mode
+			"code" as Mode, // mode
 			customModePrompts, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -449,7 +449,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -462,62 +462,6 @@ describe("SYSTEM_PROMPT", () => {
 		// Should not contain the tool description
 		expect(prompt).not.toContain("## update_todo_list")
 		// Mode instructions will still reference the tool with a fallback to markdown
-	})
-
-	it("should include update_todo_list tool when todoListEnabled is true", async () => {
-		const settings = {
-			todoListEnabled: true,
-			useAgentRules: true,
-			newTaskRequireTodos: false,
-		}
-
-		const prompt = await SYSTEM_PROMPT(
-			mockContext,
-			"/test/path",
-			false,
-			undefined, // mcpHub
-			undefined, // diffStrategy
-			"architect", // mode
-			undefined, // customModePrompts
-			undefined, // customModes
-			undefined, // globalCustomInstructions
-			experiments,
-			undefined, // language
-			undefined, // rooIgnoreInstructions
-			settings, // settings
-		)
-
-		// update_todo_list is still referenced by mode instructions, but tool catalogs are not embedded.
-		expect(prompt).toContain("update_todo_list")
-		expect(prompt).not.toContain("## update_todo_list")
-	})
-
-	it("should include update_todo_list tool when todoListEnabled is undefined", async () => {
-		const settings = {
-			todoListEnabled: true,
-			useAgentRules: true,
-			newTaskRequireTodos: false,
-		}
-
-		const prompt = await SYSTEM_PROMPT(
-			mockContext,
-			"/test/path",
-			false,
-			undefined, // mcpHub
-			undefined, // diffStrategy
-			"architect", // mode
-			undefined, // customModePrompts
-			undefined, // customModes
-			undefined, // globalCustomInstructions
-			experiments,
-			undefined, // language
-			undefined, // rooIgnoreInstructions
-			settings, // settings
-		)
-
-		// update_todo_list is still referenced by mode instructions, but tool catalogs are not embedded.
-		expect(prompt).toContain("update_todo_list")
-		expect(prompt).not.toContain("## update_todo_list")
 	})
 
 	it("should include native tool instructions", async () => {
@@ -533,7 +477,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes
 			undefined, // globalCustomInstructions
@@ -580,7 +524,7 @@ describe("SYSTEM_PROMPT", () => {
 				false,
 				undefined,
 				undefined,
-				"architect",
+				"code",
 			),
 		).rejects.toThrow("Extension context is required")
 	})
@@ -621,7 +565,7 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined,
 			undefined,
-			"architect",
+			"code",
 			undefined,
 			undefined,
 			undefined,
@@ -637,7 +581,7 @@ describe("SYSTEM_PROMPT", () => {
 		// skillsSection が空でない分岐（system.ts の `${skillsSection ? ... : ""}`）
 		expect(prompt).toContain("AVAILABLE SKILLS")
 		expect(prompt).toContain("pdf-processing")
-		expect(skillsManager.getSkillsForMode).toHaveBeenCalledWith("architect")
+		expect(skillsManager.getSkillsForMode).toHaveBeenCalledWith("code")
 	})
 
 	it("settings.autonomyMode を渡すと AUTONOMY MODE セクションが入る", async () => {

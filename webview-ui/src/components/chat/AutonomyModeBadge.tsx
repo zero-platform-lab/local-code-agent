@@ -18,8 +18,9 @@ const MODE_META: Record<AutonomyMode, { icon: LucideIcon; labelKey: string; clas
 
 /**
  * Chat-bar badge showing the current autonomy mode (Claude Code-style permission modes).
- * Click cycles Manual -> Auto-Edit -> Auto. Also switchable via Ctrl+Shift+A and the
- * command palette. Autonomy is user-controlled only; the model can never change it.
+ * Click cycles Manual -> Auto-Edit -> Auto -> Plan, following AUTONOMY_MODE_CYCLE. Also
+ * switchable via Ctrl+Shift+A and the command palette. Autonomy is user-controlled only;
+ * the model can never change it.
  */
 export const AutonomyModeBadge = () => {
 	const { t } = useAppTranslation()

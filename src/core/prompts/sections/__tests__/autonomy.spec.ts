@@ -38,6 +38,46 @@ describe("getAutonomySection", () => {
 			expect(section).toContain("update_todo_list")
 		})
 
+		it("todoListEnabled=false なら update_todo_list を指示せず、応答内に出す形に切り替える", () => {
+			// update_todo_list は filter-tools-for-mode.ts で todoListEnabled=false のとき外れる。
+			// 外れているのに使えと書くと、存在しないツールを呼ばせることになる。
+			const withoutTodo = getAutonomySection("plan", false)
+
+			expect(withoutTodo).not.toContain("update_todo_list")
+			expect(withoutTodo).toContain("Present the plan directly in your response")
+		})
+
+		describe("architect からの移送", () => {
+			it("計画の品質基準を引き継いでいる", () => {
+				expect(section).toContain("Specific and actionable")
+				expect(section).toContain("Listed in logical execution order")
+			})
+
+			it("Mermaid の推奨と記法の注意を引き継いでいる", () => {
+				expect(section).toContain("Mermaid")
+				expect(section).toContain("square brackets")
+			})
+
+			it("工数見積もりの禁止を引き継いでいる", () => {
+				expect(section).toContain("Never give time or effort estimates")
+			})
+
+			it("switch_mode での移行要求は引き継がない（自律レベルはユーザーの専権）", () => {
+				expect(section).not.toContain("switch_mode")
+			})
+
+			it("計画ファイルの書き出しは引き継がない（plan では edit が遮断されるため）", () => {
+				// architect には /plans への保存と、update_todo_list 不在時に markdown へ
+				// 書く代替があったが、どちらも plan では実行できない。
+				for (const flag of [true, false]) {
+					const text = getAutonomySection("plan", flag)
+
+					expect(text).not.toContain("/plans")
+					expect(text).not.toMatch(/write the plan to a markdown file/i)
+				}
+			})
+		})
+
 		it("モデル自身が自律レベルを上げようとしないよう明記する", () => {
 			// autonomy.ts の "autonomy is user-controlled ONLY" と対になる文面。
 			expect(section).toContain("the user's decision alone")

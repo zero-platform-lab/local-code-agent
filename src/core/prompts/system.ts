@@ -23,6 +23,7 @@ import {
 	addCustomInstructions,
 	markdownFormattingSection,
 	getSkillsSection,
+	getAutonomySection,
 } from "./sections"
 
 // Helper function to get prompt component, filtering out empty objects
@@ -80,6 +81,8 @@ async function generatePrompt(
 		getSkillsSection(skillsManager, mode as string),
 	])
 
+	const autonomySection = getAutonomySection(settings?.autonomyMode)
+
 	// Tools catalog is not included in the system prompt.
 	const toolsCatalog = ""
 
@@ -92,7 +95,7 @@ ${getSharedToolUseSection()}${toolsCatalog}
 	${getToolUseGuidelinesSection()}
 
 ${getCapabilitiesSection(cwd, shouldIncludeMcp ? mcpHub : undefined)}
-
+${autonomySection ? `\n${autonomySection}\n` : ""}
 ${modesSection}
 ${skillsSection ? `\n${skillsSection}` : ""}
 ${getRulesSection(cwd, settings)}

@@ -2,6 +2,8 @@ import type * as vscode from "vscode"
 
 import pWaitFor from "p-wait-for"
 
+import type { AutonomyMode } from "@openai-agent/types"
+
 import { Package } from "../../shared/package"
 import { McpHub } from "../../services/mcp/McpHub"
 import { McpServerManager } from "../../services/mcp/McpServerManager"
@@ -35,6 +37,7 @@ interface SystemPromptProvider {
 				language?: unknown
 				apiConfiguration?: { todoListEnabled?: boolean }
 				enableSubfolderRules?: boolean
+				autonomyMode?: AutonomyMode
 		  }
 		| undefined
 	>
@@ -86,6 +89,7 @@ export async function buildSystemPrompt(deps: BuildSystemPromptDeps): Promise<st
 		language,
 		apiConfiguration,
 		enableSubfolderRules,
+		autonomyMode,
 	} = state ?? {}
 
 	const provider = deps.providerRef.deref()
@@ -117,6 +121,7 @@ export async function buildSystemPrompt(deps: BuildSystemPromptDeps): Promise<st
 				.getConfiguration(Package.name)
 				.get<boolean>("newTaskRequireTodos", false),
 			isStealthModel: modelInfo?.isStealthModel,
+			autonomyMode,
 		},
 		undefined, // todoList
 		deps.api.getModel().id,

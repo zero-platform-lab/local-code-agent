@@ -96,12 +96,29 @@
 
 ## 方針と既定の決定事項
 
-- **自律モード**（Manual / Auto-Edit / Auto / Plan）がある — Claude Code 型の権限モードで、
-  役割モードとは別物。`packages/types/src/autonomy.ts` で定義し、`ClineProvider.setAutonomyMode`
-  が適用する。Plan の読み取り専用ガードは `src/core/tools/validateToolUse.ts`。
-  自律レベルは**ユーザーのみが制御する**。モデルが自分でレベルを上げてはならない。
-- **役割モード**（Code/Architect/Ask/Debug/Orchestrator）は **Code のみ**への削減と
-  `switch_mode` ツールの削除を予定している（未着手。影響範囲が大きい）。
+- **モードは 2 軸ある。名前が似ているだけの別機構なので混同しないこと。**
+    - **自律モード**（Manual / Auto-Edit / Auto / Plan）＝**権限**。Claude Code 型の権限モードで、
+      `packages/types/src/autonomy.ts` の `AUTONOMY_PRESETS` が承認ゲート（`alwaysAllow*`）を
+      決める。Plan だけは承認ではなく**遮断**で、`src/core/tools/validateToolUse.ts` が
+      edit / command グループを丸ごと拒否する。適用は `ClineProvider.setAutonomyMode`。
+      自律レベルは**ユーザーのみが制御する**。モデルが自分でレベルを上げてはならない。
+    - **役割モード**（`DEFAULT_MODES`）＝**プロンプト**。`roleDefinition` /
+      `customInstructions` に加えて `rules-{mode}` / `skills-{mode}` / `modeApiConfigs`
+      （モード別の接続先）を束ねる。
+- **現在の自律モードはシステムプロンプトに載せる。** `src/core/prompts/sections/autonomy.ts`。
+  承認ゲートも Plan の遮断もモデルからは見えないので、ここが唯一の伝達経路になる。文面は
+  `AUTONOMY_PRESETS` の実際の値と一致していなければならない。**Plan は「計画モード」**で、
+  計画の立て方（旧 architect の指示）もここが持つ。
+- **組み込みの役割モードは `code` の 1 件だけ。** Architect / Ask / Debug / Orchestrator と
+  `switch_mode` ツールは削除済み（PR #19・#21）。モードの変更は**ユーザー操作のみ**で、
+  モデルからは移れない。GitHub Copilot（Ask / Edit / Agent が権限の軸のみ）と同じ形。
+- **`customModes` は意図的に残している。** Copilot の `.chatmode.md` に相当する逃げ道であり、
+  `fileRegex` によるファイル種別の制限もここでしか表現できない（自律モードの遮断はグループ
+  単位）。撤去は本体コードだけで 46 ファイルに及ぶため、必要になるまで着手しない。
+- **削除済み slug の互換に注意。** `isToolAllowedForMode` は解決できない mode に対して
+  `return false` で、常時ツール以外を全部拒否する。保存済みの mode は `buildState` の
+  `resolveMode` で実在するモードへ解決してから使うこと。**型検査もテストも通ったまま
+  拡張が動かなくなる**種類の破壊なので、`?? defaultModeSlug` のような素通しへ戻さない。
 - **削除の基準:** 「削除」とは構造体を**その呼び出し元もすべて含めて**取り除くこと。スタブを
   残してはならない。完全性は独立した監査で検証する。
 - **完了は外部で証明する:** 自分の「終わった感」で完了を報告しない。検証の出力（テスト・型検査・

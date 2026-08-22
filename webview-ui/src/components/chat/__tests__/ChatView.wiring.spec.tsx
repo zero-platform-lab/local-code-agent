@@ -96,11 +96,11 @@ vi.mock("../ChatRow", () => ({
 			/>
 			<button
 				data-testid={`row-${message.ts}-suggest-mode`}
-				onClick={(event) => onSuggestionClick({ answer: "with mode", mode: "architect" }, event)}
+				onClick={(event) => onSuggestionClick({ answer: "with mode", mode: "second-mode" }, event)}
 			/>
 			<button
 				data-testid={`row-${message.ts}-suggest-auto`}
-				onClick={() => onSuggestionClick({ answer: "auto", mode: "architect" })}
+				onClick={() => onSuggestionClick({ answer: "auto", mode: "second-mode" })}
 			/>
 			<button data-testid={`row-${message.ts}-batch`} onClick={() => onBatchFileResponse({ "a.ts": true })} />
 			<button data-testid={`row-${message.ts}-unmount`} onClick={() => onFollowUpUnmount()} />
@@ -206,7 +206,24 @@ const setState = (state: Record<string, unknown>) => {
 		organizationAllowList: { allowAll: true, providers: {} },
 		mode: "code",
 		setMode: vi.fn(),
-		customModes: [],
+		// 組み込みモードは code の 1 件だけなので、モード循環を試すには
+		// カスタムモードがもう 1 つ要る。
+		customModes: [
+			{
+				slug: "second-mode",
+				name: "Second",
+				roleDefinition: "You do other work",
+				groups: ["read"],
+			},
+			{
+				// 前方循環と後方循環の行き先を別にするには 3 件目が要る
+				// （2 件だと次も前も同じモードになる）
+				slug: "third-mode",
+				name: "Third",
+				roleDefinition: "You do yet other work",
+				groups: ["read"],
+			},
+		],
 		messageQueue: [],
 		showWorktreesInHomeScreen: false,
 		...state,
@@ -1010,8 +1027,8 @@ describe("ChatView wiring", () => {
 
 			fireEvent.click(screen.getByTestId("row-1001-suggest-mode"))
 
-			expect(setMode).toHaveBeenCalledWith("architect")
-			expect(posted()).toContainEqual({ type: "mode", text: "architect" })
+			expect(setMode).toHaveBeenCalledWith("second-mode")
+			expect(posted()).toContainEqual({ type: "mode", text: "second-mode" })
 		})
 
 		it("自動承認の経路ではモードを切り替えない（切替はユーザーのクリックのみ）", () => {

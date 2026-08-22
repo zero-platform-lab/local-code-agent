@@ -396,9 +396,8 @@ describe("CreateSkillDialog", () => {
 		// Should have "Any mode" checkbox (checked by default)
 		expect(screen.getByTestId("checkbox-create-mode-any")).toBeInTheDocument()
 		expect(screen.getByTestId("checkbox-create-mode-any")).toBeChecked()
-		// Should have built-in mode checkboxes
+		// Should have the built-in mode checkbox (code のみ)
 		expect(screen.getByTestId("checkbox-create-mode-code")).toBeInTheDocument()
-		expect(screen.getByTestId("checkbox-create-mode-architect")).toBeInTheDocument()
 		// Should have custom mode checkbox from state
 		expect(screen.getByTestId("checkbox-create-mode-custom-mode")).toBeInTheDocument()
 	})
@@ -464,9 +463,9 @@ describe("CreateSkillDialog", () => {
 		fireEvent.change(nameInput, { target: { value: "my-skill" } })
 		fireEvent.change(descInput, { target: { value: "My skill description" } })
 
-		// Select "Code" and "Architect" modes
+		// 組み込みの Code と、state 由来のカスタムモードを選ぶ
 		fireEvent.click(screen.getByTestId("checkbox-create-mode-code"))
-		fireEvent.click(screen.getByTestId("checkbox-create-mode-architect"))
+		fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
 
 		const buttons = screen.getAllByTestId("button")
 		const createButton = buttons.find((btn) => btn.getAttribute("data-variant") === "primary")
@@ -479,7 +478,7 @@ describe("CreateSkillDialog", () => {
 				skillName: "my-skill",
 				source: "project",
 				skillDescription: "My skill description",
-				skillModeSlugs: ["code", "architect"],
+				skillModeSlugs: ["code", "custom-mode"],
 			})
 		})
 	})

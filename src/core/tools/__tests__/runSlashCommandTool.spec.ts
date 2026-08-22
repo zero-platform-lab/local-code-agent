@@ -455,7 +455,7 @@ Deploy application to production`,
 			source: "project" as const,
 			filePath: ".agent/commands/debug-app.md",
 			description: "Debug the application",
-			mode: "debug",
+			mode: "code",
 		}
 
 		mockTask.providerRef.deref = vi.fn().mockReturnValue({
@@ -472,11 +472,11 @@ Deploy application to production`,
 
 		await runSlashCommandTool.handle(mockTask as Task, block, mockCallbacks)
 
-		expect(mockHandleModeSwitch).toHaveBeenCalledWith("debug")
+		expect(mockHandleModeSwitch).toHaveBeenCalledWith("code")
 		expect(mockCallbacks.pushToolResult).toHaveBeenCalledWith(
 			`Command: /debug-app
 Description: Debug the application
-Mode: debug
+Mode: code
 Source: project
 
 --- Command Content ---
@@ -651,7 +651,7 @@ Start debugging the application`,
 			source: "project" as const,
 			filePath: ".agent/commands/debug-app.md",
 			description: "Debug the application",
-			mode: "debug",
+			mode: "code",
 		}
 
 		mockTask.providerRef.deref = vi.fn().mockReturnValue({
@@ -676,7 +676,7 @@ Start debugging the application`,
 				args: undefined,
 				source: "project",
 				description: "Debug the application",
-				mode: "debug",
+				mode: "code",
 			}),
 		)
 	})

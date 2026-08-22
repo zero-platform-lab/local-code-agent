@@ -21,7 +21,16 @@ const mockExtensionState = {
 	enhancementApiConfigId: "",
 	setEnhancementApiConfigId: vitest.fn(),
 	mode: "code",
-	customModes: [],
+	// 組み込みモードは code の 1 件だけ。選択肢の絞り込みを試すには
+	// もう 1 つ必要なので、カスタムモードを置く。
+	customModes: [
+		{
+			slug: "ask",
+			name: "Ask",
+			roleDefinition: "You answer questions",
+			groups: ["read"],
+		},
+	],
 	customSupportPrompts: [],
 	currentApiConfigName: "",
 	customInstructions: "Initial instructions",
@@ -69,7 +78,6 @@ describe("PromptsView", () => {
 		await waitFor(() => {
 			expect(screen.getByTestId("mode-option-ask")).toBeInTheDocument()
 			expect(screen.queryByTestId("mode-option-code")).not.toBeInTheDocument()
-			expect(screen.queryByTestId("mode-option-architect")).not.toBeInTheDocument()
 		})
 	})
 

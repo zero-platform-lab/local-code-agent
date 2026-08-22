@@ -47,7 +47,6 @@ import * as vscode from "vscode"
 
 import { SYSTEM_PROMPT } from "../system"
 import { McpHub } from "../../../services/mcp/McpHub"
-import { modes } from "../../../shared/modes"
 import "../../../utils/path"
 import { addCustomInstructions } from "../sections/custom-instructions"
 
@@ -194,46 +193,6 @@ describe("addCustomInstructions", () => {
 		vi.clearAllMocks()
 	})
 
-	it("should generate correct prompt for architect mode", async () => {
-		const prompt = await SYSTEM_PROMPT(
-			mockContext,
-			"/test/path",
-			false, // supportsImages
-			undefined, // mcpHub
-			undefined, // diffStrategy
-			"architect", // mode
-			undefined, // customModePrompts
-			undefined, // customModes
-			undefined, // globalCustomInstructions
-			undefined, // experiments
-			undefined, // language
-			undefined, // rooIgnoreInstructions
-			undefined, // partialReadsEnabled
-		)
-
-		expect(prompt).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/architect-mode-prompt.snap")
-	})
-
-	it("should generate correct prompt for ask mode", async () => {
-		const prompt = await SYSTEM_PROMPT(
-			mockContext,
-			"/test/path",
-			false, // supportsImages
-			undefined, // mcpHub
-			undefined, // diffStrategy
-			"ask", // mode
-			undefined, // customModePrompts
-			undefined, // customModes
-			undefined, // globalCustomInstructions
-			undefined, // experiments
-			undefined, // language
-			undefined, // rooIgnoreInstructions
-			undefined, // partialReadsEnabled
-		)
-
-		expect(prompt).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/ask-mode-prompt.snap")
-	})
-
 	it("should exclude MCP server creation info when disabled", async () => {
 		const mockMcpHub = createMockMcpHub(false)
 
@@ -243,7 +202,7 @@ describe("addCustomInstructions", () => {
 			false, // supportsImages
 			mockMcpHub, // mcpHub
 			undefined, // diffStrategy
-			"architect", // mode
+			"code", // mode
 			undefined, // customModePrompts
 			undefined, // customModes,
 			undefined, // globalCustomInstructions
@@ -258,18 +217,8 @@ describe("addCustomInstructions", () => {
 	})
 
 	it("should prioritize mode-specific rules for code mode", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/code-mode-rules.snap")
-	})
-
-	it("should prioritize mode-specific rules for ask mode", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", modes[2].slug)
-		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/ask-mode-rules.snap")
-	})
-
-	it("should prioritize mode-specific rules for architect mode", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", modes[1].slug)
-		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/architect-mode-rules.snap")
 	})
 
 	it("should prioritize mode-specific rules for test engineer mode", async () => {
@@ -287,26 +236,26 @@ describe("addCustomInstructions", () => {
 	})
 
 	it("should fall back to generic rules when mode-specific rules not found", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/generic-rules-fallback.snap")
 	})
 
 	it("should include preferred language when provided", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "architect", {
+		const instructions = await addCustomInstructions("", "", "/test/path", "code", {
 			language: "es",
 		})
 		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/with-preferred-language.snap")
 	})
 
 	it("should include custom instructions when provided", async () => {
-		const instructions = await addCustomInstructions("Custom test instructions", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("Custom test instructions", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot(
 			"./__snapshots__/add-custom-instructions/with-custom-instructions.snap",
 		)
 	})
 
 	it("should combine all custom instructions", async () => {
-		const instructions = await addCustomInstructions("Custom test instructions", "", "/test/path", "architect", {
+		const instructions = await addCustomInstructions("Custom test instructions", "", "/test/path", "code", {
 			language: "fr",
 		})
 		expect(instructions).toMatchFileSnapshot(
@@ -315,21 +264,21 @@ describe("addCustomInstructions", () => {
 	})
 
 	it("should handle undefined mode-specific instructions", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot(
 			"./__snapshots__/add-custom-instructions/undefined-mode-instructions.snap",
 		)
 	})
 
 	it("should trim mode-specific instructions", async () => {
-		const instructions = await addCustomInstructions("  Custom mode instructions  ", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("  Custom mode instructions  ", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot(
 			"./__snapshots__/add-custom-instructions/trimmed-mode-instructions.snap",
 		)
 	})
 
 	it("should handle empty mode-specific instructions", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "architect")
+		const instructions = await addCustomInstructions("", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/empty-mode-instructions.snap")
 	})
 
@@ -338,7 +287,7 @@ describe("addCustomInstructions", () => {
 			"Mode-specific instructions",
 			"Global instructions",
 			"/test/path",
-			"architect",
+			"code",
 		)
 		expect(instructions).toMatchFileSnapshot(
 			"./__snapshots__/add-custom-instructions/global-and-mode-instructions.snap",
@@ -350,7 +299,7 @@ describe("addCustomInstructions", () => {
 			"Second instruction",
 			"First instruction",
 			"/test/path",
-			"architect",
+			"code",
 		)
 
 		const instructionParts = instructions.split("\n\n")

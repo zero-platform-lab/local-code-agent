@@ -2,7 +2,13 @@
 	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
 		"lint": {},
-		"check-types": {},
+		// cache:false は必須。webview は tsconfig で ../src/shared も型検査するが
+		// openai-agent への依存辺が無く、turbo の inputs はパッケージ外を指せない。
+		// キャッシュを効かせると型エラーを取り逃がす（pre-push 唯一の型ゲート）。
+		"check-types": {
+			"dependsOn": ["^check-types"],
+			"cache": false
+		},
 		"bundle": {
 			"outputs": ["dist/**"],
 			"dependsOn": ["@openai-agent/types#build"]

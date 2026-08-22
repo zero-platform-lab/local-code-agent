@@ -81,7 +81,7 @@ async function generatePrompt(
 		getSkillsSection(skillsManager, mode as string),
 	])
 
-	const autonomySection = getAutonomySection(settings?.autonomyMode)
+	const autonomySection = getAutonomySection(settings?.autonomyMode, settings?.todoListEnabled ?? true)
 
 	// Tools catalog is not included in the system prompt.
 	const toolsCatalog = ""

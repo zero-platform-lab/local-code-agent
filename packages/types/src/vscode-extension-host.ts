@@ -220,7 +220,6 @@ export type ExtensionState = Pick<
 	| "alwaysAllowWriteOutsideWorkspace"
 	| "alwaysAllowWriteProtected"
 	| "alwaysAllowMcp"
-	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowFollowupQuestions"
 	| "alwaysAllowExecute"
@@ -452,7 +451,6 @@ export interface WebviewMessage {
 		| "openDebugUiHistory"
 		| "downloadErrorDiagnostics"
 		| "requestModes"
-		| "switchMode"
 		| "debugSetting"
 		// Worktree messages
 		| "listWorktrees"
@@ -634,7 +632,6 @@ export interface ClineSayTool {
 		| "listFilesTopLevel"
 		| "listFilesRecursive"
 		| "searchFiles"
-		| "switchMode"
 		| "newTask"
 		| "finishTask"
 		| "imageGenerated"

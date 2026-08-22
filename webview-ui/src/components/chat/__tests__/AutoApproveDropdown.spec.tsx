@@ -21,7 +21,6 @@ const state = vi.hoisted(() => ({
 	alwaysAllowWrite: false,
 	alwaysAllowExecute: false,
 	alwaysAllowMcp: false,
-	alwaysAllowModeSwitch: false,
 	alwaysAllowSubtasks: false,
 	alwaysAllowFollowupQuestions: false,
 	setAutoApprovalEnabled: vi.fn(),
@@ -29,7 +28,6 @@ const state = vi.hoisted(() => ({
 	setAlwaysAllowWrite: vi.fn(),
 	setAlwaysAllowExecute: vi.fn(),
 	setAlwaysAllowMcp: vi.fn(),
-	setAlwaysAllowModeSwitch: vi.fn(),
 	setAlwaysAllowSubtasks: vi.fn(),
 	setAlwaysAllowFollowupQuestions: vi.fn(),
 }))
@@ -45,7 +43,6 @@ const reset = (overrides: Partial<typeof state> = {}) => {
 		alwaysAllowWrite: false,
 		alwaysAllowExecute: false,
 		alwaysAllowMcp: false,
-		alwaysAllowModeSwitch: false,
 		alwaysAllowSubtasks: false,
 		alwaysAllowFollowupQuestions: false,
 		...overrides,
@@ -72,7 +69,6 @@ describe("AutoApproveDropdown — the trigger", () => {
 			alwaysAllowWrite: true,
 			alwaysAllowExecute: true,
 			alwaysAllowMcp: true,
-			alwaysAllowModeSwitch: true,
 			alwaysAllowSubtasks: true,
 			alwaysAllowFollowupQuestions: true,
 		})
@@ -170,7 +166,6 @@ describe("AutoApproveDropdown — changing permissions", () => {
 		for (const key of [
 			"alwaysAllowExecute",
 			"alwaysAllowMcp",
-			"alwaysAllowModeSwitch",
 			"alwaysAllowSubtasks",
 			"alwaysAllowFollowupQuestions",
 		] as const) {
@@ -179,7 +174,6 @@ describe("AutoApproveDropdown — changing permissions", () => {
 
 		expect(state.setAlwaysAllowExecute).toHaveBeenCalledWith(true)
 		expect(state.setAlwaysAllowMcp).toHaveBeenCalledWith(true)
-		expect(state.setAlwaysAllowModeSwitch).toHaveBeenCalledWith(true)
 		expect(state.setAlwaysAllowSubtasks).toHaveBeenCalledWith(true)
 		expect(state.setAlwaysAllowFollowupQuestions).toHaveBeenCalledWith(true)
 	})

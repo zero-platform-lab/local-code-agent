@@ -21,7 +21,7 @@ interface AutonomyPromptContext {
  * plan の計画手順。役割モード architect の `customInstructions` から移したもの。
  *
  * 移送に際して落とした項目が 2 つある:
- * - `switch_mode` で実装モードへ移るよう促す指示。自律レベルはユーザーの専権なので、
+ * - 実装モードへ移るようモデルから促す指示。自律レベルはユーザーの専権なので、
  *   モデルからの移行要求ではなく「ユーザーが Plan を抜ける」と表現する。
  * - 計画を markdown ファイルへ書き出す指示（`/plans` 配下・`update_todo_list` 不在時の
  *   代替）。plan では edit グループごと遮断されるため、そもそも書けない。

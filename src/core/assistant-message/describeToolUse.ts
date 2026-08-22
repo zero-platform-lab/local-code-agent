@@ -45,8 +45,6 @@ export function describeToolUse(block: ToolUse, customModes?: ModeConfig[]): str
 			return `[${block.name} for '${params.server_name}']`
 		case "ask_followup_question":
 			return `[${block.name} for '${params.question}']`
-		case "switch_mode":
-			return `[${block.name} to '${params.mode_slug}'${params.reason ? ` because: ${params.reason}` : ""}]`
 		case "codebase_search":
 			return `[${block.name} for '${params.query}']`
 		case "read_command_output":

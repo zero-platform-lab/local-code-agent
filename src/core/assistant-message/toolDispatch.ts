@@ -19,7 +19,6 @@ import { runSlashCommandTool } from "../tools/RunSlashCommandTool"
 import { searchFilesTool } from "../tools/SearchFilesTool"
 import { searchReplaceTool } from "../tools/SearchReplaceTool"
 import { skillTool } from "../tools/SkillTool"
-import { switchModeTool } from "../tools/SwitchModeTool"
 import { updateTodoListTool } from "../tools/UpdateTodoListTool"
 import { useMcpToolTool } from "../tools/UseMcpToolTool"
 import { webFetchTool } from "../tools/WebFetchTool"
@@ -89,7 +88,6 @@ export const toolDispatch: Partial<Record<ToolName, ToolDispatchEntry>> = {
 	use_mcp_tool: entry(useMcpToolTool),
 	access_mcp_resource: entry(accessMcpResourceTool),
 	ask_followup_question: entry(askFollowupQuestionTool),
-	switch_mode: entry(switchModeTool),
 	run_slash_command: entry(runSlashCommandTool),
 	skill: entry(skillTool),
 

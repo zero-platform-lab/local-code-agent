@@ -57,13 +57,6 @@ describe("describeToolUse", () => {
 		)
 	})
 
-	it("appends the reason for switch_mode only when present", () => {
-		expect(describeToolUse(block("switch_mode", { mode_slug: "code" }))).toBe("[switch_mode to 'code']")
-		expect(describeToolUse(block("switch_mode", { mode_slug: "code", reason: "need edits" }))).toBe(
-			"[switch_mode to 'code' because: need edits]",
-		)
-	})
-
 	it("names the query for codebase_search and the artifact for read_command_output", () => {
 		expect(describeToolUse(block("codebase_search", { query: "q" }))).toBe("[codebase_search for 'q']")
 		expect(describeToolUse(block("read_command_output", { artifact_id: "a1" }))).toBe(

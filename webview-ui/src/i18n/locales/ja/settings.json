@@ -184,10 +184,6 @@
 			"label": "MCP",
 			"description": "MCPサーバービューで個々のMCPツールの自動承認を有効にします（この設定とツールの「常に許可」チェックボックスの両方が必要）"
 		},
-		"modeSwitch": {
-			"label": "モード",
-			"description": "承認なしで自動的に異なるモード間を切り替え"
-		},
 		"subtasks": {
 			"label": "サブタスク",
 			"description": "承認なしでサブタスクの作成と完了を許可"

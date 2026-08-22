@@ -299,10 +299,6 @@ describe("buildNativeArgs — per-tool shapes", () => {
 			args: "a",
 		})
 		expect(buildNativeArgs("skill", { skill: "s", args: "a" }, "final")).toEqual({ skill: "s", args: "a" })
-		expect(buildNativeArgs("switch_mode", { mode_slug: "code", reason: "r" }, "final")).toEqual({
-			mode_slug: "code",
-			reason: "r",
-		})
 		expect(buildNativeArgs("update_todo_list", { todos: [] }, "final")).toEqual({ todos: [] })
 		expect(buildNativeArgs("apply_patch", { patch: "p" }, "final")).toEqual({ patch: "p" })
 	})
@@ -332,7 +328,6 @@ describe("nativeArgsSpecs table", () => {
 				"search_files",
 				"search_replace",
 				"skill",
-				"switch_mode",
 				"update_todo_list",
 				"use_mcp_tool",
 				"write_to_file",

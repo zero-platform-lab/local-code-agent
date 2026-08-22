@@ -424,7 +424,6 @@ describe("ExtensionStateContextProvider setters", () => {
 		["setAlwaysAllowWriteOutsideWorkspace", "alwaysAllowWriteOutsideWorkspace", true],
 		["setAlwaysAllowExecute", "alwaysAllowExecute", true],
 		["setAlwaysAllowMcp", "alwaysAllowMcp", true],
-		["setAlwaysAllowModeSwitch", "alwaysAllowModeSwitch", true],
 		["setAlwaysAllowSubtasks", "alwaysAllowSubtasks", true],
 		["setAlwaysAllowFollowupQuestions", "alwaysAllowFollowupQuestions", true],
 		["setFollowupAutoApproveTimeoutMs", "followupAutoApproveTimeoutMs", 1234],

@@ -18,7 +18,6 @@ export type AutoApprovalState =
 	| "alwaysAllowReadOnly"
 	| "alwaysAllowWrite"
 	| "alwaysAllowMcp"
-	| "alwaysAllowModeSwitch"
 	| "alwaysAllowSubtasks"
 	| "alwaysAllowExecute"
 	| "alwaysAllowFollowupQuestions"
@@ -151,10 +150,6 @@ export async function checkAutoApproval({
 		// Auto-approval is intentional to provide a seamless experience when loading task instructions.
 		if (tool.tool === "skill") {
 			return { decision: "approve" }
-		}
-
-		if (tool?.tool === "switchMode") {
-			return state.alwaysAllowModeSwitch === true ? { decision: "approve" } : { decision: "ask" }
 		}
 
 		if (["newTask", "finishTask"].includes(tool?.tool)) {

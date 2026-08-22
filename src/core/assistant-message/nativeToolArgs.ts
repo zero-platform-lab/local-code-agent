@@ -240,11 +240,6 @@ export const nativeArgsSpecs: Partial<Record<ToolName, NativeArgsSpec>> = {
 		build: (args) => ({ path: args.path, regex: args.regex, file_pattern: args.file_pattern }),
 	},
 
-	switch_mode: {
-		required: ["mode_slug", "reason"],
-		build: (args) => ({ mode_slug: args.mode_slug, reason: args.reason }),
-	},
-
 	update_todo_list: {
 		required: ["todos"],
 		build: (args) => ({ todos: args.todos }),

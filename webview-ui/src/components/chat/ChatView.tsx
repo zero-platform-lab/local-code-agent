@@ -64,7 +64,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		organizationAllowList,
 		mode,
 		setMode,
-		alwaysAllowModeSwitch,
 		customModes,
 		messageQueue = [],
 		showWorktreesInHomeScreen,
@@ -791,9 +790,9 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 			// Check if we need to switch modes
 			if (suggestion.mode) {
-				// Only switch modes if it's a manual click (event exists) or auto-approval is allowed
+				// モード切替はユーザーの明示的なクリックのときだけ行う。
 				const isManualClick = !!event
-				if (isManualClick || alwaysAllowModeSwitch) {
+				if (isManualClick) {
 					// Switch mode without waiting
 					switchToMode(suggestion.mode)
 				}
@@ -813,7 +812,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				setInputValue(preservedInput)
 			}
 		},
-		[handleSendMessage, setInputValue, switchToMode, alwaysAllowModeSwitch, clineAsk, markFollowUpAsAnswered],
+		[handleSendMessage, setInputValue, switchToMode, clineAsk, markFollowUpAsAnswered],
 	)
 
 	const handleBatchFileResponse = useCallback((response: { [key: string]: boolean }) => {

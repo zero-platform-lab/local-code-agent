@@ -56,6 +56,11 @@ vi.mock("../sections/modes", () => ({
 }))
 
 // Mock the custom instructions
+// 注意: このモックにより、以下で addCustomInstructions を直接呼ぶテストは
+// 実装ではなく **このモックの戻り値** を検証している。実挙動（rules-{mode} の探索順、
+// .agentrules へのフォールバック、言語指定など）は
+// core/prompts/sections/__tests__/custom-instructions*.spec.ts が実装を直接叩いて担保する。
+// ここに新しい「挙動のテスト」を足さないこと。
 vi.mock("../sections/custom-instructions", () => {
 	const addCustomInstructions = vi.fn()
 	return {
@@ -235,11 +240,6 @@ describe("addCustomInstructions", () => {
 		)
 	})
 
-	it("should fall back to generic rules when mode-specific rules not found", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "code")
-		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/generic-rules-fallback.snap")
-	})
-
 	it("should include preferred language when provided", async () => {
 		const instructions = await addCustomInstructions("", "", "/test/path", "code", {
 			language: "es",
@@ -263,23 +263,11 @@ describe("addCustomInstructions", () => {
 		)
 	})
 
-	it("should handle undefined mode-specific instructions", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "code")
-		expect(instructions).toMatchFileSnapshot(
-			"./__snapshots__/add-custom-instructions/undefined-mode-instructions.snap",
-		)
-	})
-
 	it("should trim mode-specific instructions", async () => {
 		const instructions = await addCustomInstructions("  Custom mode instructions  ", "", "/test/path", "code")
 		expect(instructions).toMatchFileSnapshot(
 			"./__snapshots__/add-custom-instructions/trimmed-mode-instructions.snap",
 		)
-	})
-
-	it("should handle empty mode-specific instructions", async () => {
-		const instructions = await addCustomInstructions("", "", "/test/path", "code")
-		expect(instructions).toMatchFileSnapshot("./__snapshots__/add-custom-instructions/empty-mode-instructions.snap")
 	})
 
 	it("should combine global and mode-specific instructions", async () => {

@@ -171,11 +171,8 @@ export const AutoApproveDropdown = ({ disabled = false, triggerClassName = "" }:
 								: t("chat:autoApprove.triggerLabel", { count: enabledCount })}
 					</span>
 					<span className="inline min-[300px]:hidden min-w-0">
-						{!effectiveAutoApprovalEnabled
-							? t("chat:autoApprove.triggerLabelOffShort")
-							: enabledCount === totalCount
-								? t("chat:autoApprove.triggerLabelAll")
-								: enabledCount}
+						{/* 狭い幅では常に件数だけを出す。全件有効かどうかはアイコンで区別できる。 */}
+						{!effectiveAutoApprovalEnabled ? t("chat:autoApprove.triggerLabelOffShort") : enabledCount}
 					</span>
 				</PopoverTrigger>
 			</StandardTooltip>

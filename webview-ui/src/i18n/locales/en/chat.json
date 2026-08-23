@@ -344,7 +344,7 @@
 		"triggerLabel_zero": "0 auto-approve",
 		"triggerLabel_one": "1 auto-approved",
 		"triggerLabel_other": "{{count}} auto-approved",
-		"triggerLabelAll": "BRRR"
+		"triggerLabelAll": "All auto-approved"
 	},
 	"reasoning": {
 		"thinking": "Thinking",

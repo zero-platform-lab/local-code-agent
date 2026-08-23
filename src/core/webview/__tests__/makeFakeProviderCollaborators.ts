@@ -100,6 +100,7 @@ export function makeFakeProviderCollaborators(overrides: Partial<ProviderCollabo
 			restore: vi.fn().mockResolvedValue(undefined),
 		},
 		customModesManager: {
+			hasLoadError: vi.fn(() => false),
 			getCustomModes: vi.fn().mockResolvedValue([]),
 			updateCustomMode: vi.fn().mockResolvedValue(undefined),
 			resetCustomModes: vi.fn().mockResolvedValue(undefined),

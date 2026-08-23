@@ -37,6 +37,8 @@ export interface StateExtras {
 	mcpServers: StateForWebview["mcpServers"]
 	organizationAllowList: StateForWebview["organizationAllowList"]
 	lockApiConfigAcrossModes: StateForWebview["lockApiConfigAcrossModes"]
+	/** customModes の読み込みに失敗したか（失敗時は保存済み slug を既定へ落とさない） */
+	customModesLoadFailed?: boolean
 }
 
 /**
@@ -78,7 +80,7 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		// 拾わないため、削除された組み込みモード（architect など）の slug が残っていると
 		// そのまま通ってしまう。その状態では isToolAllowedForMode の `if (!mode) return false`
 		// に落ちて、常時ツール以外がすべて拒否される。
-		mode: resolveMode(stateValues.mode, extras.customModes),
+		mode: resolveMode(stateValues.mode, extras.customModes, extras.customModesLoadFailed),
 		language: stateValues.language ?? formatLanguage(vscode.env.language),
 		mcpEnabled: stateValues.mcpEnabled ?? true,
 		mcpServers: extras.mcpServers,
@@ -129,13 +131,30 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 }
 
 /**
- * 保存された mode slug を、実在するモードへ解決する。組み込みにもカスタムにも
- * 見つからなければ既定モードを返す。
+ * 保存された mode slug を、実在するモードへ解決する。
+ *
+ * 解決できない slug を素通しすると `isToolAllowedForMode` の `if (!mode) return false`
+ * に落ち、常時ツール以外がすべて拒否される。削除済みの組み込みモードや、消された
+ * カスタムモードが globalState に残っている場合がこれにあたるので、既定へ落とす。
+ *
+ * ただし **customModes の読み込みに失敗しているときは落とさない**。失敗時は
+ * customModes が `[]` になるため、制限付きカスタムモードの slug も「解決できない」
+ * ように見える。そこで既定モード（read/edit/command/mcp を全部持つ code）へ倒すと、
+ * 設定ファイルが壊れているだけで権限が黙って広がる。解決不能のまま返せば従来どおり
+ * ツールが拒否され、利用者は YAML のエラー通知を見て直せる。安全側へ倒す。
  */
-function resolveMode(saved: string | undefined, customModes: StateForWebview["customModes"]): Mode {
+function resolveMode(
+	saved: string | undefined,
+	customModes: StateForWebview["customModes"],
+	customModesLoadFailed?: boolean,
+): Mode {
 	if (!saved) {
 		return defaultModeSlug
 	}
 
-	return getModeBySlug(saved, customModes) ? (saved as Mode) : defaultModeSlug
+	if (getModeBySlug(saved, customModes)) {
+		return saved as Mode
+	}
+
+	return customModesLoadFailed ? (saved as Mode) : defaultModeSlug
 }

@@ -639,6 +639,7 @@ export class ClineProvider
 		return buildState(stateValues, {
 			apiConfiguration: providerSettings,
 			customModes,
+			customModesLoadFailed: this.customModesManager.hasLoadError(),
 			taskHistory: this.taskHistoryStore.getAll(),
 			mcpServers: this.mcpHub?.getAllServers() ?? [],
 			organizationAllowList: ORGANIZATION_ALLOW_ALL,

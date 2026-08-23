@@ -72,6 +72,7 @@ const mockProvider = {
 	getState: vi.fn(),
 	postMessageToWebview: vi.fn(),
 	customModesManager: {
+		hasLoadError: vi.fn(() => false),
 		getCustomModes: vi.fn(),
 		deleteCustomMode: vi.fn(),
 	},

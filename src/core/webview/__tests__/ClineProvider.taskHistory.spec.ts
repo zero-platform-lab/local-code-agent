@@ -313,6 +313,7 @@ describe("ClineProvider Task History Synchronization", () => {
 		// Mock the custom modes manager
 		;(provider as any).customModesManager = {
 			updateCustomMode: vi.fn().mockResolvedValue(undefined),
+			hasLoadError: vi.fn(() => false),
 			getCustomModes: vi.fn().mockResolvedValue([]),
 			dispose: vi.fn(),
 		}

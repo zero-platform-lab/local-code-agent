@@ -86,10 +86,10 @@ describe("段階 2: scrub を直せば、事前投入があっても既定は保
 	})
 
 	it("両方の修正が入った状態が最終形（初期値 {} かつ scrub 済み）", () => {
-		expect(buildPromptOverrideForEdit("code", EMPTY.architect, { whenToUse: "MINE" })).toEqual({
+		expect(buildPromptOverrideForEdit("code", EMPTY.code, { whenToUse: "MINE" })).toEqual({
 			whenToUse: "MINE",
 		})
-		expect(buildPromptOverrideForReset("code", EMPTY.architect, "whenToUse")).toEqual({})
+		expect(buildPromptOverrideForReset("code", EMPTY.code, "whenToUse")).toEqual({})
 	})
 })
 
@@ -151,7 +151,7 @@ describe("buildPromptOverrideForEdit", () => {
 	})
 
 	it("customInstructions をユーザーが編集したら残す", () => {
-		expect(buildPromptOverrideForEdit("code", SEEDED.architect, { customInstructions: "MY OWN" })).toEqual({
+		expect(buildPromptOverrideForEdit("code", SEEDED.code, { customInstructions: "MY OWN" })).toEqual({
 			customInstructions: "MY OWN",
 		})
 	})
@@ -214,14 +214,14 @@ describe("エクスポート契約: 保存した上書きが YAML に何を持�
 	})
 
 	it("修正後: 上書きは空なので、エクスポートは組み込みのまま（余計な上書きを持ち込まない）", () => {
-		const persisted = buildPromptOverrideForReset("code", SEEDED.architect, "roleDefinition")
+		const persisted = buildPromptOverrideForReset("code", SEEDED.code, "roleDefinition")
 
 		expect(persisted).toEqual({})
 		expect(mergeForExport(builtInCode(), persisted)).toEqual(builtInCode())
 	})
 
 	it("修正後: ユーザーが本当に変えたフィールドだけがエクスポートに反映される", () => {
-		const persisted = buildPromptOverrideForEdit("code", SEEDED.architect, { roleDefinition: "MY ROLE" })
+		const persisted = buildPromptOverrideForEdit("code", SEEDED.code, { roleDefinition: "MY ROLE" })
 		const exported = mergeForExport(builtInCode(), persisted)
 
 		expect(exported.roleDefinition).toBe("MY ROLE")

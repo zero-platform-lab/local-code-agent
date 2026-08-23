@@ -762,9 +762,17 @@ describe("ChatTextArea wiring", () => {
 			expect(screen.queryByText(/chat:addContext/)).not.toBeInTheDocument()
 		})
 
+		// 組み込みモードは code の 1 件だけなので、モードセレクタは
+		// カスタムモードが定義されているときにしか出ない。
+		const withSecondMode = {
+			customModes: [
+				{ slug: "second-mode", name: "Second", roleDefinition: "You do other work", groups: ["read"] },
+			],
+		}
+
 		it("switches mode and profile from the selectors", () => {
 			const setMode = vi.fn()
-			renderTextArea({ inputValue: "", setMode })
+			renderTextArea({ inputValue: "", setMode }, withSecondMode)
 
 			fireEvent.click(screen.getByTestId("mode-selector-change"))
 			expect(setMode).toHaveBeenCalledWith("architect")
@@ -775,6 +783,26 @@ describe("ChatTextArea wiring", () => {
 
 			fireEvent.click(screen.getByTestId("api-config-lock"))
 			expect(posted()).toContainEqual({ type: "lockApiConfigAcrossModes", bool: true })
+		})
+
+		it("選択肢が 1 件しか無いときはモードセレクタを出さない", () => {
+			// 組み込み code のみ。選べないドロップダウンを置かない。
+			renderTextArea({ inputValue: "" })
+
+			expect(screen.queryByTestId("mode-selector-change")).not.toBeInTheDocument()
+		})
+
+		it("カスタムモードがあればモードセレクタを出す", () => {
+			renderTextArea({ inputValue: "" }, withSecondMode)
+
+			expect(screen.getByTestId("mode-selector-change")).toBeInTheDocument()
+		})
+
+		it("自律モードのバッジは常に出る", () => {
+			// 権限を決めているのはこちらなので、モードセレクタの有無に関わらず表示する。
+			renderTextArea({ inputValue: "" })
+
+			expect(screen.getByTestId("autonomy-badge")).toBeInTheDocument()
 		})
 
 		it("unlocks the profile again", () => {

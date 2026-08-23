@@ -90,6 +90,7 @@ export class CustomModesManager {
 			return result.value
 		}
 
+		this.lastLoadFailed = true
 		console.error(`[CustomModesManager] Failed to parse YAML from ${filePath}:`, result.message)
 
 		if (isAgentmodes) {
@@ -99,6 +100,19 @@ export class CustomModesManager {
 		// Return empty object to prevent duplicate error handling
 		return {}
 	}
+
+	/**
+	 * 直近の読み込みで、YAML パース失敗・スキーマ違反・I/O 失敗のいずれかが起きたか。
+	 *
+	 * 失敗時は customModes が `[]` に落ちるが、これは「カスタムモードが 1 件も無い」
+	 * 状態と区別が付かない。保存済み mode slug の解決側がこの 2 つを取り違えると、
+	 * 制限付きモードが既定モード（全権限）へ黙って昇格する。
+	 */
+	public hasLoadError(): boolean {
+		return this.lastLoadFailed
+	}
+
+	private lastLoadFailed = false
 
 	private async loadModesFromFile(filePath: string): Promise<ModeConfig[]> {
 		try {
@@ -113,6 +127,7 @@ export class CustomModesManager {
 			const result = customModesSettingsSchema.safeParse(settings)
 
 			if (!result.success) {
+				this.lastLoadFailed = true
 				console.error(`[CustomModesManager] Schema validation failed for ${filePath}:`, result.error)
 
 				// Show user-friendly error for .agentmodes files
@@ -134,6 +149,8 @@ export class CustomModesManager {
 			// Add source to each mode
 			return result.data.customModes.map((mode) => ({ ...mode, source }))
 		} catch (error) {
+			this.lastLoadFailed = true
+
 			// Only log if the error wasn't already handled in parseYamlSafely
 			if (!(error as any).alreadyHandled) {
 				const errorMsg = `Failed to load modes from ${filePath}: ${error instanceof Error ? error.message : String(error)}`
@@ -162,6 +179,8 @@ export class CustomModesManager {
 	 * 「読み込み」「watcher 由来の再構築」「書き込み後の再構築」の 3 経路が共有する。
 	 */
 	private async loadMergedModes(): Promise<ModeConfig[]> {
+		this.lastLoadFailed = false
+
 		const settingsPath = await this.getCustomModesFilePath()
 		const agentmodesPath = await this.getWorkspaceAgentmodes()
 

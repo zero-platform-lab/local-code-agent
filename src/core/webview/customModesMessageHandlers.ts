@@ -7,7 +7,7 @@ import { type WebviewMessage } from "@openai-agent/types"
 
 import { t } from "../../i18n"
 import { openFile } from "../../integrations/misc/open-file"
-import { Mode, defaultModeSlug } from "../../shared/modes"
+import { Mode, defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import { resolveDefaultSaveUri, saveLastExportPath } from "../../utils/export"
 import { fileExistsAtPath } from "../../utils/fs"
 import { isSafePathSegment } from "../../utils/pathUtils"
@@ -63,7 +63,17 @@ export const customModesMessageHandlers: Partial<Record<WebviewMessage["type"], 
 	},
 
 	mode: async (provider, message) => {
-		await provider.handleModeSwitch(message.text as Mode)
+		// 送られてくる slug は検証しない限り任意の文字列。追従質問のサジェストが
+		// 持つ mode（モデルが生成する）もこの経路を通るため、実在しない slug が
+		// そのまま globalState とタスク履歴へ書き込まれうる。解決できないものは捨てる。
+		const slug = message.text
+
+		if (!slug || !getModeBySlug(slug, await provider.customModesManager.getCustomModes())) {
+			provider.log(`Ignoring switch to unknown mode: ${slug}`)
+			return
+		}
+
+		await provider.handleModeSwitch(slug as Mode)
 	},
 
 	hasOpenedModeSelector: async (provider, message) => {

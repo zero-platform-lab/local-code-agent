@@ -348,6 +348,7 @@ describe("ClineProvider", () => {
 		// Mock CustomModesManager
 		const mockCustomModesManager = {
 			updateCustomMode: vi.fn().mockResolvedValue(undefined),
+			hasLoadError: vi.fn(() => false),
 			getCustomModes: vi.fn().mockResolvedValue([]),
 			dispose: vi.fn(),
 		}
@@ -1439,6 +1440,7 @@ describe("ClineProvider", () => {
 
 			// Mock custom modes that don't include the saved mode
 			const mockCustomModesManager = {
+				hasLoadError: vi.fn(() => false),
 				getCustomModes: vi.fn().mockResolvedValue([
 					{
 						slug: "existing-mode",
@@ -1505,6 +1507,7 @@ describe("ClineProvider", () => {
 
 			// Mock custom modes that include the saved mode
 			const mockCustomModesManager = {
+				hasLoadError: vi.fn(() => false),
 				getCustomModes: vi.fn().mockResolvedValue([
 					{
 						slug: "custom-mode",
@@ -1572,6 +1575,7 @@ describe("ClineProvider", () => {
 
 			// Mock no custom modes
 			const mockCustomModesManager = {
+				hasLoadError: vi.fn(() => false),
 				getCustomModes: vi.fn().mockResolvedValue([]),
 				dispose: vi.fn(),
 			}
@@ -1647,6 +1651,7 @@ describe("ClineProvider", () => {
 
 			// Mock custom modes
 			const mockCustomModesManager = {
+				hasLoadError: vi.fn(() => false),
 				getCustomModes: vi.fn().mockResolvedValue([]),
 				dispose: vi.fn(),
 			}
@@ -1703,6 +1708,7 @@ describe("ClineProvider", () => {
 			// Mock CustomModesManager methods
 			;(provider as any).customModesManager = {
 				updateCustomMode: vi.fn().mockResolvedValue(undefined),
+				hasLoadError: vi.fn(() => false),
 				getCustomModes: vi.fn().mockResolvedValue([
 					{
 						slug: "test-mode",

@@ -324,12 +324,41 @@ describe("customModesMessageHandlers", () => {
 	})
 
 	describe("mode / hasOpenedModeSelector", () => {
-		it("mode は text をそのままモード切替に渡す", async () => {
+		it("実在する組み込みモードは切り替える", async () => {
+			const h = setup()
+
+			await h.invoke("mode", { text: "code" })
+
+			expect(h.handleModeSwitch).toHaveBeenCalledExactlyOnceWith("code")
+		})
+
+		it("実在するカスタムモードも切り替える", async () => {
+			const h = setup({
+				customModes: [{ slug: "my-mode", name: "My Mode", roleDefinition: "You do my work", groups: ["read"] }],
+			})
+
+			await h.invoke("mode", { text: "my-mode" })
+
+			expect(h.handleModeSwitch).toHaveBeenCalledExactlyOnceWith("my-mode")
+		})
+
+		it("解決できない slug は捨てる", async () => {
+			// 追従質問のサジェストが持つ mode はモデルが生成するため、任意の文字列が
+			// 来うる。素通しすると globalState とタスク履歴に不正な slug が焼き付く。
 			const h = setup()
 
 			await h.invoke("mode", { text: "architect" })
 
-			expect(h.handleModeSwitch).toHaveBeenCalledExactlyOnceWith("architect")
+			expect(h.handleModeSwitch).not.toHaveBeenCalled()
+			expect(h.log).toHaveBeenCalledWith("Ignoring switch to unknown mode: architect")
+		})
+
+		it("text が無ければ何もしない", async () => {
+			const h = setup()
+
+			await h.invoke("mode", {})
+
+			expect(h.handleModeSwitch).not.toHaveBeenCalled()
 		})
 
 		it("hasOpenedModeSelector は bool をそのまま保存する（false も false のまま）", async () => {

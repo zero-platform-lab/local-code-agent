@@ -11,6 +11,7 @@ import type { ModeConfig } from "@openai-agent/types"
 
 import { buildState, type StateExtras } from "../buildState"
 import { defaultModeSlug } from "../../../shared/modes"
+import { isToolAllowedForMode } from "../../tools/validateToolUse"
 
 const extras = (customModes: ModeConfig[] = []): StateExtras =>
 	({
@@ -58,5 +59,34 @@ describe("buildState の mode 解決", () => {
 
 	it("空文字は既定へ落とす", () => {
 		expect(modeOf("")).toBe(defaultModeSlug)
+	})
+
+	describe("customModes の読み込みに失敗しているとき", () => {
+		// 読み込み失敗時は customModes が [] に落ちる。これを「そのモードは消えた」と
+		// 解釈して既定へ倒すと、制限付きカスタムモードが code（read/edit/command/mcp）
+		// へ黙って昇格する。設定ファイルが壊れているだけで権限が広がってはならない。
+		const modeOnLoadFailure = (saved: unknown) =>
+			buildState({ mode: saved } as never, {
+				...extras([]),
+				customModesLoadFailed: true,
+			}).mode
+
+		it("解決できない slug を既定へ落とさない（権限の昇格を防ぐ）", () => {
+			expect(modeOnLoadFailure("my-restricted-mode")).toBe("my-restricted-mode")
+		})
+
+		it("落とさない結果ツールは拒否されるが、それが安全側", () => {
+			// isToolAllowedForMode は解決できない mode に対して false を返す。
+			// 利用者には YAML のエラー通知が出ているので、直せば復帰できる。
+			expect(isToolAllowedForMode("write_to_file", modeOnLoadFailure("my-restricted-mode"), [])).toBe(false)
+		})
+
+		it("未設定なら読み込み失敗でも既定になる", () => {
+			expect(modeOnLoadFailure(undefined)).toBe(defaultModeSlug)
+		})
+
+		it("読み込みが成功していれば従来どおり既定へ落とす", () => {
+			expect(modeOf("my-restricted-mode")).toBe(defaultModeSlug)
+		})
 	})
 })

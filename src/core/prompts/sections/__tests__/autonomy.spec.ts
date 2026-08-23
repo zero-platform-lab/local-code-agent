@@ -78,6 +78,14 @@ describe("getAutonomySection", () => {
 			})
 		})
 
+		it("MCP とサブタスクが遮断ではなく承認待ちであることを伝える", () => {
+			// AUTONOMY_PRESETS.plan は alwaysAllowMcp / alwaysAllowSubtasks が false。
+			// 一方 READ_ONLY_BLOCKED_GROUPS は edit / command だけなので、この 2 つは
+			// 「使えるが毎回訊かれる」。遮断と混同させない。
+			expect(section).toContain("MCP tools and subtasks are not blocked")
+			expect(section).toContain("not auto-approved")
+		})
+
 		it("モデル自身が自律レベルを上げようとしないよう明記する", () => {
 			// autonomy.ts の "autonomy is user-controlled ONLY" と対になる文面。
 			expect(section).toContain("the user's decision alone")
@@ -96,6 +104,16 @@ describe("getAutonomySection", () => {
 
 				expect(mentionsGate).toBe(true)
 			}
+		})
+
+		it("plan で自動承認されないツール群は、文面でも承認が要ると伝える", () => {
+			const preset = AUTONOMY_PRESETS.plan
+			const section = getAutonomySection("plan")
+
+			// 実際に false のものだけを検証する。プリセットを変えたらここで気づく。
+			expect(preset.alwaysAllowMcp).toBe(false)
+			expect(preset.alwaysAllowSubtasks).toBe(false)
+			expect(section).toMatch(/approval/i)
 		})
 
 		it("読み取り専用モードだけが「試みても成功しない」と伝える", () => {

@@ -63,7 +63,9 @@ Reading files, editing files, and running allowed commands all run without askin
 
 	plan: (ctx) => `The current autonomy mode is **Plan**, which is read-only.
 
-You may read, search, and investigate. File edits and command execution are **rejected by the tool-validation layer before they run** — attempting them wastes a turn and cannot succeed, so do not attempt them. This restriction is enforced independently of the role mode and only the user can lift it.
+You may read, search, and investigate without asking. File edits and command execution are **rejected by the tool-validation layer before they run** — attempting them wastes a turn and cannot succeed, so do not attempt them. This restriction is enforced independently of the role mode and only the user can lift it.
+
+MCP tools and subtasks are not blocked, but they are **not auto-approved either**: each use pauses for the user's approval. Reach for them only when the plan genuinely needs what they return, not to gather background detail.
 
 ${planInstructions(ctx)}`,
 }

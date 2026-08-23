@@ -1170,15 +1170,21 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 
 				<div className="flex items-center gap-2">
 					<div className="flex items-center gap-2 min-w-0 overflow-clip flex-1">
-						<ModeSelector
-							value={mode}
-							title={t("chat:selectMode")}
-							onChange={handleModeChange}
-							triggerClassName="text-ellipsis overflow-hidden flex-shrink-0"
-							modeShortcutText={modeShortcutText}
-							customModes={customModes}
-							customModePrompts={customModePrompts}
-						/>
+						{/* 自律モードは権限そのものを決めるため、この行で最初に目に入る位置に置く。
+						    役割モードは組み込みが code の 1 件だけで、カスタムモードが定義されて
+						    いなければ選択肢が 1 つしかないため、その場合は表示しない。 */}
+						{!isEditMode ? <AutonomyModeBadge /> : null}
+						{allModes.length > 1 && (
+							<ModeSelector
+								value={mode}
+								title={t("chat:selectMode")}
+								onChange={handleModeChange}
+								triggerClassName="text-ellipsis overflow-hidden flex-shrink-0"
+								modeShortcutText={modeShortcutText}
+								customModes={customModes}
+								customModePrompts={customModePrompts}
+							/>
+						)}
 						<ApiConfigSelector
 							value={currentConfigId}
 							displayName={displayName}
@@ -1195,7 +1201,6 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 						<AutoApproveDropdown triggerClassName="min-w-[28px] text-ellipsis overflow-hidden flex-shrink" />
 					</div>
 					<div className={cn("flex flex-shrink-0 items-center gap-0.5 h-5 leading-none", "pr-2")}>
-						{!isEditMode ? <AutonomyModeBadge /> : null}
 						{!isEditMode ? <IndexingStatusBadge /> : null}
 					</div>
 				</div>

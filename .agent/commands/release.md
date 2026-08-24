@@ -109,15 +109,9 @@ git push origin vX.Y.Z
 ## 8. .vsix をビルド（ここが唯一のビルドポイント）
 
 ```bash
-rm -f bin/*.vsix bin/*.sbom.cdx.json   # 古い成果物を必ず消してから
+rm -f bin/*.vsix          # 古い成果物を必ず消してから
 pnpm vsix                 # bin/openai-agent-X.Y.Z.vsix が出ること
-pnpm sbom                 # bin/openai-agent-X.Y.Z.sbom.cdx.json が出ること
 ```
-
-SBOM は OWASP の **cdxgen**（devDependency）が生成する CycloneDX 1.5 JSON である。
-部品一覧に加えて**依存関係グラフ**を含み、生成時に JSON Schema 検証が走る
-（cdxgen の `--validate` は既定で有効）。NTIA の「SBOM 最小要素」が求める項目を満たす
-ため、自前生成ではなく標準ツールを使う。`--required-only` により本番依存だけを対象にする。
 
 タグを打った直後の main HEAD からビルドする。手順 5 で作ったものを流用しないこと
 （同じコミットから作れば bit-for-bit で一致することが多いが、依存や環境が変わると
@@ -130,8 +124,7 @@ gh release create vX.Y.Z \
   --title "vX.Y.Z" \
   --prerelease \                       # ベータ版なら必須
   --notes "..." \
-  bin/openai-agent-X.Y.Z.vsix \
-  bin/openai-agent-X.Y.Z.sbom.cdx.json
+  bin/openai-agent-X.Y.Z.vsix
 ```
 
 - リリースノートは**日本語**で書く。変更内容に加えて、インストール手順と

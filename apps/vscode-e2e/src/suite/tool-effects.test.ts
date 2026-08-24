@@ -137,7 +137,9 @@ suite("Tool side effects against the fake endpoint", function () {
 		assert.ok(JSON.stringify(third.messages).includes(childMarker), "子タスクの結果が親の会話へ戻っている")
 	})
 
-	test("switches the mode the endpoint asked for", async () => {
+	test("recovers when the endpoint asks for a tool that does not exist", async () => {
+		// switch_mode は PR #19 で削除した。モデル（＝エンドポイント）が削除済みツールを
+		// 要求してきても、タスクが止まらずエラーを伝えて完了まで進めることを検証する。
 		const fake = globalThis.fakeOpenAiServer
 		assert.ok(fake, "フェイクサーバが必要（OPENAI_BASE_URL を設定した実行では対象外）")
 
@@ -147,19 +149,13 @@ suite("Tool side effects against the fake endpoint", function () {
 				name: "switch_mode",
 				arguments: { mode_slug: "architect", reason: "planning first" },
 			},
-			{ kind: "tool", name: "attempt_completion", arguments: { result: "switched" } },
+			{ kind: "tool", name: "attempt_completion", arguments: { result: "recovered" } },
 		)
 
-		await runUntilCompleted(
-			{ mode: "code", autoApprovalEnabled: true, alwaysAllowModeSwitch: true },
-			"Switch to architect mode.",
-		)
+		await runUntilCompleted({ mode: "code", autoApprovalEnabled: true }, "Try to switch modes.")
 
-		// 拡張の設定として実際に切り替わっていること。
-		assert.strictEqual(globalThis.api.getConfiguration().mode, "architect")
-
-		// 後続テストへ持ち越さないよう戻す。
-		await globalThis.api.setConfiguration({ ...globalThis.api.getConfiguration(), mode: "code" })
+		// モードは変わらないこと。
+		assert.strictEqual(globalThis.api.getConfiguration().mode, "code")
 	})
 
 	test("runs the command the endpoint asked for and feeds its output back", async () => {

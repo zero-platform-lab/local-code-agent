@@ -109,9 +109,14 @@ git push origin vX.Y.Z
 ## 8. .vsix をビルド（ここが唯一のビルドポイント）
 
 ```bash
-rm -f bin/*.vsix          # 古い成果物を必ず消してから
+rm -f bin/*.vsix bin/*.sbom.cdx.json   # 古い成果物を必ず消してから
 pnpm vsix                 # bin/openai-agent-X.Y.Z.vsix が出ること
+pnpm sbom                 # bin/openai-agent-X.Y.Z.sbom.cdx.json が出ること
 ```
+
+SBOM（CycloneDX 1.5 JSON）は拡張パッケージの**本番依存の閉包**を lockfile の解決済み
+バージョンで並べたもの。宣言ベースであり、esbuild が実際に取り込んだ集合の上位集合に
+なる点は `scripts/generate-sbom.js` の冒頭コメントに記載がある。
 
 タグを打った直後の main HEAD からビルドする。手順 5 で作ったものを流用しないこと
 （同じコミットから作れば bit-for-bit で一致することが多いが、依存や環境が変わると
@@ -124,7 +129,8 @@ gh release create vX.Y.Z \
   --title "vX.Y.Z" \
   --prerelease \                       # ベータ版なら必須
   --notes "..." \
-  bin/openai-agent-X.Y.Z.vsix
+  bin/openai-agent-X.Y.Z.vsix \
+  bin/openai-agent-X.Y.Z.sbom.cdx.json
 ```
 
 - リリースノートは**日本語**で書く。変更内容に加えて、インストール手順と

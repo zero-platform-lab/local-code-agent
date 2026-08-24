@@ -23,6 +23,7 @@
 		"bundle:nightly": "turbo bundle:nightly --log-order grouped --output-logs new-only",
 		"bundle:internal": "turbo bundle:internal --log-order grouped --output-logs new-only",
 		"vsix": "turbo vsix --log-order grouped --output-logs new-only",
+		"sbom": "node scripts/generate-sbom.js",
 		"vsix:nightly": "turbo vsix:nightly --log-order grouped --output-logs new-only",
 		"vsix:internal": "turbo vsix:internal --log-order grouped --output-logs new-only",
 		"clean": "turbo clean --log-order grouped --output-logs new-only && rimraf dist out bin .vite-port .turbo",

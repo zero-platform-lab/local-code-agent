@@ -63,3 +63,7 @@ roo-cli-*.tar.gz*
 # src/assets/icons/icon-internal.svg から生成し、コミットはしない。
 *.png
 *.gif
+
+# SBOM 生成の入力（ビルド成果物。generate-sbom.js が読む）
+src/esbuild-metafile.json
+webview-ui/vite-modules.json

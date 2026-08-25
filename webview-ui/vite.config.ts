@@ -96,7 +96,26 @@ export default defineConfig(({ mode }) => {
 	// Distributed builds (internal / nightly .vsix): ship minified, no source maps.
 	const isLeanBuild = mode === "internal" || mode === "nightly"
 
+	// SBOM 生成用。rollup が実際にバンドルへ取り込んだモジュール ID を出す。
+	// .vsix には node_modules が入らないため、宣言上の依存ではなくこの集合が
+	// 同梱物の正を表す。出力先はビルド成果物の外（webview-ui 直下）にして
+	// .vscodeignore の許可リストに引っかからないようにする。
+	const emitModuleManifest = (): PluginOption => ({
+		name: "sbom-module-manifest",
+		generateBundle(_options, bundle) {
+			const ids = new Set<string>()
+
+			for (const chunk of Object.values(bundle)) {
+				if (chunk.type !== "chunk") continue
+				for (const id of Object.keys(chunk.modules)) ids.add(id)
+			}
+
+			fs.writeFileSync(resolve(__dirname, "vite-modules.json"), JSON.stringify([...ids].sort()))
+		},
+	})
+
 	const plugins: PluginOption[] = [
+		emitModuleManifest(),
 		react({
 			babel: {
 				plugins: [["babel-plugin-react-compiler", { target: "18" }]],

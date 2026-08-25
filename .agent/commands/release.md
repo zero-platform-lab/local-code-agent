@@ -109,9 +109,20 @@ git push origin vX.Y.Z
 ## 8. .vsix をビルド（ここが唯一のビルドポイント）
 
 ```bash
-rm -f bin/*.vsix          # 古い成果物を必ず消してから
+rm -f bin/*.vsix bin/*.sbom.cdx.json   # 古い成果物を必ず消してから
 pnpm vsix                 # bin/openai-agent-X.Y.Z.vsix が出ること
+pnpm sbom                 # bin/openai-agent-X.Y.Z.sbom.cdx.json が出ること
 ```
+
+**SBOM は `.vsix` に実際に入ったモジュールから作る。** この拡張は
+`vsce package --no-dependencies` で梱包し、`.vscodeignore` が node_modules を全除外する
+ため、配布物に入るのは esbuild が束ねた `dist/` と vite が束ねた
+`webview-ui/build/assets/` だけである。宣言上の依存一覧（package.json / lockfile）は
+配布物の中身と一致しないので使わない。
+
+`pnpm sbom` は esbuild の metafile（`src/esbuild-metafile.json`）と rollup のモジュール
+一覧（`webview-ui/vite-modules.json`）を読む。どちらもビルド時に生成されるので、
+**`pnpm vsix` の後に実行すること**。
 
 タグを打った直後の main HEAD からビルドする。手順 5 で作ったものを流用しないこと
 （同じコミットから作れば bit-for-bit で一致することが多いが、依存や環境が変わると
@@ -124,7 +135,8 @@ gh release create vX.Y.Z \
   --title "vX.Y.Z" \
   --prerelease \                       # ベータ版なら必須
   --notes "..." \
-  bin/openai-agent-X.Y.Z.vsix
+  bin/openai-agent-X.Y.Z.vsix \
+  bin/openai-agent-X.Y.Z.sbom.cdx.json
 ```
 
 - リリースノートは**日本語**で書く。変更内容に加えて、インストール手順と

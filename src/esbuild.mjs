@@ -46,6 +46,10 @@ async function main() {
 		format: "cjs",
 		sourcesContent: false,
 		platform: "node",
+		// SBOM 生成用。バンドルへ実際に取り込まれた入力ファイルの一覧が要る。
+		// .vsix には node_modules が入らない（.vscodeignore が全除外）ため、宣言上の
+		// 依存ではなく metafile の inputs が同梱物の正だけを表す。
+		metafile: true,
 	}
 
 	const srcDir = __dirname
@@ -141,7 +145,16 @@ async function main() {
 		copyLocales(srcDir, distDir)
 		setupLocaleWatcher(srcDir, distDir)
 	} else {
-		await Promise.all([extensionCtx.rebuild(), workerCtx.rebuild()])
+		const [extensionResult, workerResult] = await Promise.all([extensionCtx.rebuild(), workerCtx.rebuild()])
+
+		// metafile を dist の隣へ出す。scripts/generate-sbom.js がこれを読む。
+		// dist/ 自体は .vscodeignore の許可リストに入っているので、metafile は
+		// dist の外（build ディレクトリ直下）へ置いて .vsix に混入させない。
+		fs.writeFileSync(
+			path.join(buildDir, "esbuild-metafile.json"),
+			JSON.stringify({ extension: extensionResult.metafile, worker: workerResult.metafile }),
+		)
+
 		await Promise.all([extensionCtx.dispose(), workerCtx.dispose()])
 	}
 }

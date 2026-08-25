@@ -32,7 +32,8 @@
 		"code-server:install": "node scripts/code-server.js",
 		"changeset:version": "cp CHANGELOG.md src/CHANGELOG.md && changeset version && cp -vf src/CHANGELOG.md .",
 		"knip": "knip --include files",
-		"npm:publish:types": "pnpm --filter @openai-agent/types npm:publish"
+		"npm:publish:types": "pnpm --filter @openai-agent/types npm:publish",
+		"sbom": "node scripts/generate-sbom.js"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.10",

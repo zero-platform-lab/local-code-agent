@@ -17,6 +17,8 @@ import { settingsMessageHandlers } from "./settingsMessageHandlers"
 import { promptMessageHandlers } from "./promptMessageHandlers"
 import { uiMessageHandlers } from "./uiMessageHandlers"
 
+const describeError = (error: unknown) => (error instanceof Error ? (error.stack ?? error.message) : String(error))
+
 export const webviewMessageHandler = async (provider: WebviewMessageHost, message: WebviewMessage) => {
 	// ドメインごとに切り出したハンドラへ委譲する。
 	// 下の switch に残っているのは webviewDidLaunch（起動時ブートストラップ）のみ。
@@ -46,11 +48,22 @@ export const webviewMessageHandler = async (provider: WebviewMessageHost, messag
 
 	switch (message.type) {
 		case "webviewDidLaunch":
-			// Load custom modes first
-			const customModes = await provider.customModesManager.getCustomModes()
-			await updateGlobalState("customModes", customModes)
+			// custom modes の読み込み失敗で初回 state の送信ごと落とさない。ここで throw すると
+			// webview は didHydrateState が立たないまま真っ白で固まる（`getCustomModes` は
+			// TTL 切れのたびに実ファイル I/O を行うので、一過性の失敗を引きうる）。
+			try {
+				const customModes = await provider.customModesManager.getCustomModes()
+				await updateGlobalState("customModes", customModes)
+			} catch (error) {
+				provider.log(`[webviewDidLaunch] Failed to load custom modes: ${describeError(error)}`)
+			}
 
-			provider.postStateToWebview()
+			// 初回 state は hydration の唯一の入口。fire-and-forget のままだと reject が
+			// unhandled rejection として消え、白い画面の理由がどこにも残らない。
+			provider.postStateToWebview().catch((error) => {
+				provider.log(`[webviewDidLaunch] Failed to post initial state: ${describeError(error)}`)
+			})
+
 			provider.workspaceTracker?.initializeFilePaths() // Don't await.
 
 			getTheme().then((theme) => provider.postMessageToWebview({ type: "theme", text: JSON.stringify(theme) }))

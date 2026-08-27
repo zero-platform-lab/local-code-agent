@@ -80,20 +80,63 @@ export function truncateLine(line: string, maxLength: number = MAX_LINE_LENGTH):
 	return line.length > maxLength ? line.substring(0, maxLength) + " [truncated...]" : line
 }
 /**
- * Get the path to the ripgrep binary within the VSCode installation
+ * VS Code 同梱 ripgrep の探索先（`vscode.env.appRoot` からの相対パス）。
+ *
+ * 現行の VS Code は `@vscode/ripgrep-universal` を同梱し、バイナリを
+ * `bin/<platform>-<arch>/` 配下に置く。旧 `@vscode/ripgrep` / `vscode-ripgrep` は
+ * `bin/` 直下だった。新しい配置を先に見る（旧配置しか見ていなかったため、現行の
+ * VS Code では同梱バイナリが常に見つからず search_files が毎回失敗していた）。
  */
-export async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
-	const checkPath = async (pkgFolder: string) => {
-		const fullPath = path.join(vscodeAppRoot, pkgFolder, binName)
-		return (await fileExistsAtPath(fullPath)) ? fullPath : undefined
+function bundledBinFolders(): string[] {
+	const platformDir = `${process.platform}-${process.arch}`
+
+	return [
+		`node_modules/@vscode/ripgrep-universal/bin/${platformDir}/`,
+		`node_modules.asar.unpacked/@vscode/ripgrep-universal/bin/${platformDir}/`,
+		"node_modules/@vscode/ripgrep/bin/",
+		"node_modules/vscode-ripgrep/bin",
+		"node_modules.asar.unpacked/vscode-ripgrep/bin/",
+		"node_modules.asar.unpacked/@vscode/ripgrep/bin/",
+	]
+}
+
+/**
+ * PATH 上の ripgrep を探す。同梱版が見つからない配布向けの最後の手段。
+ *
+ * 対象は PATH 上の実ファイルのみ。`execRipgrep` は `childProcess.spawn` を shell
+ * 無しで呼ぶため、shell の alias / function として定義された `rg` はここからも
+ * 実行時からも見えない。
+ */
+async function getBinPathFromEnv(): Promise<string | undefined> {
+	for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
+		if (!dir) {
+			continue
+		}
+
+		const candidate = path.join(dir, binName)
+
+		if (await fileExistsAtPath(candidate)) {
+			return candidate
+		}
 	}
 
-	return (
-		(await checkPath("node_modules/@vscode/ripgrep/bin/")) ||
-		(await checkPath("node_modules/vscode-ripgrep/bin")) ||
-		(await checkPath("node_modules.asar.unpacked/vscode-ripgrep/bin/")) ||
-		(await checkPath("node_modules.asar.unpacked/@vscode/ripgrep/bin/"))
-	)
+	return undefined
+}
+
+/**
+ * Get the path to the ripgrep binary within the VSCode installation,
+ * falling back to a ripgrep on PATH.
+ */
+export async function getBinPath(vscodeAppRoot: string): Promise<string | undefined> {
+	for (const pkgFolder of bundledBinFolders()) {
+		const fullPath = path.join(vscodeAppRoot, pkgFolder, binName)
+
+		if (await fileExistsAtPath(fullPath)) {
+			return fullPath
+		}
+	}
+
+	return getBinPathFromEnv()
 }
 
 async function execRipgrep(bin: string, args: string[]): Promise<string> {

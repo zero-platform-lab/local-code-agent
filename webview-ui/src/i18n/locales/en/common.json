@@ -1,4 +1,10 @@
 {
+	"hydration": {
+		"loading": "Waiting for state from the extension…",
+		"title": "Could not load state",
+		"description": "The extension did not send the initial state. If retrying does not help, reopen the panel or check the Agent output channel for errors.",
+		"retry": "Retry"
+	},
 	"errorBoundary": {
 		"title": "Something went wrong",
 		"reportText": "Please help us improve by reporting this error on",

@@ -1,7 +1,7 @@
 // npx vitest run src/__tests__/App.spec.tsx
 
 import React from "react"
-import { render, screen, act, cleanup, fireEvent } from "@/utils/test-utils"
+import { render, screen, act, cleanup, fireEvent, waitFor } from "@/utils/test-utils"
 
 import AppWithProviders from "../App"
 
@@ -200,10 +200,96 @@ describe("App", () => {
 		expect(screen.queryByTestId("settings-view")).not.toBeInTheDocument()
 	})
 
-	it("tells the extension that the webview launched", () => {
+	it("tells the extension that the webview launched", async () => {
 		render(<AppWithProviders />)
 
-		expect(mocks.postMessage).toHaveBeenCalledWith({ type: "webviewDidLaunch" })
+		await waitFor(() => expect(mocks.postMessage).toHaveBeenCalledWith({ type: "webviewDidLaunch" }))
+	})
+
+	// 本番の webview は StrictMode 配下でマウントされ、effect が 2 回走る。ref で
+	// 止めていないと送信が 2 回になり、再送カウンタが 1 回分ずれて上限に早く達する。
+	it("StrictMode で二重に mount されても webviewDidLaunch は 1 回だけ送る", async () => {
+		render(
+			<React.StrictMode>
+				<AppWithProviders />
+			</React.StrictMode>,
+		)
+
+		await waitFor(() => expect(mocks.postMessage).toHaveBeenCalledWith({ type: "webviewDidLaunch" }))
+		expect(
+			mocks.postMessage.mock.calls.filter(
+				([message]) => (message as { type?: string } | undefined)?.type === "webviewDidLaunch",
+			),
+		).toHaveLength(1)
+	})
+
+	// 初回 state が 1 回でも落ちると `didHydrateState` は永久に false のままになる。
+	// 以前はその間ずっと null を返しており、画面が無言で真っ白のまま固まっていた。
+	describe("初回 state が届かないとき", () => {
+		const launchCount = () =>
+			mocks.postMessage.mock.calls.filter(
+				([message]) => (message as { type?: string } | undefined)?.type === "webviewDidLaunch",
+			).length
+
+		const advance = async (ms: number) => {
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(ms)
+			})
+		}
+
+		beforeEach(() => {
+			mockUseExtensionState.mockReturnValue({ didHydrateState: false, renderContext: "sidebar" })
+			vi.useFakeTimers()
+		})
+
+		afterEach(() => {
+			vi.useRealTimers()
+		})
+
+		it("届くまで webviewDidLaunch を送り直し、上限で打ち切る", async () => {
+			render(<AppWithProviders />)
+			expect(launchCount()).toBe(1)
+
+			await advance(5000)
+			expect(launchCount()).toBe(2)
+
+			await advance(5000)
+			expect(launchCount()).toBe(3)
+
+			// 上限に達したら自動再送は止める。
+			await advance(60_000)
+			expect(launchCount()).toBe(3)
+		})
+
+		it("再送を使い切ったら状況と再試行手段を出す", async () => {
+			render(<AppWithProviders />)
+
+			// 1 回目の送信中は静かにする（通常起動でちらつかせない）。
+			expect(screen.queryByText("common:hydration.loading")).not.toBeInTheDocument()
+			expect(screen.queryByText("common:hydration.title")).not.toBeInTheDocument()
+
+			await advance(5000)
+			expect(screen.getByText("common:hydration.loading")).toBeInTheDocument()
+
+			await advance(5000)
+			expect(screen.getByText("common:hydration.title")).toBeInTheDocument()
+
+			fireEvent.click(screen.getByText("common:hydration.retry"))
+			expect(launchCount()).toBe(4)
+		})
+
+		it("state が届けば再送を止める", async () => {
+			render(<AppWithProviders />)
+			expect(launchCount()).toBe(1)
+
+			// ExtensionStateContext はモックなので、hydrate 済みの値を読ませるには
+			// 再レンダーを起こす必要がある（本番では context の更新自体が再レンダーを伴う）。
+			mockUseExtensionState.mockReturnValue({ didHydrateState: true, renderContext: "sidebar" })
+			triggerMessage("settingsButtonClicked")
+
+			await advance(60_000)
+			expect(launchCount()).toBe(1)
+		})
 	})
 
 	it("switches to settings view when receiving settingsButtonClicked action", async () => {

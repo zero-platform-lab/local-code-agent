@@ -181,7 +181,10 @@ const context = (lineNumber: number, text: string) =>
 // --- 1. バイナリの探索 ---------------------------------------------------------
 
 describe("getBinPath", () => {
+	const platformDir = `${process.platform}-${process.arch}`
 	const candidates = [
+		`node_modules/@vscode/ripgrep-universal/bin/${platformDir}/`,
+		`node_modules.asar.unpacked/@vscode/ripgrep-universal/bin/${platformDir}/`,
 		"node_modules/@vscode/ripgrep/bin/",
 		"node_modules/vscode-ripgrep/bin",
 		"node_modules.asar.unpacked/vscode-ripgrep/bin/",
@@ -200,11 +203,44 @@ describe("getBinPath", () => {
 		},
 	)
 
-	it("どこにも無ければ undefined を返す", async () => {
+	it("同梱にも PATH にも無ければ undefined を返す", async () => {
 		fileExistsAtPath.mockImplementation(async () => false)
+		const originalPath = process.env.PATH
+		process.env.PATH = ""
 
-		expect(await getBinPath("/app")).toBeUndefined()
-		expect(fileExistsAtPath).toHaveBeenCalledTimes(4)
+		try {
+			expect(await getBinPath("/app")).toBeUndefined()
+			// PATH が空なので、走査したのは同梱候補だけ。
+			expect(fileExistsAtPath).toHaveBeenCalledTimes(candidates.length)
+		} finally {
+			process.env.PATH = originalPath
+		}
+	})
+
+	it("同梱版が無ければ PATH 上の rg に fallback する", async () => {
+		// 同梱 ripgrep を持たない配布（snap / 一部ディストリのビルド）の救済経路。
+		const onPath = path.join("/opt/tools", "rg")
+		fileExistsAtPath.mockImplementation(async (p: unknown) => p === onPath)
+		const originalPath = process.env.PATH
+		process.env.PATH = ["/nowhere", "/opt/tools"].join(path.delimiter)
+
+		try {
+			expect(await getBinPath("/app")).toBe(onPath)
+		} finally {
+			process.env.PATH = originalPath
+		}
+	})
+
+	it("PATH 上の候補は PATH の並び順で先勝ちする", async () => {
+		fileExistsAtPath.mockImplementation(async (p: unknown) => typeof p === "string" && p.startsWith("/opt/"))
+		const originalPath = process.env.PATH
+		process.env.PATH = ["/opt/first", "/opt/second"].join(path.delimiter)
+
+		try {
+			expect(await getBinPath("/app")).toBe(path.join("/opt/first", "rg"))
+		} finally {
+			process.env.PATH = originalPath
+		}
 	})
 
 	it("Windows では rg.exe を探す", async () => {
@@ -218,7 +254,9 @@ describe("getBinPath", () => {
 			const mod = await import("../index")
 			fileExistsAtPath.mockImplementation(async () => true)
 
-			expect(await mod.getBinPath("/app")).toBe(path.join("/app", "node_modules/@vscode/ripgrep/bin/", "rg.exe"))
+			expect(await mod.getBinPath("/app")).toBe(
+				path.join("/app", `node_modules/@vscode/ripgrep-universal/bin/win32-${process.arch}/`, "rg.exe"),
+			)
 		} finally {
 			Object.defineProperty(process, "platform", original)
 			vi.resetModules()
@@ -237,7 +275,13 @@ describe("regexSearchFiles - spawn に渡る argv", () => {
 		expect(rg.runs).toHaveLength(1)
 		expect(argvOf()).toEqual(["--json", "-e", "TODO", "--context", "1", "--no-messages", "/repo/src"])
 		// 実行ファイルは getBinPath が返したパスそのもの。
-		expect(rg.runs[0].bin).toBe(path.join("/vscode/app-root", "node_modules/@vscode/ripgrep/bin/", "rg"))
+		expect(rg.runs[0].bin).toBe(
+			path.join(
+				"/vscode/app-root",
+				`node_modules/@vscode/ripgrep-universal/bin/${process.platform}-${process.arch}/`,
+				"rg",
+			),
+		)
 		// **シェルを介さない**：spawn の第 3 引数を渡していない＝ shell:false。
 		expect(rg.runs[0].options).toBeUndefined()
 	})

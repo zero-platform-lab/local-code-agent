@@ -14,11 +14,17 @@ import SettingsView, { SettingsViewRef } from "./components/settings/SettingsVie
 import { CheckpointRestoreDialog } from "./components/chat/CheckpointRestoreDialog"
 import { DeleteMessageDialog, EditMessageDialog } from "./components/chat/MessageModificationConfirmationDialog"
 import ErrorBoundary from "./components/ErrorBoundary"
+import HydrationFallback from "./components/HydrationFallback"
 import { useAddNonInteractiveClickListener } from "./components/ui/hooks/useNonInteractiveClick"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { STANDARD_TOOLTIP_DELAY } from "./components/ui/standard-tooltip"
 
 type Tab = "settings" | "history" | "chat"
+
+// 初回 state の再送設定。拡張側で state 送信が 1 回失敗すると `didHydrateState` は
+// 永久に false のままになるため、届くまで `webviewDidLaunch` を送り直す。
+const HYDRATION_RETRY_INTERVAL_MS = 5000
+const HYDRATION_MAX_ATTEMPTS = 3
 
 interface DeleteMessageDialogState {
 	isOpen: boolean
@@ -129,8 +135,35 @@ const App = () => {
 
 	useEvent("message", onMessage)
 
+	const [hydrationAttempts, setHydrationAttempts] = useState(0)
+	const didRequestStateOnMount = useRef(false)
+
+	const requestExtensionState = useCallback(() => {
+		vscode.postMessage({ type: "webviewDidLaunch" })
+		setHydrationAttempts((attempts) => attempts + 1)
+	}, [])
+
 	// Tell the extension that we are ready to receive messages.
-	useEffect(() => vscode.postMessage({ type: "webviewDidLaunch" }), [])
+	// ref で 1 回に固定する（StrictMode の二重実行で送信回数を数え違えないため）。
+	useEffect(() => {
+		if (didRequestStateOnMount.current) {
+			return
+		}
+
+		didRequestStateOnMount.current = true
+		requestExtensionState()
+	}, [requestExtensionState])
+
+	// 1 回投げて終わりにすると、拡張側が初回 state の送信に失敗したときに webview は
+	// hydration されないまま真っ白で固まる。届くまで送り直す。
+	useEffect(() => {
+		if (didHydrateState || hydrationAttempts === 0 || hydrationAttempts >= HYDRATION_MAX_ATTEMPTS) {
+			return
+		}
+
+		const timer = setTimeout(requestExtensionState, HYDRATION_RETRY_INTERVAL_MS)
+		return () => clearTimeout(timer)
+	}, [didHydrateState, hydrationAttempts, requestExtensionState])
 
 	// Initialize source map support for better error reporting
 	useEffect(() => {
@@ -156,7 +189,13 @@ const App = () => {
 		}, [renderContext]),
 	)
 	if (!didHydrateState) {
-		return null
+		return (
+			<HydrationFallback
+				attempts={hydrationAttempts}
+				maxAttempts={HYDRATION_MAX_ATTEMPTS}
+				onRetry={requestExtensionState}
+			/>
+		)
 	}
 
 	// Do not conditionally load ChatView, it's expensive and there's state we

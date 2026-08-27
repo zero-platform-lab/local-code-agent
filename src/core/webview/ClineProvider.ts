@@ -410,7 +410,16 @@ export class ClineProvider
 	 * @param webview A reference to the extension webview
 	 */
 	public setWebviewMessageListener(webview: vscode.Webview) {
-		const onReceiveMessage = async (message: WebviewMessage) => webviewMessageHandler(this, message)
+		// ハンドラの reject は誰も待っていない。catch しないと unhandled rejection として
+		// 消え、webview が反応しない理由がログのどこにも残らない。
+		const onReceiveMessage = async (message: WebviewMessage) =>
+			webviewMessageHandler(this, message).catch((error) =>
+				this.log(
+					`Error handling webview message "${message.type}": ${
+						error instanceof Error ? (error.stack ?? error.message) : String(error)
+					}`,
+				),
+			)
 
 		const messageDisposable = webview.onDidReceiveMessage(onReceiveMessage)
 		this.webviewDisposables.push(messageDisposable)

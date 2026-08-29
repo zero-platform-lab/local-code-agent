@@ -2,7 +2,7 @@ import React from "react"
 import { Fzf } from "fzf"
 import { Check, X } from "lucide-react"
 
-import { type ModeConfig, type CustomModePrompts } from "@openai-agent/types"
+import { type CustomModePrompts } from "@openai-agent/types"
 
 import { type Mode, getAllModes, defaultModeSlug } from "@agent/modes"
 
@@ -24,7 +24,6 @@ interface ModeSelectorProps {
 	title: string
 	triggerClassName?: string
 	modeShortcutText: string
-	customModes?: ModeConfig[]
 	customModePrompts?: CustomModePrompts
 	disableSearch?: boolean
 }
@@ -36,7 +35,6 @@ export const ModeSelector = ({
 	title,
 	triggerClassName = "",
 	modeShortcutText,
-	customModes,
 	customModePrompts,
 	disableSearch = false,
 }: ModeSelectorProps) => {
@@ -58,15 +56,15 @@ export const ModeSelector = ({
 		}
 	}, [hasOpenedModeSelector, setHasOpenedModeSelector])
 
-	// Get all modes including custom modes and merge custom prompt descriptions.
+	// Get all built-in modes and merge custom prompt descriptions.
 	const modes = React.useMemo(() => {
-		const allModes = getAllModes(customModes)
+		const allModes = getAllModes()
 
 		return allModes.map((mode) => ({
 			...mode,
 			description: customModePrompts?.[mode.slug]?.description ?? mode.description,
 		}))
-	}, [customModes, customModePrompts])
+	}, [customModePrompts])
 
 	// Find the selected mode, falling back to default if current mode doesn't exist (e.g., after workspace switch)
 	const selectedMode = React.useMemo(() => {

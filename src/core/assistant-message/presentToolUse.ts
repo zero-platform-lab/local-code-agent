@@ -53,9 +53,9 @@ export async function presentToolUse(cline: PresentAssistantMessageCline, block:
 
 	// Fetch state early so it's available for toolDescription and validation
 	const state = await cline.providerRef.deref()?.getState()
-	const { mode, customModes, experiments: stateExperiments, disabledTools, autonomyMode } = state ?? {}
+	const { mode, experiments: stateExperiments, disabledTools, autonomyMode } = state ?? {}
 
-	const toolDescription = (): string => describeToolUse(block, customModes)
+	const toolDescription = (): string => describeToolUse(block)
 
 	if (cline.stream.didRejectTool) {
 		// Ignore any tool content after user has rejected tool once.
@@ -246,9 +246,7 @@ export async function presentToolUse(cline: PresentAssistantMessageCline, block:
 			validateToolUse(
 				block.name as ToolName,
 				mode ?? defaultModeSlug,
-				customModes ?? [],
 				toolRequirements,
-				block.params,
 				stateExperiments,
 				includedTools,
 				autonomyMode,

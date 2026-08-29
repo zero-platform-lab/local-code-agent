@@ -1,6 +1,6 @@
 import type OpenAI from "openai"
 
-import type { ProviderSettings, ModeConfig, ModelInfo } from "@openai-agent/types"
+import type { ProviderSettings, ModelInfo } from "@openai-agent/types"
 
 import type * as vscode from "vscode"
 
@@ -21,7 +21,6 @@ interface BuildToolsOptions {
 	provider: BuildToolsProvider
 	cwd: string
 	mode: string | undefined
-	customModes: ModeConfig[] | undefined
 	experiments: Record<string, boolean> | undefined
 	apiConfiguration: ProviderSettings | undefined
 	disabledTools?: string[]
@@ -37,7 +36,7 @@ interface BuildToolsResult {
  * モードでフィルタしたネイティブツール + MCP ツールを組み立てる。
  */
 export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsOptions): Promise<BuildToolsResult> {
-	const { provider, cwd, mode, customModes, experiments, apiConfiguration, disabledTools, modelInfo } = options
+	const { provider, cwd, mode, experiments, apiConfiguration, disabledTools, modelInfo } = options
 
 	const mcpHub = provider.getMcpHub()
 
@@ -66,7 +65,6 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 	const filteredNativeTools = filterNativeToolsForMode(
 		nativeTools,
 		mode,
-		customModes,
 		experiments,
 		codeIndexManager,
 		filterSettings,
@@ -75,7 +73,7 @@ export async function buildNativeToolsArrayWithRestrictions(options: BuildToolsO
 
 	// Filter MCP tools based on mode restrictions.
 	const mcpTools = getMcpServerTools(mcpHub)
-	const filteredMcpTools = filterMcpToolsForMode(mcpTools, mode, customModes, experiments)
+	const filteredMcpTools = filterMcpToolsForMode(mcpTools, mode, experiments)
 
 	return {
 		tools: [...filteredNativeTools, ...filteredMcpTools],

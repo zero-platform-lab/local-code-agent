@@ -60,7 +60,6 @@ describe("ClineProvider collaborator injection", () => {
 	it("注入した collaborator をそのまま所有する（新規に new しない）", () => {
 		expect(provider.taskHistoryStore).toBe(collaborators.taskHistoryStore)
 		expect(provider.providerSettingsManager).toBe(collaborators.providerSettingsManager)
-		expect(provider.customModesManager).toBe(collaborators.customModesManager)
 		expect(provider.webviewContent).toBe(collaborators.webviewContent)
 		expect(provider.codeIndexStatus).toBe(collaborators.codeIndexStatus)
 		expect(provider.pendingEditOperations).toBe(collaborators.pendingEditOperations)
@@ -127,7 +126,6 @@ describe("ClineProvider collaborator injection", () => {
 		expect(collaborators.taskHistoryStore.dispose).toHaveBeenCalled()
 		expect(collaborators.historyWriteThrough.flush).toHaveBeenCalled()
 		expect(collaborators.workspaceTracker.dispose).toHaveBeenCalled()
-		expect(collaborators.customModesManager.dispose).toHaveBeenCalled()
 		expect(collaborators.skillsManager.dispose).toHaveBeenCalled()
 	})
 })

@@ -102,9 +102,7 @@ describe("CreateSkillDialog", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks()
-		mockExtensionState = {
-			customModes: [{ slug: "custom-mode", name: "Custom Mode" }],
-		}
+		mockExtensionState = {}
 	})
 
 	it("renders dialog when open is true", () => {
@@ -396,10 +394,9 @@ describe("CreateSkillDialog", () => {
 		// Should have "Any mode" checkbox (checked by default)
 		expect(screen.getByTestId("checkbox-create-mode-any")).toBeInTheDocument()
 		expect(screen.getByTestId("checkbox-create-mode-any")).toBeChecked()
-		// Should have the built-in mode checkbox (code のみ)
+		// Should have the built-in mode checkboxes
 		expect(screen.getByTestId("checkbox-create-mode-code")).toBeInTheDocument()
-		// Should have custom mode checkbox from state
-		expect(screen.getByTestId("checkbox-create-mode-custom-mode")).toBeInTheDocument()
+		expect(screen.getByTestId("checkbox-create-mode-research")).toBeInTheDocument()
 	})
 
 	it("unchecks 'Any mode' when a specific mode is selected", () => {
@@ -463,9 +460,9 @@ describe("CreateSkillDialog", () => {
 		fireEvent.change(nameInput, { target: { value: "my-skill" } })
 		fireEvent.change(descInput, { target: { value: "My skill description" } })
 
-		// 組み込みの Code と、state 由来のカスタムモードを選ぶ
+		// 組み込みの Code と Research を選ぶ
 		fireEvent.click(screen.getByTestId("checkbox-create-mode-code"))
-		fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+		fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
 		const buttons = screen.getAllByTestId("button")
 		const createButton = buttons.find((btn) => btn.getAttribute("data-variant") === "primary")
@@ -478,7 +475,7 @@ describe("CreateSkillDialog", () => {
 				skillName: "my-skill",
 				source: "project",
 				skillDescription: "My skill description",
-				skillModeSlugs: ["code", "custom-mode"],
+				skillModeSlugs: ["code", "research"],
 			})
 		})
 	})
@@ -540,27 +537,27 @@ describe("CreateSkillDialog", () => {
 		it("drops 'any mode' as soon as a specific mode is ticked", () => {
 			renderDialog()
 
-			fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
 			expect(screen.getByTestId("checkbox-create-mode-any")).not.toBeChecked()
 		})
 
 		it("falls back to 'any mode' when the last specific mode is unticked", () => {
 			renderDialog()
-			fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
-			fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
 			expect(screen.getByTestId("checkbox-create-mode-any")).toBeChecked()
 		})
 
 		it("clears the specific modes when 'any mode' is ticked again", () => {
 			renderDialog()
-			fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
 			fireEvent.click(screen.getByTestId("checkbox-create-mode-any"))
 
-			expect(screen.getByTestId("checkbox-create-mode-custom-mode")).not.toBeChecked()
+			expect(screen.getByTestId("checkbox-create-mode-research")).not.toBeChecked()
 		})
 
 		it("leaves everything unticked when 'any mode' is unticked on its own", () => {
@@ -569,19 +566,19 @@ describe("CreateSkillDialog", () => {
 			fireEvent.click(screen.getByTestId("checkbox-create-mode-any"))
 
 			expect(screen.getByTestId("checkbox-create-mode-any")).not.toBeChecked()
-			expect(screen.getByTestId("checkbox-create-mode-custom-mode")).not.toBeChecked()
+			expect(screen.getByTestId("checkbox-create-mode-research")).not.toBeChecked()
 		})
 
 		it("stores the modes that were ticked", async () => {
 			renderDialog()
 			fillIn()
-			fireEvent.click(screen.getByTestId("checkbox-create-mode-custom-mode"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
 
 			create()
 
 			await waitFor(() =>
 				expect(vscode.postMessage).toHaveBeenCalledWith(
-					expect.objectContaining({ skillModeSlugs: ["custom-mode"] }),
+					expect.objectContaining({ skillModeSlugs: ["research"] }),
 				),
 			)
 		})

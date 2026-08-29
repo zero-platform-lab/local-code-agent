@@ -32,13 +32,10 @@ type StateForWebview = Omit<ExtensionState, "clineMessages" | "renderContext" | 
  */
 export interface StateExtras {
 	apiConfiguration: StateForWebview["apiConfiguration"]
-	customModes: StateForWebview["customModes"]
 	taskHistory: StateForWebview["taskHistory"]
 	mcpServers: StateForWebview["mcpServers"]
 	organizationAllowList: StateForWebview["organizationAllowList"]
 	lockApiConfigAcrossModes: StateForWebview["lockApiConfigAcrossModes"]
-	/** customModes の読み込みに失敗したか（失敗時は保存済み slug を既定へ落とさない） */
-	customModesLoadFailed?: boolean
 }
 
 /**
@@ -80,7 +77,7 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		// 拾わないため、削除された組み込みモード（architect など）の slug が残っていると
 		// そのまま通ってしまう。その状態では isToolAllowedForMode の `if (!mode) return false`
 		// に落ちて、常時ツール以外がすべて拒否される。
-		mode: resolveMode(stateValues.mode, extras.customModes, extras.customModesLoadFailed),
+		mode: resolveMode(stateValues.mode),
 		language: stateValues.language ?? formatLanguage(vscode.env.language),
 		mcpEnabled: stateValues.mcpEnabled ?? true,
 		mcpServers: extras.mcpServers,
@@ -94,7 +91,6 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		experiments: stateValues.experiments ?? experimentDefault,
 		autonomyMode: stateValues.autonomyMode ?? DEFAULT_AUTONOMY_MODE,
 		autoApprovalEnabled: stateValues.autoApprovalEnabled ?? false,
-		customModes: extras.customModes,
 		maxOpenTabsContext: stateValues.maxOpenTabsContext ?? DEFAULT_MAX_OPEN_TABS_CONTEXT,
 		maxWorkspaceFiles: stateValues.maxWorkspaceFiles ?? DEFAULT_MAX_WORKSPACE_FILES,
 		disabledTools: stateValues.disabledTools,
@@ -134,27 +130,18 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
  * 保存された mode slug を、実在するモードへ解決する。
  *
  * 解決できない slug を素通しすると `isToolAllowedForMode` の `if (!mode) return false`
- * に落ち、常時ツール以外がすべて拒否される。削除済みの組み込みモードや、消された
- * カスタムモードが globalState に残っている場合がこれにあたるので、既定へ落とす。
- *
- * ただし **customModes の読み込みに失敗しているときは落とさない**。失敗時は
- * customModes が `[]` になるため、制限付きカスタムモードの slug も「解決できない」
- * ように見える。そこで既定モード（read/edit/command/mcp を全部持つ code）へ倒すと、
- * 設定ファイルが壊れているだけで権限が黙って広がる。解決不能のまま返せば従来どおり
- * ツールが拒否され、利用者は YAML のエラー通知を見て直せる。安全側へ倒す。
+ * に落ち、常時ツール以外がすべて拒否される。削除済みの組み込みモードや、撤去済みの
+ * カスタムモード機構で作られた slug が globalState に残っている場合がこれにあたるので、
+ * 既定へ落とす。
  */
-function resolveMode(
-	saved: string | undefined,
-	customModes: StateForWebview["customModes"],
-	customModesLoadFailed?: boolean,
-): Mode {
+function resolveMode(saved: string | undefined): Mode {
 	if (!saved) {
 		return defaultModeSlug
 	}
 
-	if (getModeBySlug(saved, customModes)) {
+	if (getModeBySlug(saved)) {
 		return saved as Mode
 	}
 
-	return customModesLoadFailed ? (saved as Mode) : defaultModeSlug
+	return defaultModeSlug
 }

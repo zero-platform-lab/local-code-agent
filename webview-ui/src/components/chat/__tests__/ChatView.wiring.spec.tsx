@@ -206,24 +206,6 @@ const setState = (state: Record<string, unknown>) => {
 		organizationAllowList: { allowAll: true, providers: {} },
 		mode: "code",
 		setMode: vi.fn(),
-		// 組み込みモードは code の 1 件だけなので、モード循環を試すには
-		// カスタムモードがもう 1 つ要る。
-		customModes: [
-			{
-				slug: "second-mode",
-				name: "Second",
-				roleDefinition: "You do other work",
-				groups: ["read"],
-			},
-			{
-				// 前方循環と後方循環の行き先を別にするには 3 件目が要る
-				// （2 件だと次も前も同じモードになる）
-				slug: "third-mode",
-				name: "Third",
-				roleDefinition: "You do yet other work",
-				groups: ["read"],
-			},
-		],
 		messageQueue: [],
 		showWorktreesInHomeScreen: false,
 		...state,
@@ -1237,7 +1219,10 @@ describe("ChatView wiring", () => {
 				window.dispatchEvent(new KeyboardEvent("keydown", { key: ".", ctrlKey: true, shiftKey: true }))
 			})
 			expect(setMode).toHaveBeenCalledTimes(2)
-			expect(setMode.mock.calls[0][0]).not.toBe(setMode.mock.calls[1][0])
+			// 組み込みは code / research の 2 件。mode は "code" 固定なので、
+			// 次送りも前送りももう一方（research）に着地する。
+			expect(setMode.mock.calls[0][0]).toBe("research")
+			expect(setMode.mock.calls[1][0]).toBe("research")
 		})
 
 		it("ignores other keys", () => {

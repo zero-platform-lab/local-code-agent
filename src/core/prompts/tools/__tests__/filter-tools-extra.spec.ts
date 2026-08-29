@@ -75,8 +75,7 @@ describe("applyModelToolCustomization", () => {
 		slug: "arr",
 		name: "Arr",
 		roleDefinition: "",
-		// 配列形式のグループ (Array.isArray 分岐)
-		groups: [["edit", { fileRegex: ".*" }] as any, "read"],
+		groups: ["edit", "read"],
 	} as ModeConfig
 
 	it("modelInfo が無ければ入力をそのまま返し alias 変換は空", () => {
@@ -112,57 +111,49 @@ describe("applyModelToolCustomization", () => {
 
 describe("filterNativeToolsForMode", () => {
 	it("mode 未指定でも既定モードのツールを返す", () => {
-		const result = filterNativeToolsForMode(NATIVE, undefined, undefined, undefined)
+		const result = filterNativeToolsForMode(NATIVE, undefined, undefined)
 		expect(result.map(toolName)).toContain("read_file")
 	})
 
-	it("未知モード + customModes 空でも既定モードにフォールバックする", () => {
-		const result = filterNativeToolsForMode(NATIVE, "does-not-exist", [], undefined)
+	it("未知モードでも既定モードにフォールバックする", () => {
+		const result = filterNativeToolsForMode(NATIVE, "does-not-exist", undefined)
 		expect(result.length).toBeGreaterThan(0)
 	})
 
 	it("codeIndexManager が無ければ codebase_search を除外し、有効なら含める", () => {
-		const without = filterNativeToolsForMode(NATIVE, "code", undefined, undefined)
+		const without = filterNativeToolsForMode(NATIVE, "code", undefined)
 		expect(without.map(toolName)).not.toContain("codebase_search")
 
-		const withIndex = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, enabledCodeIndex)
+		const withIndex = filterNativeToolsForMode(NATIVE, "code", undefined, enabledCodeIndex)
 		expect(withIndex.map(toolName)).toContain("codebase_search")
 	})
 
 	it("todoListEnabled=false で update_todo_list を除外する", () => {
-		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, undefined, {
+		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, {
 			todoListEnabled: false,
 		})
 		expect(result.map(toolName)).not.toContain("update_todo_list")
 	})
 
 	it("runSlashCommand 実験が有効なときだけ run_slash_command を含める", () => {
-		const off = filterNativeToolsForMode(NATIVE, "code", undefined, {})
+		const off = filterNativeToolsForMode(NATIVE, "code", {})
 		expect(off.map(toolName)).not.toContain("run_slash_command")
 
-		const on = filterNativeToolsForMode(NATIVE, "code", undefined, { runSlashCommand: true })
+		const on = filterNativeToolsForMode(NATIVE, "code", { runSlashCommand: true })
 		expect(on.map(toolName)).toContain("run_slash_command")
 	})
 
 	it("MCP リソースが無ければ access_mcp_resource を除外し、あれば含める", () => {
-		const without = filterNativeToolsForMode(NATIVE, "code", undefined, undefined)
+		const without = filterNativeToolsForMode(NATIVE, "code", undefined)
 		expect(without.map(toolName)).not.toContain("access_mcp_resource")
 
-		const withMcp = filterNativeToolsForMode(
-			NATIVE,
-			"code",
-			undefined,
-			undefined,
-			undefined,
-			undefined,
-			mcpHubWithResources,
-		)
+		const withMcp = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, undefined, mcpHubWithResources)
 		expect(withMcp.map(toolName)).toContain("access_mcp_resource")
 	})
 
 	it("modelInfo.includedTools のエイリアス指定は出力ツール名を rename する", () => {
 		const settings = { modelInfo: { includedTools: ["write_file"] } }
-		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, settings)
 		const names = result.map(toolName)
 		// write_to_file が write_file にリネームされて出る
 		expect(names).toContain("write_file")
@@ -170,7 +161,7 @@ describe("filterNativeToolsForMode", () => {
 	})
 
 	it("disabledTools はエイリアスも正規化して除外する", () => {
-		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, undefined, {
+		const result = filterNativeToolsForMode(NATIVE, "code", undefined, undefined, {
 			disabledTools: ["search_and_replace"],
 		})
 		expect(result.map(toolName)).not.toContain("edit")
@@ -179,49 +170,43 @@ describe("filterNativeToolsForMode", () => {
 
 describe("isToolAllowedInMode", () => {
 	it("常時利用可能ツールは true", () => {
-		expect(isToolAllowedInMode("attempt_completion", "code", undefined, undefined)).toBe(true)
+		expect(isToolAllowedInMode("attempt_completion", "code", undefined)).toBe(true)
 	})
 
 	it("グループ制のツール(codebase_search)はモードのグループに従う", () => {
 		// codebase_search は ALWAYS_AVAILABLE ではないため、モードの read グループで許可される
-		expect(isToolAllowedInMode("codebase_search", "code", undefined, undefined)).toBe(true)
-		// read グループを持たないカスタムモードでは不許可
-		const noReadMode: ModeConfig = {
-			slug: "noread",
-			name: "NoRead",
-			roleDefinition: "",
-			groups: ["command"],
-		} as ModeConfig
-		expect(isToolAllowedInMode("codebase_search", "noread", [noReadMode], undefined)).toBe(false)
+		expect(isToolAllowedInMode("codebase_search", "code", undefined)).toBe(true)
+		// 未知モードでは不許可（モード解決に失敗）
+		expect(isToolAllowedInMode("codebase_search", "no-such-mode", undefined)).toBe(false)
 	})
 
 	it("update_todo_list は todoListEnabled=false のとき false", () => {
-		expect(isToolAllowedInMode("update_todo_list", "code", undefined, undefined, undefined, {})).toBe(true)
+		expect(isToolAllowedInMode("update_todo_list", "code", undefined, undefined, {})).toBe(true)
 		expect(
-			isToolAllowedInMode("update_todo_list", "code", undefined, undefined, undefined, {
+			isToolAllowedInMode("update_todo_list", "code", undefined, undefined, {
 				todoListEnabled: false,
 			}),
 		).toBe(false)
 	})
 
 	it("run_slash_command は experiment 次第", () => {
-		expect(isToolAllowedInMode("run_slash_command", "code", undefined, {})).toBe(false)
-		expect(isToolAllowedInMode("run_slash_command", "code", undefined, { runSlashCommand: true })).toBe(true)
+		expect(isToolAllowedInMode("run_slash_command", "code", {})).toBe(false)
+		expect(isToolAllowedInMode("run_slash_command", "code", { runSlashCommand: true })).toBe(true)
 	})
 
 	it("モードのグループに属するツールは許可され、mode 未指定でも既定で判定する", () => {
-		expect(isToolAllowedInMode("read_file", "code", undefined, undefined)).toBe(true)
-		expect(isToolAllowedInMode("read_file", undefined, undefined, undefined)).toBe(true)
+		expect(isToolAllowedInMode("read_file", "code", undefined)).toBe(true)
+		expect(isToolAllowedInMode("read_file", undefined, undefined)).toBe(true)
 	})
 })
 
 describe("getAvailableToolsInGroup", () => {
 	it("未知グループは空配列", () => {
-		expect(getAvailableToolsInGroup("bogus" as any, "code", undefined, undefined)).toEqual([])
+		expect(getAvailableToolsInGroup("bogus" as any, "code", undefined)).toEqual([])
 	})
 
 	it("read グループは code モードで read_file を含む", () => {
-		const tools = getAvailableToolsInGroup("read", "code", undefined, undefined)
+		const tools = getAvailableToolsInGroup("read", "code", undefined)
 		expect(tools).toContain("read_file")
 	})
 })
@@ -230,24 +215,18 @@ describe("filterMcpToolsForMode", () => {
 	const mcpTools = [makeTool("mcp--srv--tool")]
 
 	it("use_mcp_tool が許可されるモードでは MCP ツールをそのまま返す", () => {
-		const result = filterMcpToolsForMode(mcpTools, "code", undefined, undefined)
+		const result = filterMcpToolsForMode(mcpTools, "code", undefined)
 		expect(result).toEqual(mcpTools)
 	})
 
 	it("mode 未指定でも既定モードで判定する", () => {
 		// mode ?? defaultModeSlug の nullish 分岐
-		const result = filterMcpToolsForMode(mcpTools, undefined, undefined, undefined)
+		const result = filterMcpToolsForMode(mcpTools, undefined, undefined)
 		expect(result).toEqual(mcpTools)
 	})
 
-	it("use_mcp_tool が許可されないモードでは空配列", () => {
-		const readOnlyMode: ModeConfig = {
-			slug: "readonly",
-			name: "ReadOnly",
-			roleDefinition: "",
-			groups: ["read"],
-		} as ModeConfig
-		const result = filterMcpToolsForMode(mcpTools, "readonly", [readOnlyMode], undefined)
+	it("未知モードでは use_mcp_tool が許可されず空配列", () => {
+		const result = filterMcpToolsForMode(mcpTools, "no-such-mode", undefined)
 		expect(result).toEqual([])
 	})
 })

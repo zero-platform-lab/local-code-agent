@@ -7,7 +7,7 @@ import { getTheme } from "../../integrations/theme/getTheme"
 import { skillsMessageHandlers } from "./skillsMessageHandler"
 import { worktreeMessageHandlers } from "./worktreeMessageHandlers"
 import { codeIndexMessageHandlers } from "./codeIndexMessageHandlers"
-import { customModesMessageHandlers } from "./customModesMessageHandlers"
+import { modeMessageHandlers } from "./modeMessageHandlers"
 import { commandMessageHandlers } from "./commandMessageHandlers"
 import { apiConfigMessageHandlers } from "./apiConfigMessageHandlers"
 import { mcpMessageHandlers } from "./mcpMessageHandlers"
@@ -25,7 +25,7 @@ export const webviewMessageHandler = async (provider: WebviewMessageHost, messag
 	const groupedHandler =
 		worktreeMessageHandlers[message.type] ??
 		codeIndexMessageHandlers[message.type] ??
-		customModesMessageHandlers[message.type] ??
+		modeMessageHandlers[message.type] ??
 		commandMessageHandlers[message.type] ??
 		apiConfigMessageHandlers[message.type] ??
 		mcpMessageHandlers[message.type] ??
@@ -48,16 +48,6 @@ export const webviewMessageHandler = async (provider: WebviewMessageHost, messag
 
 	switch (message.type) {
 		case "webviewDidLaunch":
-			// custom modes の読み込み失敗で初回 state の送信ごと落とさない。ここで throw すると
-			// webview は didHydrateState が立たないまま真っ白で固まる（`getCustomModes` は
-			// TTL 切れのたびに実ファイル I/O を行うので、一過性の失敗を引きうる）。
-			try {
-				const customModes = await provider.customModesManager.getCustomModes()
-				await updateGlobalState("customModes", customModes)
-			} catch (error) {
-				provider.log(`[webviewDidLaunch] Failed to load custom modes: ${describeError(error)}`)
-			}
-
 			// 初回 state は hydration の唯一の入口。fire-and-forget のままだと reject が
 			// unhandled rejection として消え、白い画面の理由がどこにも残らない。
 			provider.postStateToWebview().catch((error) => {

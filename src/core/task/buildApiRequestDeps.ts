@@ -109,7 +109,6 @@ export function buildApiRequestDeps(
 				provider,
 				cwd: host.cwd,
 				mode: options.mode,
-				customModes: options.customModes,
 				experiments: options.experiments,
 				apiConfiguration: options.apiConfiguration,
 				disabledTools: options.disabledTools,

@@ -25,7 +25,7 @@ const OVERRIDABLE_FIELDS = ["roleDefinition", "description", "whenToUse", "custo
 
 type OverridableField = (typeof OVERRIDABLE_FIELDS)[number]
 
-/** 組み込み既定の値。custom mode は対象外なので customModes は渡さない。 */
+/** 組み込み既定の値。 */
 function builtInValue(mode: Mode, field: OverridableField): string {
 	switch (field) {
 		case "roleDefinition":

@@ -9,7 +9,6 @@ import {
 	type ContextCondense,
 	type ContextTruncation,
 	type ExtensionState,
-	type ModeConfig,
 	type ProviderSettings,
 	type ToolProgressStatus,
 } from "@openai-agent/types"
@@ -64,7 +63,6 @@ export type ApiRequestProviderState = Omit<
  */
 export type BuildToolsFn = (options: {
 	mode?: string
-	customModes?: ModeConfig[]
 	experiments?: Record<string, boolean>
 	apiConfiguration?: ProviderSettings
 	disabledTools?: string[]
@@ -156,7 +154,6 @@ async function buildCondenseMetadata(
 ): Promise<ApiHandlerCreateMessageMetadata> {
 	const toolsResult = await deps.buildTools({
 		mode: state?.mode,
-		customModes: state?.customModes,
 		experiments: state?.experiments,
 		apiConfiguration: state?.apiConfiguration,
 		disabledTools: state?.disabledTools,
@@ -681,7 +678,6 @@ export async function* attemptApiRequest(
 	deps.log?.("[API] tools を構築中（MCP 含む）…")
 	const toolsResult = await deps.buildTools({
 		mode,
-		customModes: state?.customModes,
 		experiments: state?.experiments,
 		apiConfiguration,
 		disabledTools: state?.disabledTools,

@@ -124,7 +124,6 @@ const setState = (state: Record<string, unknown> = {}) => {
 		openedTabs: [],
 		currentApiConfigName: "Config 1",
 		listApiConfigMeta: [{ id: "cfg-1", name: "Config 1" }],
-		customModes: [],
 		customModePrompts: {},
 		cwd: "/test/workspace",
 		pinnedApiConfigs: {},

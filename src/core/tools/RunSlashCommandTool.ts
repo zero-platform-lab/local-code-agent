@@ -1,4 +1,4 @@
-import type { Experiments, ModeConfig } from "@openai-agent/types"
+import type { Experiments } from "@openai-agent/types"
 
 import { formatResponse } from "../prompts/responses"
 import { getCommand, getCommandNames } from "../../services/command/commands"
@@ -20,7 +20,7 @@ interface RunSlashCommandParams {
 }
 
 interface RunSlashCommandProviderLike {
-	getState(): Promise<{ experiments?: Experiments; mode?: string; customModes?: ModeConfig[] }>
+	getState(): Promise<{ experiments?: Experiments; mode?: string }>
 	getSkillsManager(): SkillLookup | undefined
 	handleModeSwitch(mode: string): Promise<unknown>
 }
@@ -119,7 +119,7 @@ export class RunSlashCommandTool extends BaseTool<"run_slash_command"> {
 			// Switch mode if specified in the command frontmatter
 			if (command.mode) {
 				const provider = task.providerRef.deref()
-				const targetMode = getModeBySlug(command.mode, (await provider?.getState())?.customModes)
+				const targetMode = getModeBySlug(command.mode)
 				if (targetMode) {
 					await provider?.handleModeSwitch(command.mode)
 				}

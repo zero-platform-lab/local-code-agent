@@ -1,7 +1,5 @@
 // npx vitest run core/assistant-message/__tests__/describeToolUse.spec.ts
 
-import type { ModeConfig } from "@openai-agent/types"
-
 import type { ToolUse } from "../../../shared/tools"
 import { describeToolUse } from "../describeToolUse"
 
@@ -78,23 +76,21 @@ describe("describeToolUse", () => {
 	})
 
 	describe("new_task", () => {
-		const customModes = [{ slug: "custom", name: "Custom Mode" }] as ModeConfig[]
-
-		it("resolves the mode display name from customModes", () => {
-			expect(describeToolUse(block("new_task", { mode: "custom", message: "go" }), customModes)).toBe(
-				"[new_task in Custom Mode mode: 'go']",
+		it("resolves the mode display name from the built-in modes", () => {
+			expect(describeToolUse(block("new_task", { mode: "code", message: "go" }))).toBe(
+				"[new_task in 💻 Code mode: 'go']",
 			)
 		})
 
 		it("falls back to the raw slug for an unknown mode", () => {
-			expect(describeToolUse(block("new_task", { mode: "nope", message: "go" }), customModes)).toBe(
+			expect(describeToolUse(block("new_task", { mode: "nope", message: "go" }))).toBe(
 				"[new_task in nope mode: 'go']",
 			)
 		})
 
 		it("substitutes a placeholder message when none is given", () => {
-			expect(describeToolUse(block("new_task", { mode: "custom" }), customModes)).toBe(
-				"[new_task in Custom Mode mode: '(no message)']",
+			expect(describeToolUse(block("new_task", { mode: "code" }))).toBe(
+				"[new_task in 💻 Code mode: '(no message)']",
 			)
 		})
 

@@ -20,7 +20,6 @@ import { SkillsManager } from "../../services/skills/SkillsManager"
 
 import { ContextProxy } from "../config/ContextProxy"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
-import { CustomModesManager } from "../config/CustomModesManager"
 import { TaskHistoryStore } from "../task-persistence"
 import type { Task } from "../task/Task"
 
@@ -68,7 +67,6 @@ export interface ProviderCollaboratorHost {
 	 * （spec が `provider.providerSettingsManager = fake` のように後から差し替えるため）。
 	 */
 	readonly providerSettingsManager: ProviderSettingsManager
-	readonly customModesManager: CustomModesManager
 	readonly taskHistoryStore: TaskHistoryStore
 
 	getState(): Promise<ProviderStateSnapshot>
@@ -145,17 +143,14 @@ export interface ProviderCollaborators {
 	providerProfile: ProviderProfileController
 	modeController: ModeController
 	historyProfileRestorer: HistoryProfileRestorer
-	customModesManager: CustomModesManager
 	skillsManager: SkillsManager
 	taskCreationCallback: (task: Task) => void
 	/**
 	 * host が collaborator を field へ代入し**終えてから**呼ぶ起動処理。
 	 * 返り値は MCP hub（シングルトンから非同期で届く。解決後に host が保持する）。
 	 *
-	 * ここで走らせる初期化は host の field を経由して他の collaborator を読む
-	 * （例: `SkillsManager.initialize()` は同期プレフィックスで
-	 * `host.customModesManager` を読む）。factory 内で開始すると代入前の
-	 * undefined を掴んで custom mode の skill が黙って読み込まれなくなる。
+	 * ここで走らせる初期化は host の field を経由して他の collaborator を読む。
+	 * factory 内で開始すると代入前の undefined を掴む。
 	 *
 	 * 注入した collaborator では省略できる（＝副作用のある起動処理が走らない）。
 	 */
@@ -304,7 +299,6 @@ export function buildProviderCollaborators(
 	})
 
 	const historyProfileRestorer = new HistoryProfileRestorer({
-		getCustomModes: () => host.customModesManager.getCustomModes(),
 		updateGlobalState: (key, value) => internals.updateGlobalState(key, value as never),
 		isLockApiConfigAcrossModes: () => isLockApiConfigAcrossModes(host),
 		get providerSettingsManager() {
@@ -312,10 +306,6 @@ export function buildProviderCollaborators(
 		},
 		activateProviderProfile: (args, options) => host.activateProviderProfile(args, options),
 		log,
-	})
-
-	const customModesManager = new CustomModesManager(host.context, async () => {
-		await host.postStateToWebviewWithoutClineMessages()
 	})
 
 	const skillsManager = new SkillsManager(host)
@@ -344,7 +334,6 @@ export function buildProviderCollaborators(
 		providerProfile,
 		modeController,
 		historyProfileRestorer,
-		customModesManager,
 		skillsManager,
 		taskCreationCallback,
 		startBackgroundInitialization: () => {

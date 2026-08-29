@@ -135,9 +135,6 @@ describe("SkillsManager", () => {
 		// Create mock provider
 		mockProvider = {
 			cwd: PROJECT_DIR,
-			customModesManager: {
-				getCustomModes: vi.fn().mockResolvedValue([]),
-			} as any,
 		}
 
 		skillsManager = new SkillsManager(mockProvider as ClineProvider)

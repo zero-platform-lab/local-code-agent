@@ -3,11 +3,10 @@ import * as path from "path"
 import * as vscode from "vscode"
 import matter from "gray-matter"
 
-import type { CustomModesManager } from "../../core/config/CustomModesManager"
 import { getGlobalAgentDirectory, getGlobalAgentsDirectory, getProjectAgentsDirectoryForCwd } from "../agent-config"
 import { directoryExists, fileExists } from "../agent-config"
 import { SkillMetadata, SkillContent } from "../../shared/skills"
-import { modes, getAllModes } from "../../shared/modes"
+import { modes } from "../../shared/modes"
 import {
 	validateSkillName as validateSkillNameShared,
 	SkillNameValidationError,
@@ -25,7 +24,6 @@ export type { SkillMetadata, SkillContent }
  */
 export interface SkillsManagerProvider {
 	readonly cwd: string
-	readonly customModesManager: CustomModesManager
 }
 
 export class SkillsManager {
@@ -632,24 +630,9 @@ Add your skill instructions here.
 		return dirs
 	}
 
-	/**
-	 * Get list of available modes (built-in + custom)
-	 */
+	/** Get list of available mode slugs (built-in modes). */
 	private async getAvailableModes(): Promise<string[]> {
-		const provider = this.providerRef.deref()
-		const builtInModeSlugs = modes.map((m) => m.slug)
-
-		if (!provider) {
-			return builtInModeSlugs
-		}
-
-		try {
-			const customModes = await provider.customModesManager.getCustomModes()
-			const allModes = getAllModes(customModes)
-			return allModes.map((m) => m.slug)
-		} catch {
-			return builtInModeSlugs
-		}
+		return modes.map((m) => m.slug)
 	}
 
 	private getSkillKey(name: string, source: string, mode?: string): string {

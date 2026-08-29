@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 
-import type { AgentSettings, ModeConfig } from "@openai-agent/types"
+import type { AgentSettings } from "@openai-agent/types"
 
 import { Package } from "../../shared/package"
 
@@ -8,9 +8,6 @@ import { Package } from "../../shared/package"
 export interface CreateTaskConfigurationHost {
 	setValues(values: AgentSettings): Promise<void>
 	setProviderProfile(name: string): Promise<void>
-	readonly customModesManager: {
-		updateCustomMode(slug: string, mode: ModeConfig): Promise<void>
-	}
 }
 
 /**
@@ -23,8 +20,8 @@ const VSCODE_SETTING_KEYS = ["allowedCommands", "deniedCommands", "commandExecut
  * `createTask` に渡された `AgentSettings` を、タスク生成前に各所へ反映する。
  *
  * ClineProvider.createTask の前半（40 行）を切り出したもの。書き込み先が
- * global state / VS Code 設定 / provider profile / CustomModesManager の 4 系統に
- * またがっており、タスク生成そのものとは独立した責務。
+ * global state / VS Code 設定 / provider profile の 3 系統にまたがっており、
+ * タスク生成そのものとは独立した責務。
  */
 export async function applyCreateTaskConfiguration(
 	host: CreateTaskConfigurationHost,
@@ -45,13 +42,5 @@ export async function applyCreateTaskConfiguration(
 
 	if (configuration.currentApiConfigName) {
 		await host.setProviderProfile(configuration.currentApiConfigName)
-	}
-
-	// Register custom modes so the CustomModesManager knows about them.
-	// setValues writes to global state, but the manager overwrites that
-	// when it merges .agentmodes + global settings on refresh.  Persisting
-	// via updateCustomMode ensures modes survive the merge cycle.
-	for (const mode of configuration.customModes ?? []) {
-		await host.customModesManager.updateCustomMode(mode.slug, mode)
 	}
 }

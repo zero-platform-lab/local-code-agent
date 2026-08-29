@@ -17,7 +17,20 @@ import {
 	PopoverTrigger,
 } from "@src/components/ui"
 
-import { filterModesBySearch } from "./modeFormLogic"
+/**
+ * 検索文字列でモードを絞り込む。
+ *
+ * 突き合わせるのは表示名のみ（slug は対象外）。大文字小文字は無視する。
+ * 空の検索文字列は「絞り込み無し」。
+ */
+export function filterModesBySearch(modes: readonly ModeConfig[], searchValue: string): ModeConfig[] {
+	if (!searchValue) {
+		return [...modes]
+	}
+
+	const needle = searchValue.toLowerCase()
+	return modes.filter((modeConfig) => modeConfig.name.toLowerCase().includes(needle))
+}
 
 export interface ModeSelectPopoverProps {
 	open: boolean

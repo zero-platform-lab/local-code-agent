@@ -1,8 +1,8 @@
 import * as vscode from "vscode"
 
-import { type ModeConfig, type PromptComponent, type CustomModePrompts, type TodoItem } from "@openai-agent/types"
+import { type PromptComponent, type CustomModePrompts, type TodoItem } from "@openai-agent/types"
 
-import { Mode, modes, defaultModeSlug, getModeBySlug, getGroupName, getModeSelection } from "../../shared/modes"
+import { Mode, modes, defaultModeSlug, getModeBySlug, getModeSelection } from "../../shared/modes"
 import { DiffStrategy } from "../../shared/tools"
 import { formatLanguage } from "../../shared/language"
 import { isEmpty } from "../../utils/object"
@@ -47,7 +47,6 @@ async function generatePrompt(
 	mcpHub?: McpHub,
 	diffStrategy?: DiffStrategy,
 	promptComponent?: PromptComponent,
-	customModeConfigs?: ModeConfig[],
 	globalCustomInstructions?: string,
 	experiments?: Record<string, boolean>,
 	language?: string,
@@ -66,11 +65,11 @@ async function generatePrompt(
 	// mode は SYSTEM_PROMPT が解決した有効 slug（currentMode.slug）のため getModeBySlug は必ず一致する。
 	// getModeBySlug の falsy 側および || 以降のフォールバックには到達しない。
 	/* v8 ignore next 2 -- 到達不能: 上記理由によりモード解決は常に成功し、フォールバック分岐へ到達しない */
-	const modeConfig = getModeBySlug(mode, customModeConfigs) || modes.find((m) => m.slug === mode) || modes[0]
-	const { roleDefinition, baseInstructions } = getModeSelection(mode, promptComponent, customModeConfigs)
+	const modeConfig = getModeBySlug(mode) || modes.find((m) => m.slug === mode) || modes[0]
+	const { roleDefinition, baseInstructions } = getModeSelection(mode, promptComponent)
 
 	// Check if MCP functionality should be included
-	const hasMcpGroup = modeConfig.groups.some((groupEntry) => getGroupName(groupEntry) === "mcp")
+	const hasMcpGroup = modeConfig.groups.includes("mcp")
 	const hasMcpServers = mcpHub && mcpHub.getServers().length > 0
 	const shouldIncludeMcp = hasMcpGroup && hasMcpServers
 
@@ -121,7 +120,6 @@ export const SYSTEM_PROMPT = async (
 	diffStrategy?: DiffStrategy,
 	mode: Mode = defaultModeSlug,
 	customModePrompts?: CustomModePrompts,
-	customModes?: ModeConfig[],
 	globalCustomInstructions?: string,
 	experiments?: Record<string, boolean>,
 	language?: string,
@@ -135,12 +133,11 @@ export const SYSTEM_PROMPT = async (
 		throw new Error("Extension context is required for generating system prompt")
 	}
 
-	// Check if it's a custom mode
 	const promptComponent = getPromptComponent(customModePrompts, mode)
 
-	// Get full mode config from custom modes or fall back to built-in modes
+	// Resolve the mode slug against the built-in modes, falling back to the default.
 	const currentMode =
-		getModeBySlug(mode, customModes) ||
+		getModeBySlug(mode) ||
 		/* v8 ignore next -- 到達不能: getModeBySlug は built-in を modes.find で検索済みのため、ここに来る時点で modes.find も必ず undefined（modes[0] への冗長なフォールバック） */
 		modes.find((m) => m.slug === mode) ||
 		modes[0]
@@ -153,7 +150,6 @@ export const SYSTEM_PROMPT = async (
 		mcpHub,
 		diffStrategy,
 		promptComponent,
-		customModes,
 		globalCustomInstructions,
 		experiments,
 		language,

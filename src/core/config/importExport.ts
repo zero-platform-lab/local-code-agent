@@ -15,14 +15,12 @@ import {
 
 import { ProviderSettingsManager, providerProfilesSchema } from "./ProviderSettingsManager"
 import { ContextProxy } from "./ContextProxy"
-import { CustomModesManager } from "./CustomModesManager"
 import { resolveDefaultSaveUri, saveLastExportPath } from "../../utils/export"
 import { t } from "../../i18n"
 
 export type ImportOptions = {
 	providerSettingsManager: ProviderSettingsManager
 	contextProxy: ContextProxy
-	customModesManager: CustomModesManager
 }
 
 type ExportOptions = {
@@ -73,7 +71,7 @@ function sanitizeProviderConfig(configName: string, apiConfig: unknown): { confi
  */
 export async function importSettingsFromPath(
 	filePath: string,
-	{ providerSettingsManager, contextProxy, customModesManager }: ImportOptions,
+	{ providerSettingsManager, contextProxy }: ImportOptions,
 ) {
 	// Use a lenient schema that accepts any apiConfigs, then validate each individually
 	const lenientProviderProfilesSchema = providerProfilesSchema.extend({
@@ -152,10 +150,6 @@ export async function importSettingsFromPath(
 			},
 		}
 
-		await Promise.all(
-			(globalSettings.customModes ?? []).map((mode) => customModesManager.updateCustomMode(mode.slug, mode)),
-		)
-
 		// OpenAI Compatible settings are now correctly stored in codebaseIndexConfig
 		// They will be imported automatically with the config - no special handling needed
 
@@ -200,7 +194,7 @@ export async function importSettingsFromPath(
  * @param options - Import options containing managers and proxy
  * @returns Promise resolving to import result
  */
-export const importSettings = async ({ providerSettingsManager, contextProxy, customModesManager }: ImportOptions) => {
+export const importSettings = async ({ providerSettingsManager, contextProxy }: ImportOptions) => {
 	// Use the last export path as a sensible default, falling back to Downloads
 	const defaultUri = resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "agent-settings.json", {
 		useWorkspace: false,
@@ -220,7 +214,6 @@ export const importSettings = async ({ providerSettingsManager, contextProxy, cu
 	return importSettingsFromPath(uris[0].fsPath, {
 		providerSettingsManager,
 		contextProxy,
-		customModesManager,
 	})
 }
 
@@ -231,13 +224,12 @@ export const importSettings = async ({ providerSettingsManager, contextProxy, cu
  * @returns Promise resolving to import result
  */
 export const importSettingsFromFile = async (
-	{ providerSettingsManager, contextProxy, customModesManager }: ImportOptions,
+	{ providerSettingsManager, contextProxy }: ImportOptions,
 	fileUri: vscode.Uri,
 ) => {
 	return importSettingsFromPath(fileUri.fsPath, {
 		providerSettingsManager,
 		contextProxy,
-		customModesManager,
 	})
 }
 
@@ -289,7 +281,7 @@ export const exportSettings = async ({ providerSettingsManager, contextProxy }: 
  * @returns Promise that resolves when import is complete
  */
 export const importSettingsWithFeedback = async (
-	{ providerSettingsManager, contextProxy, customModesManager, provider }: ImportWithProviderOptions,
+	{ providerSettingsManager, contextProxy, provider }: ImportWithProviderOptions,
 	filePath?: string,
 ) => {
 	let result
@@ -302,7 +294,6 @@ export const importSettingsWithFeedback = async (
 			result = await importSettingsFromPath(filePath, {
 				providerSettingsManager,
 				contextProxy,
-				customModesManager,
 			})
 		} catch (error) {
 			result = {
@@ -311,7 +302,7 @@ export const importSettingsWithFeedback = async (
 			}
 		}
 	} else {
-		result = await importSettings({ providerSettingsManager, contextProxy, customModesManager })
+		result = await importSettings({ providerSettingsManager, contextProxy })
 	}
 
 	if (result.success) {

@@ -69,7 +69,6 @@ vi.mock("../../core/config/ProviderSettingsManager", async (importOriginal) => {
 	}
 })
 vi.mock("../../core/config/ContextProxy")
-vi.mock("../../core/config/CustomModesManager")
 
 import { autoImportSettings } from "../autoImportSettings"
 import * as vscode from "vscode"
@@ -79,7 +78,6 @@ import { fileExistsAtPath } from "../fs"
 describe("autoImportSettings", () => {
 	let mockProviderSettingsManager: any
 	let mockContextProxy: any
-	let mockCustomModesManager: any
 	let mockOutputChannel: any
 
 	beforeEach(() => {
@@ -110,9 +108,6 @@ describe("autoImportSettings", () => {
 		}
 
 		// Mock custom modes manager
-		mockCustomModesManager = {
-			updateCustomMode: vi.fn().mockResolvedValue(undefined),
-		}
 
 		// Reset fs mock
 		vi.mocked(fsPromises.readFile).mockReset()
@@ -134,7 +129,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -155,7 +149,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -197,7 +190,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -226,7 +218,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -250,7 +241,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -270,7 +260,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -290,7 +279,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
@@ -311,7 +299,6 @@ describe("autoImportSettings", () => {
 		await autoImportSettings(mockOutputChannel, {
 			providerSettingsManager: mockProviderSettingsManager,
 			contextProxy: mockContextProxy,
-			customModesManager: mockCustomModesManager,
 		})
 
 		expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(

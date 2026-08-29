@@ -4,9 +4,6 @@ import * as fs from "fs/promises"
 import { fileExistsAtPath } from "./fs"
 import { GlobalFileNames } from "../shared/globalFileNames"
 import { getSettingsDirectoryPath } from "./storage"
-import * as yaml from "yaml"
-
-const deprecatedCustomModesJSONFilename = "custom_modes.json"
 
 /**
  * Migrates old settings files to new file names and removes commands from old defaults
@@ -20,11 +17,7 @@ export async function migrateSettings(
 	// First, migrate commands from old defaults (security fix)
 	await migrateDefaultCommands(context, outputChannel)
 	// Legacy file names that need to be migrated to the new names in GlobalFileNames
-	const fileMigrations = [
-		// custom_modes.json to custom_modes.yaml is handled separately below
-		{ oldName: "cline_custom_modes.json", newName: deprecatedCustomModesJSONFilename },
-		{ oldName: "cline_mcp_settings.json", newName: GlobalFileNames.mcpSettings },
-	]
+	const fileMigrations = [{ oldName: "cline_mcp_settings.json", newName: GlobalFileNames.mcpSettings }]
 
 	try {
 		const settingsDir = await getSettingsDirectoryPath(context.globalStorageUri.fsPath)
@@ -55,65 +48,11 @@ export async function migrateSettings(
 					)
 				}
 			}
-
-			// Special migration for custom_modes.json to custom_modes.yaml with content transformation
-			await migrateCustomModesToYaml(settingsDir, outputChannel)
 		} catch (error) {
 			outputChannel.appendLine(`Error in file migrations: ${error}`)
 		}
 	} catch (error) {
 		outputChannel.appendLine(`Error migrating settings files: ${error}`)
-	}
-}
-
-/**
- * Special migration function to convert custom_modes.json to YAML format
- */
-async function migrateCustomModesToYaml(settingsDir: string, outputChannel: vscode.OutputChannel): Promise<void> {
-	const oldJsonPath = path.join(settingsDir, deprecatedCustomModesJSONFilename)
-	const newYamlPath = path.join(settingsDir, GlobalFileNames.customModes)
-
-	// Only proceed if JSON exists and YAML doesn't
-	const jsonExists = await fileExistsAtPath(oldJsonPath)
-	const yamlExists = await fileExistsAtPath(newYamlPath)
-
-	if (!jsonExists) {
-		outputChannel.appendLine("No custom_modes.json found, skipping YAML migration")
-		return
-	}
-
-	if (yamlExists) {
-		outputChannel.appendLine("custom_modes.yaml already exists, skipping migration")
-		return
-	}
-
-	try {
-		// Read JSON content
-		const jsonContent = await fs.readFile(oldJsonPath, "utf-8")
-
-		try {
-			// Parse JSON to object (using the yaml library just to be safe/consistent)
-			const customModesData = yaml.parse(jsonContent)
-
-			// Convert to YAML with no line width limit to prevent line breaks
-			const yamlContent = yaml.stringify(customModesData, { lineWidth: 0 })
-
-			// Write YAML file
-			await fs.writeFile(newYamlPath, yamlContent, "utf-8")
-
-			// Keeping the old JSON file for backward compatibility
-			// This allows users to roll back if needed
-			outputChannel.appendLine(
-				"Successfully migrated custom_modes.json to YAML format (original JSON file preserved for rollback purposes)",
-			)
-		} catch (parseError) {
-			// Handle corrupt JSON file
-			outputChannel.appendLine(
-				`Error parsing custom_modes.json: ${parseError}. File might be corrupted. Skipping migration.`,
-			)
-		}
-	} catch (fileError) {
-		outputChannel.appendLine(`Error reading custom_modes.json: ${fileError}. Skipping migration.`)
 	}
 }
 

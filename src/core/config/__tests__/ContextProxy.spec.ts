@@ -879,20 +879,17 @@ Output only the summary of the conversation so far, without any additional comme
 	})
 
 	describe("export", () => {
-		it("exports only global custom modes and drops undefined fields", async () => {
-			await proxy.updateGlobalState("customModes", [
-				{ slug: "global-mode", name: "Global", roleDefinition: "role", groups: [], source: "global" },
-				{ slug: "project-mode", name: "Project", roleDefinition: "role", groups: [], source: "project" },
-			] as never)
+		it("drops undefined fields from the exported settings", async () => {
+			await proxy.updateGlobalState("mode", "code")
 
 			const exported = await proxy.export()
 
 			expect(exported).toBeDefined()
-			expect(exported!.customModes).toEqual([expect.objectContaining({ slug: "global-mode", source: "global" })])
+			expect(Object.values(exported!).every((value) => value !== undefined)).toBe(true)
 		})
 
 		it("returns undefined when export parsing fails", async () => {
-			await proxy.updateGlobalState("customModes", "not-an-array" as never)
+			await proxy.updateGlobalState("autoApprovalEnabled", "not-a-boolean" as never)
 
 			expect(await proxy.export()).toBeUndefined()
 		})

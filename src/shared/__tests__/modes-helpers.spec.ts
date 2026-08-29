@@ -1,15 +1,13 @@
 // npx vitest run shared/__tests__/modes-helpers.spec.ts
 
 import type * as vscode from "vscode"
-import type { ModeConfig, CustomModePrompts } from "@openai-agent/types"
+import type { CustomModePrompts } from "@openai-agent/types"
 
 import {
-	getGroupName,
 	getToolsForMode,
 	getModeBySlug,
 	getModeConfig,
 	getAllModes,
-	isCustomMode,
 	getAllModesWithPrompts,
 	getRoleDefinition,
 	getDescription,
@@ -18,33 +16,6 @@ import {
 	modes,
 	defaultPrompts,
 } from "../modes"
-
-const fullCustom: ModeConfig = {
-	slug: "custom-x",
-	name: "Custom X",
-	roleDefinition: "custom role",
-	description: "custom description",
-	whenToUse: "custom whenToUse",
-	customInstructions: "custom instructions",
-	groups: ["read"],
-}
-
-// description / whenToUse / customInstructions を省いたモード（?? "" 分岐用）
-const minimalCustom: ModeConfig = {
-	slug: "custom-min",
-	name: "Custom Min",
-	roleDefinition: "min role",
-	groups: ["read"],
-}
-
-describe("getGroupName", () => {
-	it("文字列形式のグループ名をそのまま返す", () => {
-		expect(getGroupName("read")).toBe("read")
-	})
-	it("配列形式ではタプル先頭を返す", () => {
-		expect(getGroupName(["edit", { fileRegex: "\\.md$" }])).toBe("edit")
-	})
-})
 
 describe("getToolsForMode", () => {
 	it("グループのツールと常時利用ツールを含む", () => {
@@ -58,11 +29,9 @@ describe("getToolsForMode", () => {
 })
 
 describe("getModeBySlug", () => {
-	it("カスタムモードを優先して返す", () => {
-		expect(getModeBySlug("custom-x", [fullCustom])).toBe(fullCustom)
-	})
 	it("組み込みモードを返す", () => {
 		expect(getModeBySlug("code")?.slug).toBe("code")
+		expect(getModeBySlug("research")?.slug).toBe("research")
 	})
 	it("見つからなければ undefined", () => {
 		expect(getModeBySlug("no-such-mode")).toBeUndefined()
@@ -79,39 +48,18 @@ describe("getModeConfig", () => {
 })
 
 describe("getAllModes", () => {
-	it("カスタム無しなら組み込みモードのコピー", () => {
+	it("組み込みモードのコピーを返す", () => {
 		const all = getAllModes()
 		expect(all).toHaveLength(modes.length)
 		expect(all).not.toBe(modes as unknown)
 	})
-	it("既存 slug のカスタムは上書き", () => {
-		const override: ModeConfig = { slug: "code", name: "Overridden", roleDefinition: "over", groups: ["read"] }
-		const all = getAllModes([override])
-		expect(all).toHaveLength(modes.length)
-		expect(all.find((m) => m.slug === "code")?.name).toBe("Overridden")
-	})
-	it("新規 slug のカスタムは追加", () => {
-		const all = getAllModes([fullCustom])
-		expect(all).toHaveLength(modes.length + 1)
-		expect(all.find((m) => m.slug === "custom-x")).toBe(fullCustom)
-	})
-})
-
-describe("isCustomMode", () => {
-	it("カスタムに含まれれば true", () => {
-		expect(isCustomMode("custom-x", [fullCustom])).toBe(true)
-	})
-	it("含まれなければ false", () => {
-		expect(isCustomMode("code", [fullCustom])).toBe(false)
-	})
 })
 
 describe("getAllModesWithPrompts", () => {
-	const makeContext = (customModes: unknown, customModePrompts: unknown) =>
+	const makeContext = (customModePrompts: unknown) =>
 		({
 			globalState: {
 				get: vi.fn(async (key: string) => {
-					if (key === "customModes") return customModes
 					if (key === "customModePrompts") return customModePrompts
 					return undefined
 				}),
@@ -120,7 +68,7 @@ describe("getAllModesWithPrompts", () => {
 
 	it("customModePrompts のオーバーライドを適用しつつ未指定はフォールバック", async () => {
 		const prompts: CustomModePrompts = { code: { roleDefinition: "overridden role" } }
-		const context = makeContext([fullCustom], prompts)
+		const context = makeContext(prompts)
 		const result = await getAllModesWithPrompts(context)
 
 		const code = result.find((m) => m.slug === "code")!
@@ -128,12 +76,10 @@ describe("getAllModesWithPrompts", () => {
 		// whenToUse / customInstructions はオーバーライド無し → 元の値
 		const builtinCode = modes.find((m) => m.slug === "code")!
 		expect(code.customInstructions).toBe(builtinCode.customInstructions)
-		// カスタムモードも含まれる
-		expect(result.find((m) => m.slug === "custom-x")).toBeDefined()
 	})
 
-	it("globalState が空でも既定値へフォールバック（|| [] と || {}）", async () => {
-		const context = makeContext(undefined, undefined)
+	it("globalState が空でも既定値へフォールバック（|| {}）", async () => {
+		const context = makeContext(undefined)
 		const result = await getAllModesWithPrompts(context)
 		expect(result).toHaveLength(modes.length)
 	})
@@ -148,26 +94,27 @@ describe("安全なゲッター", () => {
 	})
 
 	it("getRoleDefinition は見つかれば roleDefinition、無ければ '' と警告", () => {
-		expect(getRoleDefinition("custom-x", [fullCustom])).toBe("custom role")
+		const code = modes.find((m) => m.slug === "code")!
+		expect(getRoleDefinition("code")).toBe(code.roleDefinition)
 		expect(getRoleDefinition("no-such-mode")).toBe("")
 		expect(console.warn).toHaveBeenCalledWith("No mode found for slug: no-such-mode")
 	})
 
-	it("getDescription は値/未定義(?? '')/未検出('') を扱う", () => {
-		expect(getDescription("custom-x", [fullCustom])).toBe("custom description")
-		expect(getDescription("custom-min", [minimalCustom])).toBe("")
+	it("getDescription は値/未検出('') を扱う", () => {
+		const code = modes.find((m) => m.slug === "code")!
+		expect(getDescription("code")).toBe(code.description)
 		expect(getDescription("no-such-mode")).toBe("")
 	})
 
-	it("getWhenToUse は値/未定義(?? '')/未検出('') を扱う", () => {
-		expect(getWhenToUse("custom-x", [fullCustom])).toBe("custom whenToUse")
-		expect(getWhenToUse("custom-min", [minimalCustom])).toBe("")
+	it("getWhenToUse は値/未検出('') を扱う", () => {
+		const code = modes.find((m) => m.slug === "code")!
+		expect(getWhenToUse("code")).toBe(code.whenToUse)
 		expect(getWhenToUse("no-such-mode")).toBe("")
 	})
 
-	it("getCustomInstructions は値/未定義(?? '')/未検出('') を扱う", () => {
-		expect(getCustomInstructions("custom-x", [fullCustom])).toBe("custom instructions")
-		expect(getCustomInstructions("custom-min", [minimalCustom])).toBe("")
+	it("getCustomInstructions は未定義(?? '')/未検出('') を扱う", () => {
+		// 組み込みモードは customInstructions を持たない → ?? "" の右辺
+		expect(getCustomInstructions("code")).toBe("")
 		expect(getCustomInstructions("no-such-mode")).toBe("")
 	})
 })

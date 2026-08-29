@@ -40,7 +40,8 @@
 		"experimental": "実験的",
 		"language": "言語",
 		"about": "Local Code Agentについて",
-		"skills": "Skills"
+		"skills": "Skills",
+		"general": "一般"
 	},
 	"about": {
 		"bugReport": {

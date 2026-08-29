@@ -35,14 +35,14 @@ describe("CheckpointWarning", () => {
 		)
 	})
 
-	it("posts a checkpoints settings navigation on settings-link click", () => {
+	it("posts a general settings navigation on settings-link click", () => {
 		const postSpy = vi.spyOn(window, "postMessage")
 		render(<CheckpointWarning warning={{ type: "WAIT_TIMEOUT", timeout: 30 }} />)
 
 		fireEvent.click(screen.getByTestId("settings-link"))
 
 		expect(postSpy).toHaveBeenCalledWith(
-			{ type: "action", action: "settingsButtonClicked", values: { section: "checkpoints" } },
+			{ type: "action", action: "settingsButtonClicked", values: { section: "general" } },
 			"*",
 		)
 		postSpy.mockRestore()

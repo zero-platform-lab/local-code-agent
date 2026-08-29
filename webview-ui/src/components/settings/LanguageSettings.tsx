@@ -28,7 +28,7 @@ export const LanguageSettings = ({ language, setCachedStateField, className, ...
 			<Section>
 				<SearchableSetting
 					settingId="language-select"
-					section="language"
+					section="general"
 					label={t("settings:sections.language")}>
 					<Select
 						value={language}

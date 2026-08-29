@@ -18,7 +18,7 @@ export const CheckpointWarning = ({ warning }: CheckpointWarningProps) => {
 					{
 						type: "action",
 						action: "settingsButtonClicked",
-						values: { section: "checkpoints" },
+						values: { section: "general" },
 					},
 					"*",
 				)

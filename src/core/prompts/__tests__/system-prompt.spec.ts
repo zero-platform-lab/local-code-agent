@@ -45,8 +45,6 @@ vi.mock("fs/promises")
 
 import * as vscode from "vscode"
 
-import { ModeConfig } from "@openai-agent/types"
-
 import { SYSTEM_PROMPT } from "../system"
 import { McpHub } from "../../../services/mcp/McpHub"
 import { modes, Mode } from "../../../shared/modes"
@@ -219,7 +217,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code", // mode
 			undefined, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -239,8 +236,7 @@ describe("SYSTEM_PROMPT", () => {
 			mockMcpHub, // mcpHub
 			undefined, // diffStrategy
 			"code", // mode
-			undefined, // customModePrompts
-			undefined, // customModes,
+			undefined, // customModePrompts,
 			undefined, // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -258,8 +254,7 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // explicitly undefined mcpHub
 			undefined, // diffStrategy
 			"code", // mode
-			undefined, // customModePrompts
-			undefined, // customModes,
+			undefined, // customModePrompts,
 			undefined, // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -305,7 +300,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code", // mode
 			undefined, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			undefined, // experiments
 			undefined, // language
@@ -341,18 +335,14 @@ describe("SYSTEM_PROMPT", () => {
 		}))
 	})
 
-	it("should include custom mode role definition at top and instructions at bottom", async () => {
-		const modeCustomInstructions = "Custom mode instructions"
-
-		const customModes: ModeConfig[] = [
-			{
-				slug: "custom-mode",
-				name: "Custom Mode",
+	it("should include overridden role definition at top and instructions at bottom", async () => {
+		// customModePrompts（文面の上書き）で roleDefinition と customInstructions を差し替える
+		const customModePrompts = {
+			code: {
 				roleDefinition: "Custom role definition",
-				customInstructions: modeCustomInstructions,
-				groups: ["read"] as const,
+				customInstructions: "Custom mode instructions",
 			},
-		]
+		}
 
 		const prompt = await SYSTEM_PROMPT(
 			mockContext,
@@ -360,9 +350,8 @@ describe("SYSTEM_PROMPT", () => {
 			false,
 			undefined, // mcpHub
 			undefined, // diffStrategy
-			"custom-mode", // mode
-			undefined, // customModePrompts
-			customModes, // customModes
+			"code", // mode
+			customModePrompts,
 			"Global instructions", // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -396,7 +385,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code" as Mode, // mode
 			customModePrompts, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			undefined, // experiments
 			undefined, // language
@@ -425,7 +413,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code" as Mode, // mode
 			customModePrompts, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			undefined, // experiments
 			undefined, // language
@@ -451,7 +438,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code", // mode
 			undefined, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -479,7 +465,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined, // diffStrategy
 			"code", // mode
 			undefined, // customModePrompts
-			undefined, // customModes
 			undefined, // globalCustomInstructions
 			experiments,
 			undefined, // language
@@ -539,7 +524,6 @@ describe("SYSTEM_PROMPT", () => {
 			"totally-unknown-mode" as Mode,
 			undefined,
 			undefined,
-			undefined,
 			experiments,
 		)
 
@@ -566,7 +550,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined,
 			undefined,
 			"code",
-			undefined,
 			undefined,
 			undefined,
 			experiments,
@@ -597,7 +580,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined,
 			undefined,
 			undefined,
-			undefined,
 			{
 				todoListEnabled: true,
 				useAgentRules: false,
@@ -618,7 +600,6 @@ describe("SYSTEM_PROMPT", () => {
 			undefined,
 			undefined,
 			"code",
-			undefined,
 			undefined,
 			undefined,
 			undefined,

@@ -29,7 +29,7 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 			disabledTools: ["execute_command"],
 		}
 
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, settings)
 
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).not.toContain("execute_command")
@@ -43,7 +43,7 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 			disabledTools: [],
 		}
 
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, settings)
 
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).toContain("execute_command")
@@ -55,7 +55,7 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 	it("does not remove any tools when disabledTools is undefined", () => {
 		const settings = {}
 
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, settings)
 
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).toContain("execute_command")
@@ -67,7 +67,7 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 			disabledTools: ["execute_command"],
 		}
 
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, settings)
 
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).not.toContain("execute_command")
@@ -82,7 +82,7 @@ describe("filterNativeToolsForMode - disabledTools", () => {
 			},
 		}
 
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, settings)
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, settings)
 
 		const resultNames = result.map((t) => (t as any).function.name)
 		expect(resultNames).not.toContain("search_and_replace")
@@ -94,21 +94,21 @@ describe("filterNativeToolsForMode - web_fetch (opt-in)", () => {
 	const nativeTools: OpenAI.Chat.ChatCompletionTool[] = [makeTool("read_file"), makeTool("web_fetch")]
 
 	it("既定では web_fetch を送らない（webFetchEnabled 未設定）", () => {
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, {})
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, {})
 		const names = result.map((t) => (t as any).function.name)
 		expect(names).toContain("read_file")
 		expect(names).not.toContain("web_fetch")
 	})
 
 	it("webFetchEnabled=false でも web_fetch を送らない", () => {
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, {
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, {
 			webFetchEnabled: false,
 		})
 		expect(result.map((t) => (t as any).function.name)).not.toContain("web_fetch")
 	})
 
 	it("webFetchEnabled=true のとき web_fetch を送る", () => {
-		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, undefined, {
+		const result = filterNativeToolsForMode(nativeTools, "code", undefined, undefined, {
 			webFetchEnabled: true,
 		})
 		expect(result.map((t) => (t as any).function.name)).toContain("web_fetch")

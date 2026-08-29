@@ -30,7 +30,6 @@ interface SystemPromptProvider {
 		| {
 				mcpEnabled?: boolean
 				mode?: string
-				customModes?: unknown
 				customModePrompts?: unknown
 				customInstructions?: string
 				experiments?: unknown
@@ -82,7 +81,6 @@ export async function buildSystemPrompt(deps: BuildSystemPromptDeps): Promise<st
 
 	const {
 		mode,
-		customModes,
 		customModePrompts,
 		customInstructions,
 		experiments,
@@ -108,7 +106,6 @@ export async function buildSystemPrompt(deps: BuildSystemPromptDeps): Promise<st
 		deps.diffStrategy,
 		(mode as string | undefined) ?? defaultModeSlug,
 		customModePrompts as never,
-		customModes as never,
 		customInstructions,
 		experiments as never,
 		language as never,

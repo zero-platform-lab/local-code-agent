@@ -4,7 +4,7 @@ import type { GlobalSettings, AgentSettings } from "./global-settings.js"
 import type { AutonomyMode } from "./autonomy.js"
 import type { ProviderSettings, ProviderSettingsEntry } from "./provider-settings.js"
 import type { HistoryItem } from "./history.js"
-import type { ModeConfig, PromptComponent } from "./mode.js"
+import type { PromptComponent } from "./mode.js"
 import type { Experiments } from "./experiment.js"
 import type { ClineMessage, QueuedMessage } from "./message.js"
 import type { TodoItem } from "./todo.js"
@@ -40,12 +40,6 @@ export interface ExtensionMessage {
 		| "updatePrompt"
 		| "systemPrompt"
 		| "autoApprovalEnabled"
-		| "updateCustomMode"
-		| "deleteCustomMode"
-		| "exportModeResult"
-		| "importModeResult"
-		| "checkRulesDirectoryResult"
-		| "deleteCustomModeCheck"
 		| "currentCheckpointUpdated"
 		| "checkpointInitWarning"
 		| "fileSearchResults"
@@ -118,7 +112,6 @@ export interface ExtensionMessage {
 	commits?: GitCommit[]
 	listApiConfig?: ProviderSettingsEntry[]
 	mode?: string
-	customMode?: ModeConfig
 	slug?: string
 	success?: boolean
 	/** Generic payload for extension messages that use `values` */
@@ -284,7 +277,6 @@ export type ExtensionState = Pick<
 	mcpEnabled: boolean
 
 	mode: string
-	customModes: ModeConfig[]
 	toolRequirements?: Record<string, boolean> // Map of tool names to their requirements (e.g. {"apply_diff": true})
 
 	cwd?: string // Current working directory
@@ -400,10 +392,7 @@ export interface WebviewMessage {
 		| "systemPrompt"
 		| "enhancementApiConfigId"
 		| "autoApprovalEnabled"
-		| "updateCustomMode"
-		| "deleteCustomMode"
 		| "setopenAiCustomModelInfo"
-		| "openCustomModesSettings"
 		| "checkpointDiff"
 		| "checkpointRestore"
 		| "deleteMcpServer"
@@ -424,12 +413,6 @@ export interface WebviewMessage {
 		| "focusPanelRequest"
 		| "openExternal"
 		| "switchTab"
-		| "exportMode"
-		| "exportModeResult"
-		| "importMode"
-		| "importModeResult"
-		| "checkRulesDirectory"
-		| "checkRulesDirectoryResult"
 		| "saveCodeIndexSettingsAtomic"
 		| "requestCodeIndexSecretStatus"
 		| "requestCommands"
@@ -503,7 +486,6 @@ export interface WebviewMessage {
 	query?: string
 	setting?: string
 	slug?: string
-	modeConfig?: ModeConfig
 	timeout?: number
 	payload?: WebViewMessagePayload
 	source?: "global" | "project"
@@ -529,8 +511,6 @@ export interface WebviewMessage {
 	url?: string // For openExternal
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	config?: Record<string, any> // Add config to the payload
-	hasContent?: boolean // For checkRulesDirectoryResult
-	checkOnly?: boolean // For deleteCustomMode check
 	upsellId?: string // For dismissUpsell
 	list?: string[] // For dismissedUpsells response
 	organizationId?: string | null // For organization switching

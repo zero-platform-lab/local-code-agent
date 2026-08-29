@@ -188,9 +188,7 @@ export function applyModelToolCustomization(
 		}
 
 		// Get the list of allowed groups for this mode
-		const allowedGroups = new Set(
-			modeConfig.groups.map((groupEntry) => (Array.isArray(groupEntry) ? groupEntry[0] : groupEntry)),
-		)
+		const allowedGroups = new Set(modeConfig.groups)
 
 		// Add included tools only if they belong to an allowed group
 		// If the tool was specified as an alias, track the rename
@@ -216,7 +214,6 @@ export function applyModelToolCustomization(
  *
  * @param nativeTools - Array of all available native tools
  * @param mode - Current mode slug
- * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
  * @param codeIndexManager - Code index manager for codebase_search feature check
  * @param settings - Additional settings for tool filtering (includes modelInfo for model-specific customization)
@@ -226,7 +223,6 @@ export function applyModelToolCustomization(
 export function filterNativeToolsForMode(
 	nativeTools: OpenAI.Chat.ChatCompletionTool[],
 	mode: string | undefined,
-	customModes: ModeConfig[] | undefined,
 	experiments: Record<string, boolean> | undefined,
 	codeIndexManager?: CodeIndexManager,
 	settings?: Record<string, any>,
@@ -234,13 +230,13 @@ export function filterNativeToolsForMode(
 ): OpenAI.Chat.ChatCompletionTool[] {
 	// Get mode configuration and all tools for this mode
 	const modeSlug = mode ?? defaultModeSlug
-	let modeConfig = getModeBySlug(modeSlug, customModes)
+	let modeConfig = getModeBySlug(modeSlug)
 
 	// Fallback to default mode if current mode config is not found
-	// This ensures the agent always has functional tools even if a custom mode is deleted
-	// or configuration becomes corrupted
+	// This ensures the agent always has functional tools even if a stale mode slug
+	// survives in saved state
 	if (!modeConfig) {
-		modeConfig = getModeBySlug(defaultModeSlug, customModes)!
+		modeConfig = getModeBySlug(defaultModeSlug)!
 	}
 
 	// Get all tools for this mode (including always-available tools)
@@ -249,14 +245,7 @@ export function filterNativeToolsForMode(
 	// Filter to only tools that pass permission checks
 	let allowedToolNames = new Set(
 		allToolsForMode.filter((tool) =>
-			isToolAllowedForMode(
-				tool as ToolName,
-				modeSlug,
-				customModes ?? [],
-				undefined,
-				undefined,
-				experiments ?? {},
-			),
+			isToolAllowedForMode(tool as ToolName, modeSlug, undefined, experiments ?? {}),
 		),
 	)
 
@@ -346,7 +335,6 @@ function hasAnyMcpResources(mcpHub: McpHub): boolean {
  *
  * @param toolName - Name of the tool to check
  * @param mode - Current mode slug
- * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
  * @param codeIndexManager - Code index manager for codebase_search feature check
  * @param settings - Additional settings for tool filtering
@@ -355,7 +343,6 @@ function hasAnyMcpResources(mcpHub: McpHub): boolean {
 export function isToolAllowedInMode(
 	toolName: ToolName,
 	mode: string | undefined,
-	customModes: ModeConfig[] | undefined,
 	experiments: Record<string, boolean> | undefined,
 	codeIndexManager?: CodeIndexManager,
 	settings?: Record<string, any>,
@@ -387,14 +374,7 @@ export function isToolAllowedInMode(
 	// Check if the tool is allowed by the mode's groups
 	// Resolve to canonical name and check that single value
 	const canonicalTool = resolveToolAlias(toolName)
-	return isToolAllowedForMode(
-		canonicalTool as ToolName,
-		modeSlug,
-		customModes ?? [],
-		undefined,
-		undefined,
-		experiments ?? {},
-	)
+	return isToolAllowedForMode(canonicalTool as ToolName, modeSlug, undefined, experiments ?? {})
 }
 
 /**
@@ -403,7 +383,6 @@ export function isToolAllowedInMode(
  *
  * @param groupName - Name of the tool group to check
  * @param mode - Current mode slug
- * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
  * @param codeIndexManager - Code index manager for codebase_search feature check
  * @param settings - Additional settings for tool filtering
@@ -412,7 +391,6 @@ export function isToolAllowedInMode(
 export function getAvailableToolsInGroup(
 	groupName: ToolGroup,
 	mode: string | undefined,
-	customModes: ModeConfig[] | undefined,
 	experiments: Record<string, boolean> | undefined,
 	codeIndexManager?: CodeIndexManager,
 	settings?: Record<string, any>,
@@ -423,7 +401,7 @@ export function getAvailableToolsInGroup(
 	}
 
 	return toolGroup.tools.filter((tool) =>
-		isToolAllowedInMode(tool as ToolName, mode, customModes, experiments, codeIndexManager, settings),
+		isToolAllowedInMode(tool as ToolName, mode, experiments, codeIndexManager, settings),
 	) as ToolName[]
 }
 
@@ -432,27 +410,18 @@ export function getAvailableToolsInGroup(
  *
  * @param mcpTools - Array of MCP tools
  * @param mode - Current mode slug
- * @param customModes - Custom mode configurations
  * @param experiments - Experiment flags
  * @returns Filtered array of MCP tools if use_mcp_tool is allowed, empty array otherwise
  */
 export function filterMcpToolsForMode(
 	mcpTools: OpenAI.Chat.ChatCompletionTool[],
 	mode: string | undefined,
-	customModes: ModeConfig[] | undefined,
 	experiments: Record<string, boolean> | undefined,
 ): OpenAI.Chat.ChatCompletionTool[] {
 	const modeSlug = mode ?? defaultModeSlug
 
 	// MCP tools are always in the mcp group, check if use_mcp_tool is allowed
-	const isMcpAllowed = isToolAllowedForMode(
-		"use_mcp_tool",
-		modeSlug,
-		customModes ?? [],
-		undefined,
-		undefined,
-		experiments ?? {},
-	)
+	const isMcpAllowed = isToolAllowedForMode("use_mcp_tool", modeSlug, undefined, experiments ?? {})
 
 	return isMcpAllowed ? mcpTools : []
 }

@@ -63,7 +63,6 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 			provider,
 			cwd: "/repo",
 			mode: "code",
-			customModes: undefined,
 			experiments: undefined,
 			apiConfiguration: undefined,
 		} as never)
@@ -73,14 +72,12 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 
 	it("mcpHub / codeIndexManager / mode 引数を各 collaborator へ正しく配線する", async () => {
 		const provider = makeProvider()
-		const customModes = [{ slug: "ask" }] as never
 		const experiments = { runSlashCommand: true }
 
 		await buildNativeToolsArrayWithRestrictions({
 			provider,
 			cwd: "/work",
 			mode: "ask",
-			customModes,
 			experiments,
 			apiConfiguration: undefined,
 		} as never)
@@ -92,14 +89,13 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 		expect(filterNativeToolsForMode).toHaveBeenCalledWith(
 			nativeTools,
 			"ask",
-			customModes,
 			experiments,
 			codeIndexManager,
 			expect.objectContaining({ todoListEnabled: true }),
 			provider.mcpHub,
 		)
 		// mcp filter は素の mcpTools・mode を受ける
-		expect(filterMcpToolsForMode).toHaveBeenCalledWith(mcpTools, "ask", customModes, experiments)
+		expect(filterMcpToolsForMode).toHaveBeenCalledWith(mcpTools, "ask", experiments)
 	})
 
 	it("apiConfiguration 未指定なら todoListEnabled は true 既定、supportsImages 未指定は false になる", async () => {
@@ -107,14 +103,13 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 			provider: makeProvider(),
 			cwd: "/repo",
 			mode: "code",
-			customModes: undefined,
 			experiments: undefined,
 			apiConfiguration: undefined,
 			modelInfo: undefined,
 		} as never)
 
 		expect(getNativeTools).toHaveBeenCalledWith({ supportsImages: false })
-		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][5]
+		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][4]
 		expect(settings).toEqual({
 			todoListEnabled: true,
 			webFetchEnabled: false,
@@ -130,7 +125,6 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 			provider: makeProvider(),
 			cwd: "/repo",
 			mode: "code",
-			customModes: undefined,
 			experiments: undefined,
 			apiConfiguration: { todoListEnabled: false } as never,
 			disabledTools: ["edit"],
@@ -138,7 +132,7 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 		} as never)
 
 		expect(getNativeTools).toHaveBeenCalledWith({ supportsImages: true })
-		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][5]
+		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][4]
 		expect(settings).toEqual({ todoListEnabled: false, webFetchEnabled: false, disabledTools: ["edit"], modelInfo })
 	})
 
@@ -147,12 +141,11 @@ describe("buildNativeToolsArrayWithRestrictions", () => {
 			provider: makeProvider(),
 			cwd: "/repo",
 			mode: "code",
-			customModes: undefined,
 			experiments: undefined,
 			apiConfiguration: { webFetchEnabled: true } as never,
 		} as never)
 
-		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][5]
+		const settings = vi.mocked(filterNativeToolsForMode).mock.calls[0][4]
 		expect(settings?.webFetchEnabled).toBe(true)
 	})
 })

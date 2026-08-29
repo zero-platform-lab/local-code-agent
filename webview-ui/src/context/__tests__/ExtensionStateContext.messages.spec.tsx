@@ -446,7 +446,6 @@ describe("ExtensionStateContextProvider setters", () => {
 		["setCustomSupportPrompts", "customSupportPrompts", { ENHANCE: "e" }],
 		["setEnhancementApiConfigId", "enhancementApiConfigId", "cfg"],
 		["setAutoApprovalEnabled", "autoApprovalEnabled", true],
-		["setCustomModes", "customModes", [{ slug: "x", name: "X", roleDefinition: "r", groups: [] }]],
 		["setMaxOpenTabsContext", "maxOpenTabsContext", 25],
 		["setMaxWorkspaceFiles", "maxWorkspaceFiles", 123],
 		["setShowAgentIgnoredFiles", "showAgentIgnoredFiles", false],

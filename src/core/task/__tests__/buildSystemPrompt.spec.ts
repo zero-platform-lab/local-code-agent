@@ -39,7 +39,7 @@ function makeDeps(opts: { state?: Record<string, unknown>; providerLost?: boolea
 }
 
 // SYSTEM_PROMPT の引数: (context, cwd, _, mcpHub, diffStrategy, mode, ..., options=arg[12], ...)
-const optionsArg = () => mockedSystemPrompt.mock.calls[0][12] as unknown as Record<string, unknown>
+const optionsArg = () => mockedSystemPrompt.mock.calls[0][11] as unknown as Record<string, unknown>
 const mcpHubArg = () => mockedSystemPrompt.mock.calls[0][3]
 
 beforeEach(() => {

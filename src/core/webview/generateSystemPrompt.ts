@@ -8,7 +8,6 @@ import { MultiSearchReplaceDiffStrategy } from "../diff/strategies/multi-search-
 import { Package } from "../../shared/package"
 
 import type { AutonomyMode, CustomModePrompts, ProviderSettings } from "@openai-agent/types"
-import type { CustomModesManager } from "../config/CustomModesManager"
 import type { McpHub } from "../../services/mcp/McpHub"
 import type { SkillsManager } from "../../services/skills/SkillsManager"
 
@@ -17,7 +16,6 @@ import type { SkillsManager } from "../../services/skills/SkillsManager"
 interface GenerateSystemPromptHost {
 	readonly context: vscode.ExtensionContext
 	readonly cwd: string
-	readonly customModesManager: CustomModesManager
 	getState(): Promise<{
 		apiConfiguration: ProviderSettings
 		customModePrompts?: CustomModePrompts
@@ -50,7 +48,6 @@ export const generateSystemPrompt = async (provider: GenerateSystemPromptHost, m
 	const cwd = provider.cwd
 
 	const mode = message.mode ?? defaultModeSlug
-	const customModes = await provider.customModesManager.getCustomModes()
 
 	const rooIgnoreInstructions = provider.getCurrentTask()?.rooIgnoreController?.getInstructions()
 
@@ -72,7 +69,6 @@ export const generateSystemPrompt = async (provider: GenerateSystemPromptHost, m
 		diffStrategy,
 		mode,
 		customModePrompts,
-		customModes,
 		customInstructions,
 		experiments,
 		language,

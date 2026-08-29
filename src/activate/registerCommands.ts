@@ -103,7 +103,6 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 			{
 				providerSettingsManager: visibleProvider.providerSettingsManager,
 				contextProxy: visibleProvider.contextProxy,
-				customModesManager: visibleProvider.customModesManager,
 				provider: visibleProvider,
 			},
 			filePath,

@@ -37,13 +37,16 @@
 
 ### A2. 役割モード（`DEFAULT_MODES` 全1）
 
-**code** のみ。
+**code / research** の 2 件。
 
 - **済**（PR #19・#21）: architect / ask / debug / orchestrator と `switch_mode` ツールを削除。
-  役割の軸を畳み、権限は自律モード（Manual / Auto-Edit / Auto / Plan）へ寄せた。GitHub Copilot と
-  同じ形になる。計画の作法は plan 自律モードが引き継いでいる（`sections/autonomy.ts`）。
-- `customModes`（ユーザー定義モード）の機構は**意図的に残している**。Copilot の `.chatmode.md`
-  に相当し、`fileRegex` によるファイル種別の制限もここでしか表現できない。
+  役割の軸を集約し、権限は自律モード（Manual / Auto-Edit / Auto / Plan）へ移した。
+  計画の作法は plan 自律モードが引き継いでいる（`sections/autonomy.ts`）。
+- **済**（2026-08-29）: research（調査・運用）を追加して 2 件構成に戻した。groups は code と
+  同一で、差は役割文のみである。
+- **済**（2026-08-29）: `customModes`（ユーザー定義モード・`.agentmodes`）の機構を撤去した。
+  未使用のまま構成を複雑にしていたため。`fileRegex` によるファイル種別の制限も同時に廃止した。
+  文面の調整は customModePrompts（モード設定画面）と AGENTS.md / rules で行う。
 
 ### A3. スキル（`skill` ツール / `src/services/skills/SkillsManager.ts`）
 
@@ -89,7 +92,7 @@
   terminalShellIntegrationTimeout, terminalZdotdir, execaShellPath, commandExecutionTimeout, commandTimeoutAllowlist
   → **済**（PR #421）: PowershellCounter / ZshClearEolMark / ZshOhMy / ZshP10k を削除。zdotdir は core の
   シェル統合と密結合のため温存。残りは execute_command のコアなので保持。
-- **モード / プロファイル**: mode, customModes, modeApiConfigs, currentApiConfigName, listApiConfigMeta,
+- **モード / プロファイル**: mode, modeApiConfigs, currentApiConfigName, listApiConfigMeta,
   pinnedApiConfigs, enhancementApiConfigId, profileThresholds, hasOpenedModeSelector
 - ~~**サウンド / TTS**: soundEnabled, soundVolume, ttsEnabled, ttsSpeed~~ → **済**（PR #422 で機能ごと全削除）
 - **画像**: maxImageFileSize, maxTotalImageSize, lastImageSavePath

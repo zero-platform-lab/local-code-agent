@@ -177,7 +177,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		await autoImportSettings(outputChannel, {
 			providerSettingsManager: provider.providerSettingsManager,
 			contextProxy: provider.contextProxy,
-			customModesManager: provider.customModesManager,
 		})
 	} catch (error) {
 		outputChannel.appendLine(

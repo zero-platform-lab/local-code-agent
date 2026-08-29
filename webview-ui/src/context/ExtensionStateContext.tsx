@@ -4,7 +4,6 @@ import {
 	type ProviderSettings,
 	type ProviderSettingsEntry,
 	type CustomModePrompts,
-	type ModeConfig,
 	type ExperimentId,
 	type TodoItem,
 	type OrganizationAllowList,
@@ -95,8 +94,6 @@ export interface ExtensionStateContextType extends ExtensionState {
 	setEnhancementApiConfigId: (value: string) => void
 	setExperimentEnabled: (id: ExperimentId, enabled: boolean) => void
 	setAutoApprovalEnabled: (value: boolean) => void
-	customModes: ModeConfig[]
-	setCustomModes: (value: ModeConfig[]) => void
 	setMaxOpenTabsContext: (value: number) => void
 	maxWorkspaceFiles: number
 	setMaxWorkspaceFiles: (value: number) => void
@@ -205,7 +202,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		hasOpenedModeSelector: false, // Default to false (not opened yet)
 		autonomyMode: DEFAULT_AUTONOMY_MODE,
 		autoApprovalEnabled: false,
-		customModes: [],
 		maxOpenTabsContext: DEFAULT_MAX_OPEN_TABS_CONTEXT,
 		maxWorkspaceFiles: DEFAULT_MAX_WORKSPACE_FILES,
 		cwd: "",
@@ -476,7 +472,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setEnhancementApiConfigId: (value) =>
 			setState((prevState) => ({ ...prevState, enhancementApiConfigId: value })),
 		setAutoApprovalEnabled: (value) => setState((prevState) => ({ ...prevState, autoApprovalEnabled: value })),
-		setCustomModes: (value) => setState((prevState) => ({ ...prevState, customModes: value })),
 		setMaxOpenTabsContext: (value) => setState((prevState) => ({ ...prevState, maxOpenTabsContext: value })),
 		setMaxWorkspaceFiles: (value) => setState((prevState) => ({ ...prevState, maxWorkspaceFiles: value })),
 		setShowAgentIgnoredFiles: (value) => setState((prevState) => ({ ...prevState, showAgentIgnoredFiles: value })),

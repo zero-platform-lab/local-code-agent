@@ -71,14 +71,14 @@ webview 専用 URI に変換して `window` 変数として渡す。
 
 HTML が入ると React が起動する。React 側は最初のレンダリングで
 **「準備できました」というメッセージ（`webviewDidLaunch`）をホストへ送る**。
-これがブートストラップの号砲になる。ホストはこれを受けて、カスタムモード一覧を読み、
+これがブートストラップの合図になる。ホストはこれを受けて、
 現在の状態一式を UI へ push し、テーマ・MCP サーバ一覧・API 設定プロファイル一覧を
 順に送る。最初のうち画面は空（`didHydrateState` が false）で何も描かず、状態が
 1 回届いた瞬間に本来の画面へ切り替わる。なお `webviewDidLaunch` は `App.tsx` と
 `ExtensionStateContext.tsx` の 2 か所の初回 `useEffect` から送られ、ホスト側の起動処理も 2 回走る（冪等）。
 
-- 入口（号砲の送信側）: `webview-ui/src/App.tsx` / `webview-ui/src/context/ExtensionStateContext.tsx`
-- 入口（号砲の受信側 = 唯一残った switch 分岐）: `src/core/webview/webviewMessageHandler.ts`
+- 入口（起動通知の送信側）: `webview-ui/src/App.tsx` / `webview-ui/src/context/ExtensionStateContext.tsx`
+- 入口（起動通知の受信側 = 唯一残った switch 分岐）: `src/core/webview/webviewMessageHandler.ts`
 
 ---
 
@@ -93,9 +93,9 @@ UI 側でユーザーが何かすると、その操作は**種類（`type`）を
 ホストに届いたメッセージは、まず**入口の仕分け役**が受け取る。かつてここは巨大な
 `switch` 文で、すべてのメッセージ種別を 1 か所で捌いていた。今はそれを解体し、
 **ドメインごとに「メッセージ種別 → 処理関数」の対応表（マップ）を作って、順に引く**方式に
-なっている。仕分け役は、worktree 用の表・コード索引用の表・カスタムモード用の表…と
-順番に「この種別を知っている表はある？」と尋ね、最初に見つかった処理関数に委譲する。
-どの表も知らなければ、唯一 `switch` に残った起動処理（前述の号砲）へ落ちる。
+なっている。仕分け役は、worktree 用の表・コード索引用の表・モード用の表…と
+順番に該当の有無を確認し、最初に見つかった処理関数に委譲する。
+どの表も知らなければ、唯一 `switch` に残った起動処理（前述の起動通知）へ落ちる。
 この作りのおかげで、機能を足すときは対応する表に 1 エントリ追加するだけで済み、
 巨大 switch の再来を防いでいる。
 
@@ -119,8 +119,8 @@ UI 側でユーザーが何かすると、その操作は**種類（`type`）を
   `src/core/webview/mcpMessageHandlers.ts`
 - **コード索引の表** — コードベース索引の開始/停止/消去や状態問い合わせ、秘密情報の
   保存状況の返答を扱う。`src/core/webview/codeIndexMessageHandlers.ts`
-- **カスタムモードの表** — モード定義の作成・更新・削除・入出力を担う。
-  `src/core/webview/customModesMessageHandlers.ts`
+- **モードの表** — モードの切替と一覧の問い合わせを担う。
+  `src/core/webview/modeMessageHandlers.ts`
 - **スラッシュコマンドの表** — コマンド一覧の要求、コマンドファイルの作成/削除/オープン。
   `src/core/webview/commandMessageHandlers.ts`
 - **worktree の表** — Git worktree の一覧・作成・削除・ブランチ操作・コピー進捗を扱う。

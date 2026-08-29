@@ -8,9 +8,9 @@ import { getModeBySlug } from "../../../shared/modes"
 
 const mockedGetMode = vi.mocked(getModeBySlug)
 
-function makeProvider(customModes: unknown[] = []) {
+function makeProvider() {
 	return {
-		getState: vi.fn(async () => ({ customModes })),
+		getState: vi.fn(async () => ({})),
 		handleModeSwitch: vi.fn(async () => {}),
 	}
 }
@@ -42,17 +42,15 @@ describe("applySlashCommandModeSwitch", () => {
 
 		await applySlashCommandModeSwitch(provider as never, "ghost")
 
-		expect(provider.getState).toHaveBeenCalledTimes(1)
 		expect(provider.handleModeSwitch).not.toHaveBeenCalled()
 	})
 
-	it("存在するモードなら getState の customModes で解決して handleModeSwitch する", async () => {
-		const customModes = [{ slug: "code" }]
-		const provider = makeProvider(customModes)
+	it("存在するモードなら解決して handleModeSwitch する", async () => {
+		const provider = makeProvider()
 
 		await applySlashCommandModeSwitch(provider as never, "code")
 
-		expect(mockedGetMode).toHaveBeenCalledWith("code", customModes)
+		expect(mockedGetMode).toHaveBeenCalledWith("code")
 		expect(provider.handleModeSwitch).toHaveBeenCalledWith("code")
 	})
 })

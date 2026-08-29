@@ -169,7 +169,7 @@ describe("getEnvironmentDetails", () => {
 
 		expect(mockProvider.getState).toHaveBeenCalled()
 
-		expect(getFullModeDetails).toHaveBeenCalledWith("code", [], undefined, {
+		expect(getFullModeDetails).toHaveBeenCalledWith("code", undefined, {
 			cwd: mockCwd,
 			globalCustomInstructions: "test instructions",
 			language: "en",

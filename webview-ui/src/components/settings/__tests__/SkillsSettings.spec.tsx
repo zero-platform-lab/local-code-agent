@@ -178,7 +178,6 @@ const renderSkillsSettings = (skills: SkillMetadata[] = mockSkills, cwd?: string
 	mockExtensionState = {
 		skills,
 		cwd: cwd !== undefined ? cwd : "/workspace",
-		customModes: [],
 	}
 
 	return render(
@@ -559,7 +558,7 @@ describe("SkillsSettings", () => {
 		})
 	})
 	it("treats a missing skill list as an empty one", () => {
-		mockExtensionState = { skills: undefined, cwd: "/workspace", customModes: [] }
+		mockExtensionState = { skills: undefined, cwd: "/workspace" }
 
 		render(
 			<QueryClientProvider client={new QueryClient()}>

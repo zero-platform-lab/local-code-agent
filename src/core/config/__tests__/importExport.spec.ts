@@ -10,7 +10,6 @@ import type { ProviderName } from "@openai-agent/types"
 import { importSettings, importSettingsFromFile, importSettingsWithFeedback, exportSettings } from "../importExport"
 import { ProviderSettingsManager } from "../ProviderSettingsManager"
 import { ContextProxy } from "../ContextProxy"
-import { CustomModesManager } from "../CustomModesManager"
 import { safeWriteJson } from "../../../utils/safeWriteJson"
 
 import type { Mock } from "vitest"
@@ -97,7 +96,6 @@ describe("importExport", () => {
 	let mockProviderSettingsManager: ReturnType<typeof vi.mocked<ProviderSettingsManager>>
 	let mockContextProxy: ReturnType<typeof vi.mocked<ContextProxy>>
 	let mockExtensionContext: ReturnType<typeof vi.mocked<vscode.ExtensionContext>>
-	let mockCustomModesManager: ReturnType<typeof vi.mocked<CustomModesManager>>
 
 	beforeEach(() => {
 		vi.clearAllMocks()
@@ -116,10 +114,6 @@ describe("importExport", () => {
 			getValue: vi.fn(),
 		} as unknown as ReturnType<typeof vi.mocked<ContextProxy>>
 
-		mockCustomModesManager = { updateCustomMode: vi.fn() } as unknown as ReturnType<
-			typeof vi.mocked<CustomModesManager>
-		>
-
 		const map = new Map<string, string>()
 
 		mockExtensionContext = {
@@ -137,7 +131,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result).toEqual({ success: false, error: "User cancelled file selection" })
@@ -185,7 +178,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
@@ -224,7 +216,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result).toEqual({ success: false, error: "[providerProfiles.currentApiConfigName]: Required" })
@@ -264,7 +255,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
@@ -296,7 +286,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(false)
@@ -313,7 +302,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result).toEqual({ success: false, error: "File read error" })
@@ -346,7 +334,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
@@ -357,17 +344,17 @@ describe("importExport", () => {
 			}
 		})
 
-		it("should call updateCustomMode for each custom mode in config", async () => {
+		it("ignores the removed customModes key in old export files", async () => {
+			// customModes（撤去済み機構）を含む旧エクスポートを読んでも、
+			// スキーマが未知キーとして黙って取り除き、インポートは成功する。
 			;(vscode.window.showOpenDialog as Mock).mockResolvedValue([{ fsPath: "/mock/path/settings.json" }])
-
-			const customModes = [
-				{ slug: "mode1", name: "Mode One", roleDefinition: "Custom role one", groups: [] },
-				{ slug: "mode2", name: "Mode Two", roleDefinition: "Custom role two", groups: [] },
-			]
 
 			const mockFileContent = JSON.stringify({
 				providerProfiles: { currentApiConfigName: "test", apiConfigs: {} },
-				globalSettings: { mode: "code", customModes },
+				globalSettings: {
+					mode: "code",
+					customModes: [{ slug: "mode1", name: "Mode One", roleDefinition: "Custom role one", groups: [] }],
+				},
 			})
 
 			;(fs.readFile as Mock).mockResolvedValue(mockFileContent)
@@ -382,15 +369,12 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
-			expect(mockCustomModesManager.updateCustomMode).toHaveBeenCalledTimes(customModes.length)
-
-			customModes.forEach((mode) => {
-				expect(mockCustomModesManager.updateCustomMode).toHaveBeenCalledWith(mode.slug, mode)
-			})
+			expect(mockContextProxy.setValues).toHaveBeenCalledWith(
+				expect.not.objectContaining({ customModes: expect.anything() }),
+			)
 		})
 
 		it("should import settings from provided file path without showing dialog", async () => {
@@ -424,7 +408,6 @@ describe("importExport", () => {
 				{
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				},
 				vscode.Uri.file(filePath),
 			)
@@ -463,7 +446,6 @@ describe("importExport", () => {
 				{
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 					provider: mockProvider,
 				},
 				filePath,
@@ -516,7 +498,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
@@ -579,7 +560,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should succeed
@@ -638,7 +618,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should succeed (valid profile was imported)
@@ -689,7 +668,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should fail since all profiles have schema validation errors
@@ -747,7 +725,6 @@ describe("importExport", () => {
 					{
 						providerSettingsManager: mockProviderSettingsManager,
 						contextProxy: mockContextProxy,
-						customModesManager: mockCustomModesManager,
 						provider: mockProvider,
 					},
 					filePath,
@@ -822,7 +799,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should succeed
@@ -880,7 +856,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should succeed
@@ -941,7 +916,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				// Import should fail because no valid profiles could be imported
@@ -998,7 +972,6 @@ describe("importExport", () => {
 					{
 						providerSettingsManager: mockProviderSettingsManager,
 						contextProxy: mockContextProxy,
-						customModesManager: mockCustomModesManager,
 						provider: mockProvider,
 					},
 					filePath,
@@ -1526,7 +1499,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				expect(result.success).toBe(true)
@@ -1594,7 +1566,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				expect(result.success).toBe(true)
@@ -1642,7 +1613,6 @@ describe("importExport", () => {
 				const result = await importSettings({
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 				})
 
 				expect(result.success).toBe(true)
@@ -1731,7 +1701,6 @@ describe("importExport", () => {
 			const importResult = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			// Step 8: Verify import was successful
@@ -1819,7 +1788,6 @@ describe("importExport", () => {
 			const importResult = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(importResult.success).toBe(true)
@@ -1943,7 +1911,6 @@ describe("importExport", () => {
 			const importResult = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(importResult.success).toBe(true)
@@ -2025,7 +1992,6 @@ describe("importExport", () => {
 			const importResult = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(importResult.success).toBe(true)
@@ -2111,7 +2077,6 @@ describe("importExport", () => {
 			const importResult = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(importResult.success).toBe(true)
@@ -2295,7 +2260,6 @@ describe("importExport", () => {
 			const result = await importSettings({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 			})
 
 			expect(result.success).toBe(true)
@@ -2341,7 +2305,6 @@ describe("importExport", () => {
 				{
 					providerSettingsManager: mockProviderSettingsManager,
 					contextProxy: mockContextProxy,
-					customModesManager: mockCustomModesManager,
 					provider: mockProvider,
 				},
 				filePath,
@@ -2389,7 +2352,6 @@ describe("importExport", () => {
 			await importSettingsWithFeedback({
 				providerSettingsManager: mockProviderSettingsManager,
 				contextProxy: mockContextProxy,
-				customModesManager: mockCustomModesManager,
 				provider: mockProvider,
 			})
 

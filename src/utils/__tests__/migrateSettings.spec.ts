@@ -297,10 +297,10 @@ describe("migrateSettings", () => {
 			const fsPromises = await import("fs/promises")
 			const { fileExistsAtPath } = await import("../fs")
 
-			// settingsDir はある。cline_custom_modes.json → custom_modes.json は
+			// settingsDir はある。cline_mcp_settings.json → mcp_settings.json は
 			// 「旧あり・新なし」なので rename が走る。その rename を失敗させる。
 			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				if (p.endsWith("cline_custom_modes.json")) return true
+				if (p.endsWith("cline_mcp_settings.json")) return true
 				return p.endsWith("/settings") || p.endsWith("\\settings")
 			})
 			vi.mocked((fsPromises as any).rename).mockRejectedValueOnce(new Error("rename boom"))
@@ -312,36 +312,13 @@ describe("migrateSettings", () => {
 			)
 		})
 
-		it("custom_modes.json の読み込みが失敗すると YAML 変換の catch でログする", async () => {
-			const fsPromises = await import("fs/promises")
-			const { fileExistsAtPath } = await import("../fs")
-
-			// rename 対象(cline_*)は無し。custom_modes.json はあり、YAML はまだ無い。
-			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				if (p.endsWith("cline_custom_modes.json")) return false
-				if (p.endsWith("cline_mcp_settings.json")) return false
-				if (p.endsWith(".yaml")) return false
-				if (p.endsWith("custom_modes.json")) return true
-				return p.endsWith("/settings") || p.endsWith("\\settings")
-			})
-			// migrateCustomModesToYaml が readFile(oldJsonPath) で失敗 → 外側 catch。
-			vi.mocked((fsPromises as any).readFile).mockRejectedValueOnce(new Error("read boom"))
-
-			await migrateSettings(mockContext, mockOutputChannel)
-
-			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("Error reading custom_modes.json"),
-			)
-		})
-
 		it("旧ファイルがあり新ファイルが無ければ rename して成功ログを出す", async () => {
 			const fsPromises = await import("fs/promises")
 			const { fileExistsAtPath } = await import("../fs")
 
-			// cline_custom_modes.json（旧）はあり、custom_modes.json（新）は無い → rename 成功。
-			// 以降の custom_modes.json は「無い」ままにして YAML 変換は早期 return させる。
+			// cline_mcp_settings.json（旧）はあり、mcp_settings.json（新）は無い → rename 成功。
 			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				if (p.endsWith("cline_custom_modes.json")) return true
+				if (p.endsWith("cline_mcp_settings.json")) return true
 				return p.endsWith("/settings") || p.endsWith("\\settings")
 			})
 			vi.mocked((fsPromises as any).rename).mockResolvedValue(undefined)
@@ -349,7 +326,7 @@ describe("migrateSettings", () => {
 			await migrateSettings(mockContext, mockOutputChannel)
 
 			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("Renamed cline_custom_modes.json to custom_modes.json"),
+				expect.stringContaining("Renamed cline_mcp_settings.json to mcp_settings.json"),
 			)
 		})
 
@@ -357,11 +334,10 @@ describe("migrateSettings", () => {
 			const fsPromises = await import("fs/promises")
 			const { fileExistsAtPath } = await import("../fs")
 
-			// cline_custom_modes.json（旧）も custom_modes.json（新）も存在 → rename しない。
+			// cline_mcp_settings.json（旧）も mcp_settings.json（新）も存在 → rename しない。
 			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				if (p.endsWith("cline_custom_modes.json")) return true
-				if (p.endsWith(".yaml")) return true // YAML もある扱いにして変換も走らせない
-				if (p.endsWith("custom_modes.json")) return true
+				if (p.endsWith("cline_mcp_settings.json")) return true
+				if (p.endsWith("mcp_settings.json")) return true
 				return p.endsWith("/settings") || p.endsWith("\\settings")
 			})
 
@@ -383,112 +359,6 @@ describe("migrateSettings", () => {
 
 			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
 				expect.stringContaining("Error migrating settings files"),
-			)
-		})
-	})
-
-	describe("custom_modes.json → YAML 変換", () => {
-		// migrateCustomModesToYaml へ到達させる共通条件:
-		// settingsDir はあり、cline_* の移管対象は無し（rename を走らせない）。
-		function baseExists(p: string): boolean | null {
-			if (p.endsWith("cline_custom_modes.json")) return false
-			if (p.endsWith("cline_mcp_settings.json")) return false
-			return null // 個別判定に委ねる
-		}
-
-		it("json があり yaml が無ければ YAML を書き出して成功ログを出す", async () => {
-			const fsPromises = await import("fs/promises")
-			const yamlMod = await import("yaml")
-			const { fileExistsAtPath } = await import("../fs")
-
-			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				const b = baseExists(p)
-				if (b !== null) return b
-				if (p.endsWith(".yaml")) return false // YAML はまだ無い
-				if (p.endsWith("custom_modes.json")) return true // JSON はある
-				return p.endsWith("/settings") || p.endsWith("\\settings")
-			})
-			vi.mocked((fsPromises as any).readFile).mockResolvedValue('{"customModes":[{"slug":"a"}]}')
-			vi.mocked((fsPromises as any).writeFile).mockResolvedValue(undefined)
-
-			await migrateSettings(mockContext, mockOutputChannel)
-
-			// yaml.parse → yaml.stringify → writeFile(custom_modes.yaml) が走る。
-			expect(yamlMod.parse).toHaveBeenCalledWith('{"customModes":[{"slug":"a"}]}')
-			expect(yamlMod.stringify).toHaveBeenCalled()
-			expect((fsPromises as any).writeFile).toHaveBeenCalledWith(
-				expect.stringContaining("custom_modes.yaml"),
-				expect.any(String),
-				"utf-8",
-			)
-			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("Successfully migrated custom_modes.json to YAML format"),
-			)
-		})
-
-		it("yaml が既に存在すれば変換せずスキップログを出す", async () => {
-			const fsPromises = await import("fs/promises")
-			const { fileExistsAtPath } = await import("../fs")
-
-			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				const b = baseExists(p)
-				if (b !== null) return b
-				if (p.endsWith(".yaml")) return true // YAML が既にある
-				if (p.endsWith("custom_modes.json")) return true // JSON もある
-				return p.endsWith("/settings") || p.endsWith("\\settings")
-			})
-
-			await migrateSettings(mockContext, mockOutputChannel)
-
-			expect((fsPromises as any).writeFile).not.toHaveBeenCalled()
-			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("custom_modes.yaml already exists, skipping migration"),
-			)
-		})
-
-		it("json が無ければ変換をスキップする", async () => {
-			const fsPromises = await import("fs/promises")
-			const { fileExistsAtPath } = await import("../fs")
-
-			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				const b = baseExists(p)
-				if (b !== null) return b
-				if (p.endsWith(".yaml")) return false
-				if (p.endsWith("custom_modes.json")) return false // JSON が無い
-				return p.endsWith("/settings") || p.endsWith("\\settings")
-			})
-
-			await migrateSettings(mockContext, mockOutputChannel)
-
-			expect((fsPromises as any).readFile).not.toHaveBeenCalled()
-			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("No custom_modes.json found, skipping YAML migration"),
-			)
-		})
-
-		it("JSON パースに失敗すると parseError の catch でログし、書き込まない", async () => {
-			const fsPromises = await import("fs/promises")
-			const yamlMod = await import("yaml")
-			const { fileExistsAtPath } = await import("../fs")
-
-			vi.mocked(fileExistsAtPath).mockImplementation(async (p: string) => {
-				const b = baseExists(p)
-				if (b !== null) return b
-				if (p.endsWith(".yaml")) return false
-				if (p.endsWith("custom_modes.json")) return true
-				return p.endsWith("/settings") || p.endsWith("\\settings")
-			})
-			vi.mocked((fsPromises as any).readFile).mockResolvedValue("{ broken json")
-			vi.mocked(yamlMod.parse).mockImplementationOnce(() => {
-				throw new Error("parse boom")
-			})
-
-			await migrateSettings(mockContext, mockOutputChannel)
-
-			// 不変条件: パース失敗時は YAML を書かない（旧 JSON を保持）。
-			expect((fsPromises as any).writeFile).not.toHaveBeenCalled()
-			expect(mockOutputChannel.appendLine).toHaveBeenCalledWith(
-				expect.stringContaining("Error parsing custom_modes.json"),
 			)
 		})
 	})

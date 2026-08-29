@@ -34,26 +34,24 @@ describe("Plan (read-only) autonomy gate", () => {
 
 	describe("validateToolUse with autonomyMode=plan (role=code)", () => {
 		it("throws for write_to_file even though code mode allows it", () => {
-			expect(() =>
-				validateToolUse(asTool("write_to_file"), "code", [], undefined, {}, undefined, undefined, "plan"),
-			).toThrow(/Plan \(read-only\) mode/)
+			expect(() => validateToolUse(asTool("write_to_file"), "code", undefined, {}, undefined, "plan")).toThrow(
+				/Plan \(read-only\) mode/,
+			)
 		})
 
 		it("throws for execute_command in plan mode", () => {
-			expect(() =>
-				validateToolUse(asTool("execute_command"), "code", [], undefined, {}, undefined, undefined, "plan"),
-			).toThrow(/Plan \(read-only\) mode/)
+			expect(() => validateToolUse(asTool("execute_command"), "code", undefined, {}, undefined, "plan")).toThrow(
+				/Plan \(read-only\) mode/,
+			)
 		})
 
 		it("allows read_file in plan mode", () => {
-			expect(() =>
-				validateToolUse(asTool("read_file"), "code", [], undefined, {}, undefined, undefined, "plan"),
-			).not.toThrow()
+			expect(() => validateToolUse(asTool("read_file"), "code", undefined, {}, undefined, "plan")).not.toThrow()
 		})
 
 		it("does NOT block edits when autonomy mode is auto", () => {
 			expect(() =>
-				validateToolUse(asTool("write_to_file"), "code", [], undefined, {}, undefined, undefined, "auto"),
+				validateToolUse(asTool("write_to_file"), "code", undefined, {}, undefined, "auto"),
 			).not.toThrow()
 		})
 	})

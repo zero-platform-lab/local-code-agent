@@ -1,97 +1,44 @@
 import { z } from "zod"
 
-import { deprecatedToolGroups, toolGroupsSchema } from "./tool.js"
+import { deprecatedToolGroups, toolGroupsSchema, type ToolGroup } from "./tool.js"
 
 /**
- * GroupOptions
- */
-
-export const groupOptionsSchema = z.object({
-	fileRegex: z
-		.string()
-		.optional()
-		.refine(
-			(pattern) => {
-				if (!pattern) {
-					return true // Optional, so empty is valid.
-				}
-
-				try {
-					new RegExp(pattern)
-					return true
-				} catch {
-					return false
-				}
-			},
-			{ message: "Invalid regular expression pattern" },
-		),
-	description: z.string().optional(),
-})
-
-export type GroupOptions = z.infer<typeof groupOptionsSchema>
-
-/**
- * GroupEntry
- */
-
-export const groupEntrySchema = z.union([toolGroupsSchema, z.tuple([toolGroupsSchema, groupOptionsSchema])])
-
-export type GroupEntry = z.infer<typeof groupEntrySchema>
-
-/**
- * ModeConfig
- */
-
-/**
- * Checks if a group entry references a deprecated tool group.
- * Handles both string entries ("browser") and tuple entries (["browser", { ... }]).
+ * Mode tool groups.
+ *
+ * かつては `["edit", { fileRegex }]` のようなオプション付きタプルも受理したが、
+ * fileRegex はカスタムモード（撤去済み）でしか表現できなかったため、グループ名の
+ * 配列だけを受理する。旧設定との互換のため、廃止済みグループ（browser）と
+ * タプル形式のエントリは検証前に黙って取り除く。
  */
 function isDeprecatedGroupEntry(entry: unknown): boolean {
 	if (typeof entry === "string") {
 		return deprecatedToolGroups.includes(entry)
 	}
-	if (Array.isArray(entry) && entry.length >= 1 && typeof entry[0] === "string") {
-		return deprecatedToolGroups.includes(entry[0])
-	}
 	return false
 }
 
-/**
- * Raw schema for validating group entries after deprecated groups are stripped.
- */
-const rawGroupEntryArraySchema = z.array(groupEntrySchema).refine(
+const rawGroupEntryArraySchema = z.array(toolGroupsSchema).refine(
 	(groups) => {
 		const seen = new Set()
 
 		return groups.every((group) => {
-			// For tuples, check the group name (first element).
-			const groupName = Array.isArray(group) ? group[0] : group
-
-			if (seen.has(groupName)) {
+			if (seen.has(group)) {
 				return false
 			}
 
-			seen.add(groupName)
+			seen.add(group)
 			return true
 		})
 	},
 	{ message: "Duplicate groups are not allowed" },
 )
 
-/**
- * Schema for mode group entries. Preprocesses the input to strip deprecated
- * tool groups (e.g., "browser") before validation, ensuring backward compatibility
- * with older user configs.
- *
- * The type assertion to `z.ZodType<GroupEntry[], z.ZodTypeDef, GroupEntry[]>` is
- * required because `z.preprocess` erases the input type to `unknown`, which
- * propagates through `modeConfigSchema → agentSettingsSchema → createRunSchema`
- * and breaks `zodResolver` generic inference in downstream consumers.
- */
 export const groupEntryArraySchema = z.preprocess((val) => {
 	if (!Array.isArray(val)) return val
-	return val.filter((entry) => !isDeprecatedGroupEntry(entry))
-}, rawGroupEntryArraySchema) as z.ZodType<GroupEntry[], z.ZodTypeDef, GroupEntry[]>
+	return val
+		.map((entry) => (Array.isArray(entry) && entry.length >= 1 ? entry[0] : entry))
+		.filter((entry) => !isDeprecatedGroupEntry(entry))
+}, rawGroupEntryArraySchema) as z.ZodType<ToolGroup[], z.ZodTypeDef, ToolGroup[]>
 
 export const modeConfigSchema = z.object({
 	slug: z.string().regex(/^[a-zA-Z0-9-]+$/, "Slug must contain only letters numbers and dashes"),
@@ -101,36 +48,9 @@ export const modeConfigSchema = z.object({
 	description: z.string().optional(),
 	customInstructions: z.string().optional(),
 	groups: groupEntryArraySchema,
-	source: z.enum(["global", "project"]).optional(),
 })
 
 export type ModeConfig = z.infer<typeof modeConfigSchema>
-
-/**
- * CustomModesSettings
- */
-
-export const customModesSettingsSchema = z.object({
-	customModes: z.array(modeConfigSchema).refine(
-		(modes) => {
-			const slugs = new Set()
-
-			return modes.every((mode) => {
-				if (slugs.has(mode.slug)) {
-					return false
-				}
-
-				slugs.add(mode.slug)
-				return true
-			})
-		},
-		{
-			message: "Duplicate mode slugs are not allowed",
-		},
-	),
-})
-
-export type CustomModesSettings = z.infer<typeof customModesSettingsSchema>
 
 /**
  * PromptComponent

@@ -487,7 +487,6 @@ describe("ClineProvider", () => {
 			writeDelayMs: 1000,
 			mcpEnabled: true,
 			mode: defaultModeSlug,
-			customModes: [],
 			experiments: experimentDefault,
 			maxOpenTabsContext: 20,
 			maxWorkspaceFiles: 200,
@@ -1438,21 +1437,6 @@ describe("ClineProvider", () => {
 		test("validates and falls back to default mode when restored mode no longer exists", async () => {
 			await provider.resolveWebviewView(mockWebviewView)
 
-			// Mock custom modes that don't include the saved mode
-			const mockCustomModesManager = {
-				hasLoadError: vi.fn(() => false),
-				getCustomModes: vi.fn().mockResolvedValue([
-					{
-						slug: "existing-mode",
-						name: "Existing Mode",
-						roleDefinition: "Test role",
-						groups: ["read"] as const,
-					},
-				]),
-				dispose: vi.fn(),
-			}
-			;(provider as any).customModesManager = mockCustomModesManager
-
 			// Mock getModeBySlug to return undefined for non-existent mode
 			const { getModeBySlug } = await import("../../../shared/modes")
 			vi.mocked(getModeBySlug)
@@ -1489,8 +1473,7 @@ describe("ClineProvider", () => {
 			await provider.createTaskWithHistoryItem(historyItem)
 
 			// Verify mode validation occurred
-			expect(mockCustomModesManager.getCustomModes).toHaveBeenCalled()
-			expect(getModeBySlug).toHaveBeenCalledWith("non-existent-mode", expect.any(Array))
+			expect(getModeBySlug).toHaveBeenCalledWith("non-existent-mode")
 
 			// Verify fallback to default mode
 			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "code")
@@ -1502,25 +1485,10 @@ describe("ClineProvider", () => {
 			expect(historyItem.mode).toBe("code")
 		})
 
-		test("preserves mode when it exists in custom modes", async () => {
+		test("preserves mode when it still exists", async () => {
 			await provider.resolveWebviewView(mockWebviewView)
 
-			// Mock custom modes that include the saved mode
-			const mockCustomModesManager = {
-				hasLoadError: vi.fn(() => false),
-				getCustomModes: vi.fn().mockResolvedValue([
-					{
-						slug: "custom-mode",
-						name: "Custom Mode",
-						roleDefinition: "Custom role",
-						groups: ["read", "edit"] as const,
-					},
-				]),
-				dispose: vi.fn(),
-			}
-			;(provider as any).customModesManager = mockCustomModesManager
-
-			// Mock getModeBySlug to return the custom mode
+			// Mock getModeBySlug to resolve the saved mode
 			const { getModeBySlug } = await import("../../../shared/modes")
 			vi.mocked(getModeBySlug).mockReturnValue({
 				slug: "custom-mode",
@@ -1559,8 +1527,7 @@ describe("ClineProvider", () => {
 			await provider.createTaskWithHistoryItem(historyItem)
 
 			// Verify mode validation occurred
-			expect(mockCustomModesManager.getCustomModes).toHaveBeenCalled()
-			expect(getModeBySlug).toHaveBeenCalledWith("custom-mode", expect.any(Array))
+			expect(getModeBySlug).toHaveBeenCalledWith("custom-mode")
 
 			// Verify mode was preserved
 			expect(mockContext.globalState.update).toHaveBeenCalledWith("mode", "custom-mode")
@@ -1696,69 +1663,6 @@ describe("ClineProvider", () => {
 			// Verify error was logged but task restoration continued
 			expect(logSpy).toHaveBeenCalledWith(
 				expect.stringContaining("Failed to restore API configuration for mode 'code'"),
-			)
-		})
-	})
-
-	describe("updateCustomMode", () => {
-		test("updates both file and state when updating custom mode", async () => {
-			await provider.resolveWebviewView(mockWebviewView)
-			const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as any).mock.calls[0][0]
-
-			// Mock CustomModesManager methods
-			;(provider as any).customModesManager = {
-				updateCustomMode: vi.fn().mockResolvedValue(undefined),
-				hasLoadError: vi.fn(() => false),
-				getCustomModes: vi.fn().mockResolvedValue([
-					{
-						slug: "test-mode",
-						name: "Test Mode",
-						roleDefinition: "Updated role definition",
-						groups: ["read"] as const,
-					},
-				]),
-				dispose: vi.fn(),
-			} as any
-
-			// Test updating a custom mode
-			await messageHandler({
-				type: "updateCustomMode",
-				modeConfig: {
-					slug: "test-mode",
-					name: "Test Mode",
-					roleDefinition: "Updated role definition",
-					groups: ["read"] as const,
-				},
-			})
-
-			// Verify CustomModesManager.updateCustomMode was called
-			expect(provider.customModesManager.updateCustomMode).toHaveBeenCalledWith(
-				"test-mode",
-				expect.objectContaining({
-					slug: "test-mode",
-					roleDefinition: "Updated role definition",
-				}),
-			)
-
-			// Verify state was updated
-			expect(mockContext.globalState.update).toHaveBeenCalledWith("customModes", [
-				{ groups: ["read"], name: "Test Mode", roleDefinition: "Updated role definition", slug: "test-mode" },
-			])
-
-			// Verify state was posted to webview
-			// Verify state was posted to webview with correct format
-			expect(mockPostMessage).toHaveBeenCalledWith(
-				expect.objectContaining({
-					type: "state",
-					state: expect.objectContaining({
-						customModes: [
-							expect.objectContaining({
-								slug: "test-mode",
-								roleDefinition: "Updated role definition",
-							}),
-						],
-					}),
-				}),
 			)
 		})
 	})

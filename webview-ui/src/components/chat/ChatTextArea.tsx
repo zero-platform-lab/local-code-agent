@@ -87,7 +87,6 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			openedTabs,
 			currentApiConfigName,
 			listApiConfigMeta,
-			customModes,
 			customModePrompts,
 			cwd,
 			pinnedApiConfigs,
@@ -249,7 +248,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			}
 		}, [inputValue, setInputValue, t])
 
-		const allModes = useMemo(() => getAllModes(customModes), [customModes])
+		const allModes = useMemo(() => getAllModes(), [])
 
 		// Memoized check for whether the input has content (text or images)
 		const hasInputContent = useMemo(() => {
@@ -1181,7 +1180,6 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								onChange={handleModeChange}
 								triggerClassName="text-ellipsis overflow-hidden flex-shrink-0"
 								modeShortcutText={modeShortcutText}
-								customModes={customModes}
 								customModePrompts={customModePrompts}
 							/>
 						)}

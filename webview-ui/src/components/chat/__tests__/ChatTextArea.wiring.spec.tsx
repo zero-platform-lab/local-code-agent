@@ -785,15 +785,8 @@ describe("ChatTextArea wiring", () => {
 			expect(posted()).toContainEqual({ type: "lockApiConfigAcrossModes", bool: true })
 		})
 
-		it("選択肢が 1 件しか無いときはモードセレクタを出さない", () => {
-			// 組み込み code のみ。選べないドロップダウンを置かない。
+		it("組み込みモードが 2 件（code / research）あるのでモードセレクタを出す", () => {
 			renderTextArea({ inputValue: "" })
-
-			expect(screen.queryByTestId("mode-selector-change")).not.toBeInTheDocument()
-		})
-
-		it("カスタムモードがあればモードセレクタを出す", () => {
-			renderTextArea({ inputValue: "" }, withSecondMode)
 
 			expect(screen.getByTestId("mode-selector-change")).toBeInTheDocument()
 		})

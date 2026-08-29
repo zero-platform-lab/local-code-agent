@@ -1,5 +1,3 @@
-import type { ModeConfig } from "@openai-agent/types"
-
 import { defaultModeSlug, getModeBySlug } from "../../shared/modes"
 import type { ToolUse } from "../../shared/tools"
 import { readFileTool } from "../tools/ReadFileTool"
@@ -13,7 +11,7 @@ import { readFileTool } from "../tools/ReadFileTool"
  *
  * 引数は tool ブロックとモード一覧だけ。vscode にも Task にも依存しない。
  */
-export function describeToolUse(block: ToolUse, customModes?: ModeConfig[]): string {
+export function describeToolUse(block: ToolUse): string {
 	const params = block.params ?? {}
 
 	switch (block.name) {
@@ -52,7 +50,7 @@ export function describeToolUse(block: ToolUse, customModes?: ModeConfig[]): str
 		case "new_task": {
 			const mode = params.mode ?? defaultModeSlug
 			const message = params.message ?? "(no message)"
-			return `[${block.name} in ${getModeBySlug(mode, customModes)?.name ?? mode} mode: '${message}']`
+			return `[${block.name} in ${getModeBySlug(mode)?.name ?? mode} mode: '${message}']`
 		}
 		case "run_slash_command":
 			return `[${block.name} for '${params.command}'${params.args ? ` with args: ${params.args}` : ""}]`

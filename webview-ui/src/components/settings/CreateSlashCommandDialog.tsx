@@ -66,7 +66,7 @@ export const CreateSlashCommandDialog: React.FC<CreateSlashCommandDialogProps> =
 
 	// 入力段階のフィルタは上の validateCommandName に合わせている。
 	// スラッシュコマンド名は**アンダースコアを許す**点でスキル名・モード slug と異なるので、
-	// それらのフィルタ（CreateSkillDialog / modes/modeFormLogic.ts）と共通化してはいけない。
+	// それらのフィルタ（CreateSkillDialog / modes/ModeSelectPopover.tsx）と共通化してはいけない。
 	// アンダースコアを禁じるとコマンド名が作れなくなり、逆に他所で許すとスキーマに弾かれる。
 	const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
 		// Allow alphanumeric, hyphens, underscores - convert to lowercase for consistency

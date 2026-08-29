@@ -1,8 +1,8 @@
 import * as vscode from "vscode"
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import type { AgentSettings } from "@openai-agent/types"
 
-import type { AgentSettings, ModeConfig } from "@openai-agent/types"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 
 import { applyCreateTaskConfiguration, type CreateTaskConfigurationHost } from "../applyCreateTaskConfiguration"
 
@@ -22,13 +22,11 @@ vi.mock("vscode", async (importOriginal) => {
 const GLOBAL_TARGET = 1
 
 const makeHost = () => {
-	const updateCustomMode = vi.fn().mockResolvedValue(undefined)
 	const host: CreateTaskConfigurationHost = {
 		setValues: vi.fn().mockResolvedValue(undefined),
 		setProviderProfile: vi.fn().mockResolvedValue(undefined),
-		customModesManager: { updateCustomMode },
 	}
-	return { host, updateCustomMode }
+	return { host }
 }
 
 describe("applyCreateTaskConfiguration", () => {
@@ -92,28 +90,5 @@ describe("applyCreateTaskConfiguration", () => {
 		await applyCreateTaskConfiguration(host, { currentApiConfigName: "my-profile" })
 
 		expect(host.setProviderProfile).toHaveBeenCalledWith("my-profile")
-	})
-
-	it("customModes は CustomModesManager にも登録する（マージ周期で消えないように）", async () => {
-		const { host, updateCustomMode } = makeHost()
-		const modes = [
-			{ slug: "a", name: "A", roleDefinition: "", groups: [] },
-			{ slug: "b", name: "B", roleDefinition: "", groups: [] },
-		] as ModeConfig[]
-
-		await applyCreateTaskConfiguration(host, { customModes: modes })
-
-		expect(updateCustomMode).toHaveBeenCalledTimes(2)
-		expect(updateCustomMode).toHaveBeenNthCalledWith(1, "a", modes[0])
-		expect(updateCustomMode).toHaveBeenNthCalledWith(2, "b", modes[1])
-	})
-
-	it("customModes が空/未指定なら何も登録しない", async () => {
-		const { host, updateCustomMode } = makeHost()
-
-		await applyCreateTaskConfiguration(host, { customModes: [] })
-		await applyCreateTaskConfiguration(host, {})
-
-		expect(updateCustomMode).not.toHaveBeenCalled()
 	})
 })

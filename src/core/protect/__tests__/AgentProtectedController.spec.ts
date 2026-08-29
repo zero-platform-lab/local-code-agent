@@ -24,10 +24,6 @@ describe("AgentProtectedController", () => {
 			expect(controller.isWriteProtected(".agentprotected")).toBe(true)
 		})
 
-		it("should protect .agentmodes files", () => {
-			expect(controller.isWriteProtected(".agentmodes")).toBe(true)
-		})
-
 		it("should protect .agentrules* files", () => {
 			expect(controller.isWriteProtected(".agentrules")).toBe(true)
 			expect(controller.isWriteProtected(".agentrules.md")).toBe(true)
@@ -78,7 +74,6 @@ describe("AgentProtectedController", () => {
 		it("should handle nested paths correctly", () => {
 			expect(controller.isWriteProtected(".agent/config.json")).toBe(true) // .agent/** matches at root
 			expect(controller.isWriteProtected("nested/.agentignore")).toBe(true) // .agentignore matches anywhere by default
-			expect(controller.isWriteProtected("nested/.agentmodes")).toBe(true) // .agentmodes matches anywhere by default
 			expect(controller.isWriteProtected("nested/.agentrules.md")).toBe(true) // .agentrules* matches anywhere by default
 		})
 
@@ -176,7 +171,6 @@ describe("AgentProtectedController", () => {
 
 			expect(patterns).toEqual([
 				".agentignore",
-				".agentmodes",
 				".agentrules*",
 				".clinerules*",
 				".agent/**",

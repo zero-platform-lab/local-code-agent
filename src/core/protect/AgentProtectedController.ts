@@ -14,7 +14,6 @@ export class AgentProtectedController {
 	// Predefined list of protected Agent configuration patterns
 	private static readonly PROTECTED_PATTERNS = [
 		".agentignore",
-		".agentmodes",
 		".agentrules*",
 		".clinerules*",
 		".agent/**",

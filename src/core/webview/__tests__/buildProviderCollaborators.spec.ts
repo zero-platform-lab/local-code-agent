@@ -179,7 +179,6 @@ describe("buildProviderCollaborators", () => {
 		expect(c.taskHistoryStore).toBeDefined()
 		expect(c.workspaceTracker).toBeDefined()
 		expect(c.skillsManager).toBeDefined()
-		expect(c.customModesManager).toBeDefined()
 		expect(c.providerSettingsManager).toBeDefined()
 	})
 
@@ -298,18 +297,6 @@ describe("buildProviderCollaborators", () => {
 
 		expect(replacement.getModeConfigId).toHaveBeenCalledWith("architect")
 		expect(internals.updateGlobalState).toHaveBeenCalledWith("mode", "architect")
-	})
-
-	it("customModesManager も host 経由の遅延参照（履歴からのモード復元）", async () => {
-		const { host, internals } = makeHarness()
-		const c = buildProviderCollaborators(host, internals)
-
-		const replacement = { getCustomModes: vi.fn().mockResolvedValue([]) }
-		;(host as { customModesManager: unknown }).customModesManager = replacement
-
-		await c.historyProfileRestorer.restore({ id: "t", mode: "architect" } as HistoryItem, true)
-
-		expect(replacement.getCustomModes).toHaveBeenCalled()
 	})
 
 	it("providerProfile の emit は host の typed emit を通る", async () => {

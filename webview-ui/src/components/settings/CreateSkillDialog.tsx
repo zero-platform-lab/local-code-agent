@@ -3,7 +3,6 @@ import React, { useState, useCallback, useMemo } from "react"
 import { getAllModes } from "@agent/modes"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
-import { useExtensionState } from "@/context/ExtensionStateContext"
 import {
 	Button,
 	Checkbox,
@@ -51,7 +50,6 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 	hasWorkspace,
 }) => {
 	const { t } = useAppTranslation()
-	const { customModes } = useExtensionState()
 
 	const [name, setName] = useState("")
 	const [description, setDescription] = useState("")
@@ -68,8 +66,8 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 
 	// Get available modes for the checkboxes (built-in + custom modes)
 	const availableModes = useMemo(() => {
-		return getAllModes(customModes).map((m) => ({ slug: m.slug, name: m.name }))
-	}, [customModes])
+		return getAllModes().map((m) => ({ slug: m.slug, name: m.name }))
+	}, [])
 
 	const resetForm = useCallback(() => {
 		setName("")
@@ -88,7 +86,7 @@ export const CreateSkillDialog: React.FC<CreateSkillDialogProps> = ({
 
 	// 入力段階のフィルタは `SKILL_NAME_REGEX`（packages/types/src/skills.ts）に合わせている。
 	// スキル名は小文字英数字とハイフンのみで、**アンダースコアは使えない**。
-	// 同種のフィルタがモード slug（modes/modeFormLogic.ts）とスラッシュコマンド
+	// 同種のフィルタがモード名（modes/ModeSelectPopover.tsx）とスラッシュコマンド
 	// （CreateSlashCommandDialog）にもあるが、許可文字が三者三様なので統一してはいけない
 	// （詳細はそれぞれのコメント）。
 	//

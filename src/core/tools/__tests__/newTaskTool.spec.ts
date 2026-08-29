@@ -103,7 +103,7 @@ const mockCline = {
 	startSubtask: mockStartSubtask,
 	providerRef: {
 		deref: vi.fn(() => ({
-			getState: vi.fn(() => ({ customModes: [], mode: "ask" })),
+			getState: vi.fn(() => ({ mode: "ask" })),
 			handleModeSwitch: vi.fn(),
 			delegateParentAndOpenChild: mockDelegateParentAndOpenChild,
 		})),
@@ -728,7 +728,7 @@ describe("newTaskTool - エラー系/承認ゲート/partial", () => {
 	})
 
 	const makeProvider = (overrides: Record<string, unknown> = {}) => ({
-		getState: vi.fn().mockResolvedValue({ customModes: [], mode: "ask" }),
+		getState: vi.fn().mockResolvedValue({ mode: "ask" }),
 		delegateParentAndOpenChild: delegateSpy,
 		handleModeSwitch: vi.fn(),
 		...overrides,
@@ -814,14 +814,14 @@ describe("newTaskTool - エラー系/承認ゲート/partial", () => {
 		expect(mockHandleError).toHaveBeenCalledWith("creating new task", boom)
 	})
 
-	it("getState が customModes を持たない値でも getModeBySlug へ undefined を渡して継続する", async () => {
-		const provider = makeProvider({ getState: vi.fn().mockResolvedValue(undefined) })
+	it("組み込みモードの解決で継続する", async () => {
+		const provider = makeProvider()
 		mockAskApproval.mockResolvedValue(true)
 		const cline = makeCline(provider)
 
 		await newTaskTool.handle(cline as any, block({ mode: "code", message: "x" }), cbs(cline))
 
-		expect(vi.mocked(getModeBySlug)).toHaveBeenCalledWith("code", undefined)
+		expect(vi.mocked(getModeBySlug)).toHaveBeenCalledWith("code")
 		expect(delegateSpy).toHaveBeenCalledWith({
 			parentTaskId: "parent-x",
 			message: "x",

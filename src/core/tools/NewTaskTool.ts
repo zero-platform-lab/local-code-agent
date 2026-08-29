@@ -1,6 +1,6 @@
 import * as vscode from "vscode"
 
-import { type ModeConfig, TodoItem } from "@openai-agent/types"
+import { TodoItem } from "@openai-agent/types"
 
 import { getModeBySlug } from "../../shared/modes"
 import { formatResponse } from "../prompts/responses"
@@ -16,17 +16,13 @@ interface NewTaskParams {
 	todos?: string
 }
 
-interface NewTaskProviderLike {
-	getState(): Promise<{ customModes?: ModeConfig[] }>
-}
-
 /** Narrow structural view of `Task` required by {@link NewTaskTool}. */
 interface NewTaskHost extends ToolTaskContext {
 	stream: {
 		didToolFailInCurrentTurn: boolean
 	}
 	readonly taskId: string
-	readonly providerRef: WeakRef<NewTaskProviderLike>
+	readonly providerRef: WeakRef<object>
 }
 
 export class NewTaskTool extends BaseTool<"new_task"> {
@@ -61,8 +57,6 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 				pushToolResult(formatResponse.toolError("Provider reference lost"))
 				return
 			}
-
-			const state = await provider.getState()
 
 			// Use Package.name (dynamic at build time) as the VSCode configuration namespace.
 			// Supports multiple extension variants (e.g., stable/nightly) without hardcoded strings.
@@ -101,7 +95,7 @@ export class NewTaskTool extends BaseTool<"new_task"> {
 			const unescapedMessage = message.replace(/\\\\@/g, "\\@")
 
 			// Verify the mode exists
-			const targetMode = getModeBySlug(mode, state?.customModes)
+			const targetMode = getModeBySlug(mode)
 
 			if (!targetMode) {
 				pushToolResult(formatResponse.toolError(`Invalid mode: ${mode}`))

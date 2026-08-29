@@ -7,7 +7,6 @@ describe("GlobalFileNames", () => {
 		expect(GlobalFileNames.apiConversationHistory).toBe("api_conversation_history.json")
 		expect(GlobalFileNames.uiMessages).toBe("ui_messages.json")
 		expect(GlobalFileNames.mcpSettings).toBe("mcp_settings.json")
-		expect(GlobalFileNames.customModes).toBe("custom_modes.yaml")
 		expect(GlobalFileNames.taskMetadata).toBe("task_metadata.json")
 		expect(GlobalFileNames.historyItem).toBe("history_item.json")
 		expect(GlobalFileNames.historyIndex).toBe("_index.json")

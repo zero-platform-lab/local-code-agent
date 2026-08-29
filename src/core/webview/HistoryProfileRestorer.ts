@@ -4,7 +4,6 @@ import type { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import { getModeBySlug, defaultModeSlug } from "../../shared/modes"
 
 export interface HistoryProfileRestorerDeps {
-	getCustomModes(): Promise<Parameters<typeof getModeBySlug>[1]>
 	updateGlobalState(key: "mode" | "listApiConfigMeta", value: unknown): Promise<void>
 	/** ワークスペースでモード横断の API 設定ロックが有効かどうか。 */
 	isLockApiConfigAcrossModes(): boolean
@@ -33,8 +32,7 @@ export class HistoryProfileRestorer {
 		// If the history item has a saved mode, restore it and its associated API configuration.
 		if (historyItem.mode) {
 			// Validate that the mode still exists
-			const customModes = await this.deps.getCustomModes()
-			const modeExists = getModeBySlug(historyItem.mode, customModes) !== undefined
+			const modeExists = getModeBySlug(historyItem.mode) !== undefined
 
 			if (!modeExists) {
 				// Mode no longer exists, fall back to default mode.

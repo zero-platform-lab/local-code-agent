@@ -88,7 +88,6 @@ import { SkillsManager, type SkillsManagerProvider } from "../SkillsManager"
 function makeProvider(overrides: Partial<SkillsManagerProvider> = {}): SkillsManagerProvider {
 	return {
 		cwd: PROJECT_DIR,
-		customModesManager: { getCustomModes: vi.fn().mockResolvedValue([]) } as any,
 		...overrides,
 	}
 }
@@ -296,13 +295,6 @@ describe("provider が GC された/未設定のケース", () => {
 		const sm = new SkillsManager(makeProvider())
 		await expect(sm.discoverSkills()).resolves.toBeUndefined()
 		expect(sm.getAllSkills()).toHaveLength(0)
-	})
-
-	it("getCustomModes が投げても builtin モードにフォールバック（649-651 行）", async () => {
-		const provider = makeProvider()
-		;(provider.customModesManager.getCustomModes as any).mockRejectedValue(new Error("modes fail"))
-		const sm = new SkillsManager(provider)
-		await expect(sm.discoverSkills()).resolves.toBeUndefined()
 	})
 })
 

@@ -21,16 +21,6 @@ const mockExtensionState = {
 	enhancementApiConfigId: "",
 	setEnhancementApiConfigId: vitest.fn(),
 	mode: "code",
-	// 組み込みモードは code の 1 件だけ。選択肢の絞り込みを試すには
-	// もう 1 つ必要なので、カスタムモードを置く。
-	customModes: [
-		{
-			slug: "ask",
-			name: "Ask",
-			roleDefinition: "You answer questions",
-			groups: ["read"],
-		},
-	],
 	customSupportPrompts: [],
 	currentApiConfigName: "",
 	customInstructions: "Initial instructions",
@@ -73,10 +63,10 @@ describe("PromptsView", () => {
 		fireEvent.click(selectTrigger)
 
 		const searchInput = screen.getByTestId("mode-search-input")
-		fireEvent.change(searchInput, { target: { value: "ask" } })
+		fireEvent.change(searchInput, { target: { value: "research" } })
 
 		await waitFor(() => {
-			expect(screen.getByTestId("mode-option-ask")).toBeInTheDocument()
+			expect(screen.getByTestId("mode-option-research")).toBeInTheDocument()
 			expect(screen.queryByTestId("mode-option-code")).not.toBeInTheDocument()
 		})
 	})
@@ -86,13 +76,13 @@ describe("PromptsView", () => {
 		const selectTrigger = screen.getByTestId("mode-select-trigger")
 		fireEvent.click(selectTrigger)
 
-		const askOption = await waitFor(() => screen.getByTestId("mode-option-ask"))
-		fireEvent.click(askOption)
+		const researchOption = await waitFor(() => screen.getByTestId("mode-option-research"))
+		fireEvent.click(researchOption)
 
 		expect(mockExtensionState.setEnhancementApiConfigId).not.toHaveBeenCalled() // Ensure this is not called by mode switch
 		expect(vscode.postMessage).toHaveBeenCalledWith({
 			type: "mode",
-			text: "ask",
+			text: "research",
 		})
 		await waitFor(() => {
 			expect(selectTrigger).toHaveAttribute("aria-expanded", "false")
@@ -123,21 +113,8 @@ describe("PromptsView", () => {
 		})
 	})
 
-	it("resets role definition only for built-in modes", async () => {
-		const customMode = {
-			slug: "custom-mode",
-			name: "Custom Mode",
-			roleDefinition: "Custom role",
-			groups: [],
-		}
-
-		// Test with built-in mode (code)
-		const { unmount } = render(
-			<ExtensionStateContext.Provider
-				value={{ ...mockExtensionState, mode: "code", customModes: [customMode] } as any}>
-				<ModesView />
-			</ExtensionStateContext.Provider>,
-		)
+	it("resets the role definition to the built-in default", async () => {
+		renderPromptsView({ mode: "code" })
 
 		// Find and click the role definition reset button
 		const resetButton = screen.getByTestId("role-definition-reset")
@@ -153,60 +130,13 @@ describe("PromptsView", () => {
 			promptMode: "code",
 			customPrompt: {}, // Empty object because the role definition field is removed entirely
 		})
-
-		// Cleanup before testing custom mode
-		unmount()
-
-		// Test with custom mode
-		render(
-			<ExtensionStateContext.Provider
-				value={{ ...mockExtensionState, mode: "custom-mode", customModes: [customMode] } as any}>
-				<ModesView />
-			</ExtensionStateContext.Provider>,
-		)
-
-		// Verify reset button is not present for custom mode
-		expect(screen.queryByTestId("role-definition-reset")).not.toBeInTheDocument()
 	})
 
-	it("description section behavior for different mode types", async () => {
-		const customMode = {
-			slug: "custom-mode",
-			name: "Custom Mode",
-			roleDefinition: "Custom role",
-			description: "Custom description",
-			groups: [],
-		}
+	it("offers a description reset and text field for every built-in mode", async () => {
+		renderPromptsView({ mode: "research" })
 
-		// Test with built-in mode (code) - description section should be shown with reset button
-		const { unmount } = render(
-			<ExtensionStateContext.Provider
-				value={{ ...mockExtensionState, mode: "code", customModes: [customMode] } as any}>
-				<ModesView />
-			</ExtensionStateContext.Provider>,
-		)
-
-		// Verify description reset button IS present for built-in modes
-		// because built-in modes can have their descriptions customized and reset
 		expect(screen.queryByTestId("description-reset")).toBeInTheDocument()
-
-		// Cleanup before testing custom mode
-		unmount()
-
-		// Test with custom mode - description section should be shown
-		render(
-			<ExtensionStateContext.Provider
-				value={{ ...mockExtensionState, mode: "custom-mode", customModes: [customMode] } as any}>
-				<ModesView />
-			</ExtensionStateContext.Provider>,
-		)
-
-		// Verify description section is present for custom modes
-		// but reset button is NOT present (since custom modes manage their own descriptions)
-		expect(screen.queryByTestId("description-reset")).not.toBeInTheDocument()
-
-		// Verify the description text field is present for custom modes
-		expect(screen.getByTestId("custom-mode-description-textfield")).toBeInTheDocument()
+		expect(screen.getByTestId("research-description-textfield")).toBeInTheDocument()
 	})
 
 	it("handles clearing custom instructions correctly", async () => {

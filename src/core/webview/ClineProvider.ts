@@ -54,7 +54,6 @@ import { t } from "../../i18n"
 
 import type { ContextProxy } from "../config/ContextProxy"
 import type { ProviderSettingsManager } from "../config/ProviderSettingsManager"
-import type { CustomModesManager } from "../config/CustomModesManager"
 import { Task, type TaskOptions } from "../task/Task"
 
 /**
@@ -147,7 +146,6 @@ export class ClineProvider
 	public isViewLaunched = false
 	public settingsImportedAt?: number
 	public readonly providerSettingsManager: ProviderSettingsManager
-	public readonly customModesManager: CustomModesManager
 	public readonly webviewContent: WebviewContentGenerator
 
 	private readonly taskFactory: TaskFactory
@@ -192,12 +190,10 @@ export class ClineProvider
 		this.providerProfile = collaborators.providerProfile
 		this.modeController = collaborators.modeController
 		this.historyProfileRestorer = collaborators.historyProfileRestorer
-		this.customModesManager = collaborators.customModesManager
 		this.skillsManager = collaborators.skillsManager
 		this.taskCreationCallback = collaborators.taskCreationCallback
 
-		// 起動処理は代入が終わってから。SkillsManager の初期化は同期プレフィックスで
-		// this.customModesManager を読むため、factory 内で走らせると undefined を掴む。
+		// 起動処理は代入が終わってから（factory 内で走らせると代入前の field を掴む）。
 		collaborators
 			.startBackgroundInitialization?.()
 			.then((hub) => {
@@ -305,7 +301,6 @@ export class ClineProvider
 		this.mcpHub = undefined
 		await this.skillsManager?.dispose()
 		this.skillsManager = undefined
-		this.customModesManager?.dispose()
 		this.taskHistoryStore.dispose()
 		this.historyWriteThrough.flush()
 		this.log("Disposed all disposables")
@@ -632,7 +627,6 @@ export class ClineProvider
 
 	async getState(): Promise<ProviderStateSnapshot> {
 		const stateValues = this.contextProxy.getValues()
-		const customModes = await this.customModesManager.getCustomModes()
 
 		// This build only ships the OpenAI Compatible provider.
 		const apiProvider: ProviderName = stateValues.apiProvider ?? "openai"
@@ -647,8 +641,6 @@ export class ClineProvider
 
 		return buildState(stateValues, {
 			apiConfiguration: providerSettings,
-			customModes,
-			customModesLoadFailed: this.customModesManager.hasLoadError(),
 			taskHistory: this.taskHistoryStore.getAll(),
 			mcpServers: this.mcpHub?.getAllServers() ?? [],
 			organizationAllowList: ORGANIZATION_ALLOW_ALL,
@@ -746,7 +738,6 @@ export class ClineProvider
 
 		await this.contextProxy.resetAllState()
 		await this.providerSettingsManager.resetAllConfigs()
-		await this.customModesManager.resetCustomModes()
 		await this.removeClineFromStack()
 		await this.postStateToWebview()
 		await this.postMessageToWebview({ type: "action", action: "chatButtonClicked" })
@@ -899,12 +890,7 @@ export class ClineProvider
 	// Modes
 
 	public async getModes(): Promise<{ slug: string; name: string }[]> {
-		try {
-			const customModes = await this.customModesManager.getCustomModes()
-			return [...DEFAULT_MODES, ...customModes].map(({ slug, name }) => ({ slug, name }))
-		} catch (_error) {
-			return DEFAULT_MODES.map(({ slug, name }) => ({ slug, name }))
-		}
+		return DEFAULT_MODES.map(({ slug, name }) => ({ slug, name }))
 	}
 
 	public async getMode(): Promise<string> {

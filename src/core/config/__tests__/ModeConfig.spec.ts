@@ -115,49 +115,17 @@ describe("CustomModeSchema", () => {
 		})
 	})
 
-	describe("fileRegex", () => {
-		it("validates a mode with file restrictions and descriptions", () => {
-			const modeWithJustRegex = {
+	describe("旧タプル形式のグループ", () => {
+		it('["edit", { fileRegex }] のようなタプルはグループ名へ正規化して受理する', () => {
+			// fileRegex はカスタムモード（撤去済み）の機能。旧設定を読んでも
+			// 落とさず、オプション部を捨ててグループ名だけを残す。
+			const result = modeConfigSchema.parse({
 				slug: "markdown-editor",
 				name: "Markdown Editor",
 				roleDefinition: "Markdown editing mode",
 				groups: ["read", ["edit", { fileRegex: "\\.md$" }]],
-			}
-
-			const modeWithDescription = {
-				slug: "docs-editor",
-				name: "Documentation Editor",
-				roleDefinition: "Documentation editing mode",
-				groups: ["read", ["edit", { fileRegex: "\\.(md|txt)$", description: "Documentation files only" }]],
-			}
-
-			expect(() => modeConfigSchema.parse(modeWithJustRegex)).not.toThrow()
-			expect(() => modeConfigSchema.parse(modeWithDescription)).not.toThrow()
-		})
-
-		it("validates file regex patterns", () => {
-			const validPatterns = ["\\.md$", ".*\\.txt$", "[a-z]+\\.js$"]
-			const invalidPatterns = ["[", "(unclosed", "\\"]
-
-			validPatterns.forEach((pattern) => {
-				const mode = {
-					slug: "test",
-					name: "Test",
-					roleDefinition: "Test",
-					groups: ["read", ["edit", { fileRegex: pattern }]],
-				}
-				expect(() => modeConfigSchema.parse(mode)).not.toThrow()
 			})
-
-			invalidPatterns.forEach((pattern) => {
-				const mode = {
-					slug: "test",
-					name: "Test",
-					roleDefinition: "Test",
-					groups: ["read", ["edit", { fileRegex: pattern }]],
-				}
-				expect(() => modeConfigSchema.parse(mode)).toThrow()
-			})
+			expect(result.groups).toEqual(["read", "edit"])
 		})
 
 		it("prevents duplicate groups", () => {
@@ -165,7 +133,7 @@ describe("CustomModeSchema", () => {
 				slug: "test",
 				name: "Test",
 				roleDefinition: "Test",
-				groups: ["read", "read", ["edit", { fileRegex: "\\.md$" }], ["edit", { fileRegex: "\\.txt$" }]],
+				groups: ["read", "read"],
 			}
 
 			expect(() => modeConfigSchema.parse(modeWithDuplicates)).toThrow(/Duplicate groups/)

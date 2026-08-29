@@ -1,5 +1,3 @@
-import type { ModeConfig } from "@openai-agent/types"
-
 import { type Mode, getModeBySlug } from "../../shared/modes"
 
 /**
@@ -10,7 +8,6 @@ import { type Mode, getModeBySlug } from "../../shared/modes"
  * だけに依存する。
  */
 export interface SlashCommandModeHost {
-	getState(): Promise<{ customModes?: ModeConfig[] } | undefined>
 	handleModeSwitch(mode: Mode): Promise<unknown>
 }
 
@@ -22,8 +19,7 @@ export async function applySlashCommandModeSwitch(
 		return
 	}
 
-	const state = await provider.getState()
-	const targetMode = getModeBySlug(slashCommandMode, state?.customModes)
+	const targetMode = getModeBySlug(slashCommandMode)
 	if (!targetMode) {
 		return
 	}

@@ -122,7 +122,6 @@ function makeVisibleProvider() {
 		setAutonomyMode: vi.fn(async (..._args: unknown[]) => undefined),
 		providerSettingsManager: { psm: true },
 		contextProxy: { cp: true },
-		customModesManager: { cmm: true },
 	}
 }
 
@@ -349,7 +348,6 @@ describe("registerCommands - 各コマンドの振る舞い", () => {
 			{
 				providerSettingsManager: provider.providerSettingsManager,
 				contextProxy: provider.contextProxy,
-				customModesManager: provider.customModesManager,
 				provider,
 			},
 			"/tmp/settings.json",

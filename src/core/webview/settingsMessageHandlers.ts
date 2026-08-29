@@ -177,7 +177,6 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		await importSettingsWithFeedback({
 			providerSettingsManager: provider.providerSettingsManager,
 			contextProxy: provider.contextProxy,
-			customModesManager: provider.customModesManager,
 			provider: provider,
 		})
 	},

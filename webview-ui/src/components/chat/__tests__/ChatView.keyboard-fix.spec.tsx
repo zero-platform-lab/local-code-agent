@@ -66,7 +66,6 @@ const mockPostMessage = (state: any) => {
 				alwaysAllowExecute: false,
 				cloudIsAuthenticated: false,
 				mode: "code",
-				customModes: [],
 				...state,
 			},
 		},
@@ -101,7 +100,6 @@ describe("ChatView - Keyboard Shortcut Fix for Dvorak", () => {
 		// Hydrate state
 		mockPostMessage({
 			mode: "code",
-			customModes: [],
 		})
 
 		// Wait for component to be ready
@@ -154,7 +152,6 @@ describe("ChatView - Keyboard Shortcut Fix for Dvorak", () => {
 		// Hydrate state
 		mockPostMessage({
 			mode: "code",
-			customModes: [],
 		})
 
 		// Create a keyboard event with preventDefault spy
@@ -183,7 +180,6 @@ describe("ChatView - Keyboard Shortcut Fix for Dvorak", () => {
 		// Hydrate state
 		mockPostMessage({
 			mode: "code",
-			customModes: [],
 		})
 
 		// Wait for component to be ready
@@ -216,7 +212,6 @@ describe("ChatView - Keyboard Shortcut Fix for Dvorak", () => {
 		// Hydrate state
 		mockPostMessage({
 			mode: "code",
-			customModes: [],
 		})
 
 		// Wait for component to be ready

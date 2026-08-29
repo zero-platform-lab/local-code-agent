@@ -122,7 +122,6 @@ function setup(options: SetupOptions = {}) {
 	const getCurrentTask = vi.fn(() => options.currentTask)
 	const getMcpHub = vi.fn(() => options.mcpHub)
 	const providerSettingsManager = { marker: "providerSettingsManager" }
-	const customModesManager = { marker: "customModesManager" }
 
 	const provider = {
 		contextProxy: { getValue, setValue },
@@ -133,7 +132,6 @@ function setup(options: SetupOptions = {}) {
 		getCurrentTask,
 		getMcpHub,
 		providerSettingsManager,
-		customModesManager,
 		log,
 	} as unknown as WebviewMessageHost
 
@@ -148,7 +146,6 @@ function setup(options: SetupOptions = {}) {
 		getCurrentTask,
 		getMcpHub,
 		providerSettingsManager,
-		customModesManager,
 		log,
 		/** ContextProxy の stateCache を模した素のオブジェクト。 */
 		stateCache,
@@ -851,7 +848,6 @@ describe("settingsMessageHandlers", () => {
 			expect(importSettingsWithFeedbackMock).toHaveBeenCalledExactlyOnceWith({
 				providerSettingsManager: h.providerSettingsManager,
 				contextProxy: h.provider.contextProxy,
-				customModesManager: h.customModesManager,
 				provider: h.provider,
 			})
 		})

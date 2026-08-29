@@ -4,17 +4,19 @@
 // カバー済み行（モード定義のデータ）が減り、この検証分岐の未カバーが露出して
 // パッケージの網羅率が床（78%）を割った。分岐そのものを検証してカバーする。
 
-import { customModesSettingsSchema, groupEntryArraySchema, modeConfigSchema, DEFAULT_MODES } from "../mode.js"
+import { groupEntryArraySchema, modeConfigSchema, DEFAULT_MODES } from "../mode.js"
 
 describe("groupEntryArraySchema", () => {
 	it("正当なグループの配列を受理する", () => {
 		expect(groupEntryArraySchema.parse(["read", "edit"])).toEqual(["read", "edit"])
 	})
 
-	it("オプション付きのタプル形式を受理する", () => {
+	it("旧タプル形式はグループ名へ正規化して受理する", () => {
+		// fileRegex 付きのタプルはカスタムモード（撤去済み）の名残。旧設定を
+		// 落とさないよう、オプション部を捨ててグループ名だけを残す。
 		const entry = [["edit", { fileRegex: "\\.md$", description: "Markdown files only" }]]
 
-		expect(groupEntryArraySchema.parse(entry)).toEqual(entry)
+		expect(groupEntryArraySchema.parse(entry)).toEqual(["edit"])
 	})
 
 	it("廃止済みグループ（browser）を文字列形式でもタプル形式でも除去する", () => {
@@ -57,30 +59,6 @@ describe("modeConfigSchema", () => {
 	it("空の name と roleDefinition を拒否する", () => {
 		expect(() => modeConfigSchema.parse({ ...valid, name: "" })).toThrow(/Name is required/)
 		expect(() => modeConfigSchema.parse({ ...valid, roleDefinition: "" })).toThrow(/Role definition is required/)
-	})
-
-	it("source は global / project のみ受理する", () => {
-		expect(modeConfigSchema.parse({ ...valid, source: "project" }).source).toBe("project")
-		expect(() => modeConfigSchema.parse({ ...valid, source: "elsewhere" })).toThrow()
-	})
-})
-
-describe("customModesSettingsSchema", () => {
-	const mode = (slug: string) => ({
-		slug,
-		name: slug,
-		roleDefinition: "You work",
-		groups: ["read"],
-	})
-
-	it("slug が一意なら受理する", () => {
-		expect(customModesSettingsSchema.parse({ customModes: [mode("a"), mode("b")] }).customModes).toHaveLength(2)
-	})
-
-	it("slug の重複を拒否する", () => {
-		expect(() => customModesSettingsSchema.parse({ customModes: [mode("a"), mode("a")] })).toThrow(
-			/Duplicate mode slugs/,
-		)
 	})
 })
 

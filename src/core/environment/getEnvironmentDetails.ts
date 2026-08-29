@@ -241,11 +241,11 @@ export async function getEnvironmentDetails(cline: EnvironmentDetailsHost, inclu
 	const { id: modelId } = cline.api.getModel()
 
 	// Add current mode and any mode-specific warnings.
-	const { mode, customModes, customModePrompts, customInstructions: globalCustomInstructions, language } = state ?? {}
+	const { mode, customModePrompts, customInstructions: globalCustomInstructions, language } = state ?? {}
 
 	const currentMode = mode ?? defaultModeSlug
 
-	const modeDetails = await getFullModeDetails(currentMode, customModes, customModePrompts, {
+	const modeDetails = await getFullModeDetails(currentMode, customModePrompts, {
 		cwd: cline.cwd,
 		globalCustomInstructions,
 		language: language ?? formatLanguage(vscode.env.language),

@@ -14,7 +14,6 @@ import type { Mode } from "../../shared/modes"
 
 import type { AggregatedCosts } from "./aggregateTaskCosts"
 import type { ContextProxy } from "../config/ContextProxy"
-import type { CustomModesManager } from "../config/CustomModesManager"
 import type { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 import type { CodeIndexManager } from "../../services/code-index/manager"
 import type { McpHub } from "../../services/mcp/McpHub"
@@ -50,7 +49,6 @@ export interface WebviewMessageHost {
 	readonly context: vscode.ExtensionContext
 	readonly contextProxy: ContextProxy
 	readonly cwd: string
-	readonly customModesManager: CustomModesManager
 	readonly providerSettingsManager: ProviderSettingsManager
 	readonly workspaceTracker: WorkspaceTracker | undefined
 	isViewLaunched: boolean

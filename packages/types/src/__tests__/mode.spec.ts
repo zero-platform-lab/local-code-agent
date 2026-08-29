@@ -85,18 +85,39 @@ describe("customModesSettingsSchema", () => {
 })
 
 describe("DEFAULT_MODES", () => {
-	it("組み込みは code の 1 件だけ（PR #21 の集約を固定する）", () => {
-		expect(DEFAULT_MODES.map((m: (typeof DEFAULT_MODES)[number]) => m.slug)).toEqual(["code"])
+	it("組み込みは code と research の 2 件（コードを書く仕事と、調査・運用の仕事を分ける）", () => {
+		expect(DEFAULT_MODES.map((m: (typeof DEFAULT_MODES)[number]) => m.slug)).toEqual(["code", "research"])
 	})
 
-	it("code は全ツールグループを持ち、customInstructions を持たない", () => {
-		const code = DEFAULT_MODES[0]
+	it("全モードが schema を通り、全ツールグループを持ち、customInstructions を持たない", () => {
+		for (const mode of DEFAULT_MODES) {
+			expect(modeConfigSchema.parse(mode).slug).toBe(mode.slug)
+			// 2 モードの差は役割文のみ。groups を分けたくなったら意図してここを更新する。
+			expect(mode.groups).toEqual(["read", "edit", "command", "mcp"])
+			expect(mode.customInstructions).toBeUndefined()
+		}
+	})
 
-		if (!code) {
-			throw new Error("DEFAULT_MODES is empty")
+	it("research の役割文は調査・運用に向き、コードを書く仕事を含まない", () => {
+		const research = DEFAULT_MODES.find((m: (typeof DEFAULT_MODES)[number]) => m.slug === "research")
+
+		if (!research) {
+			throw new Error("research mode is missing")
 		}
 
-		expect(code.groups).toEqual(["read", "edit", "command", "mcp"])
-		expect(code.customInstructions).toBeUndefined()
+		expect(research.roleDefinition).toContain("do not write application code")
+		expect(research.whenToUse).toMatch(/investigation or operations/)
+	})
+
+	it("research の役割文は外部文書の調査と手順の検証に言及する", () => {
+		const research = DEFAULT_MODES.find((m: (typeof DEFAULT_MODES)[number]) => m.slug === "research")
+
+		if (!research) {
+			throw new Error("research mode is missing")
+		}
+
+		// マニュアル・GitHub を調べ、手順は適用前に文書と突き合わせる、という仕事を含む。
+		expect(research.roleDefinition).toMatch(/manuals and GitHub/)
+		expect(research.roleDefinition).toMatch(/verify it against the documentation/)
 	})
 })

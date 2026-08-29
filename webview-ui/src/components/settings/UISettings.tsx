@@ -46,7 +46,7 @@ export const UISettings = ({
 					{/* Collapse Thinking Messages Setting */}
 					<SearchableSetting
 						settingId="ui-collapse-thinking"
-						section="ui"
+						section="general"
 						label={t("settings:ui.collapseThinking.label")}>
 						<div className="flex flex-col gap-1">
 							<VSCodeCheckbox
@@ -64,7 +64,7 @@ export const UISettings = ({
 					{/* Enter Key Behavior Setting */}
 					<SearchableSetting
 						settingId="ui-enter-behavior"
-						section="ui"
+						section="general"
 						label={t("settings:ui.requireCtrlEnterToSend.label", { primaryMod })}>
 						<div className="flex flex-col gap-1">
 							<VSCodeCheckbox

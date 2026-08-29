@@ -108,7 +108,7 @@ const PromptsSettings = ({
 			<Section>
 				<SearchableSetting
 					settingId="prompts-support-prompt-select"
-					section="prompts"
+					section="modes"
 					label={t("settings:sections.prompts")}>
 					<Select
 						value={activeSupportOption}

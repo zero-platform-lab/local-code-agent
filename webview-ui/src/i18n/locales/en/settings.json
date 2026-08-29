@@ -40,7 +40,8 @@
 		"ui": "UI",
 		"experimental": "Experimental",
 		"language": "Language",
-		"about": "About Local Code Agent"
+		"about": "About Local Code Agent",
+		"general": "General"
 	},
 	"about": {
 		"bugReport": {

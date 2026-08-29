@@ -46,7 +46,7 @@ export const ExperimentalSettings = ({
 							<SearchableSetting
 								key={config[0]}
 								settingId={`experimental-${config[0].toLowerCase()}`}
-								section="experimental"
+								section="general"
 								label={label}>
 								<ExperimentalFeature
 									experimentKey={config[0]}

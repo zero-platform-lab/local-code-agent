@@ -14,19 +14,15 @@ import {
 	GitBranch,
 	Database,
 	SquareTerminal,
-	FlaskConical,
 	AlertTriangle,
-	Globe,
 	Info,
-	MessageSquare,
 	LucideIcon,
 	SquareSlash,
-	Glasses,
 	Plug,
 	Server,
+	Settings,
 	Users2,
 	ArrowLeft,
-	GitCommitVertical,
 	GraduationCap,
 } from "lucide-react"
 
@@ -106,18 +102,26 @@ export const sectionNames = [
 	"autoApprove",
 	"slashCommands",
 	"skills",
-	"checkpoints",
 	"contextManagement",
 	"terminal",
 	"modes",
 	"mcp",
 	"worktrees",
-	"prompts",
-	"ui",
-	"experimental",
-	"language",
+	"general",
 	"about",
 ] as const
+
+/**
+ * 統合・改名で消えたタブの旧名。深いリンク（settingsButtonClicked の
+ * values.section）や保存済みの参照が旧名で来ても、統合先のタブを開く。
+ */
+export const legacySectionMap: Record<string, SectionName> = {
+	checkpoints: "general",
+	ui: "general",
+	experimental: "general",
+	language: "general",
+	prompts: "modes",
+}
 
 export type SectionName = (typeof sectionNames)[number]
 
@@ -135,11 +139,17 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 	const [isDiscardDialogShow, setDiscardDialogShow] = useState(false)
 	const [isChangeDetected, setChangeDetected] = useState(false)
 	const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined)
-	const [activeTab, setActiveTab] = useState<SectionName>(
-		targetSection && sectionNames.includes(targetSection as SectionName)
-			? (targetSection as SectionName)
-			: "providers",
-	)
+	const resolveSection = (section: string | undefined): SectionName | undefined => {
+		if (!section) {
+			return undefined
+		}
+		if (sectionNames.includes(section as SectionName)) {
+			return section as SectionName
+		}
+		return legacySectionMap[section]
+	}
+
+	const [activeTab, setActiveTab] = useState<SectionName>(resolveSection(targetSection) ?? "providers")
 
 	const scrollPositions = useRef<Record<SectionName, number>>(
 		Object.fromEntries(sectionNames.map((s) => [s, 0])) as Record<SectionName, number>,
@@ -432,14 +442,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 			{ id: "slashCommands", icon: SquareSlash },
 			{ id: "autoApprove", icon: CheckCheck },
 			{ id: "mcp", icon: Server },
-			{ id: "checkpoints", icon: GitCommitVertical },
 			{ id: "contextManagement", icon: Database },
 			{ id: "terminal", icon: SquareTerminal },
-			{ id: "prompts", icon: MessageSquare },
 			{ id: "worktrees", icon: GitBranch },
-			{ id: "ui", icon: Glasses },
-			{ id: "experimental", icon: FlaskConical },
-			{ id: "language", icon: Globe },
+			{ id: "general", icon: Settings },
 			{ id: "about", icon: Info },
 		],
 		[], // No dependencies needed now
@@ -447,8 +453,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 
 	// Update target section logic to set active tab
 	useEffect(() => {
-		if (targetSection && sectionNames.includes(targetSection as SectionName)) {
-			setActiveTab(targetSection as SectionName)
+		const resolved = resolveSection(targetSection)
+		if (resolved) {
+			setActiveTab(resolved)
 		}
 	}, [targetSection])
 
@@ -722,14 +729,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						{renderTab === "skills" && <SkillsSettings />}
 
 						{/* Checkpoints Section */}
-						{renderTab === "checkpoints" && (
-							<CheckpointSettings
-								enableCheckpoints={enableCheckpoints}
-								checkpointTimeout={checkpointTimeout}
-								setCachedStateField={setCachedStateField}
-							/>
-						)}
-
 						{/* Context Management Section */}
 						{renderTab === "contextManagement" && (
 							<ContextManagementSettings
@@ -768,7 +767,19 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						)}
 
 						{/* Modes Section */}
-						{renderTab === "modes" && <ModesView />}
+						{renderTab === "modes" && (
+							<div>
+								<ModesView />
+								<PromptsSettings
+									customSupportPrompts={customSupportPrompts || {}}
+									setCustomSupportPrompts={setCustomSupportPromptsField}
+									includeTaskHistoryInEnhance={includeTaskHistoryInEnhance}
+									setIncludeTaskHistoryInEnhance={(value) =>
+										setCachedStateField("includeTaskHistoryInEnhance", value)
+									}
+								/>
+							</div>
+						)}
 
 						{/* MCP Section */}
 						{renderTab === "mcp" && <McpView />}
@@ -777,39 +788,30 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						{renderTab === "worktrees" && <WorktreesView />}
 
 						{/* Prompts Section */}
-						{renderTab === "prompts" && (
-							<PromptsSettings
-								customSupportPrompts={customSupportPrompts || {}}
-								setCustomSupportPrompts={setCustomSupportPromptsField}
-								includeTaskHistoryInEnhance={includeTaskHistoryInEnhance}
-								setIncludeTaskHistoryInEnhance={(value) =>
-									setCachedStateField("includeTaskHistoryInEnhance", value)
-								}
-							/>
-						)}
-
-						{/* UI Section */}
-						{renderTab === "ui" && (
-							<UISettings
-								reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
-								enterBehavior={enterBehavior ?? "send"}
-								setCachedStateField={setCachedStateField}
-							/>
-						)}
-
-						{/* Experimental Section */}
-						{renderTab === "experimental" && (
-							<ExperimentalSettings
-								setExperimentEnabled={setExperimentEnabled}
-								experiments={experiments}
-								apiConfiguration={apiConfiguration}
-								setApiConfigurationField={setApiConfigurationField}
-							/>
-						)}
-
-						{/* Language Section */}
-						{renderTab === "language" && (
-							<LanguageSettings language={language || "en"} setCachedStateField={setCachedStateField} />
+						{/* General Section（旧: UI / チェックポイント / 言語 / 実験的） */}
+						{renderTab === "general" && (
+							<div>
+								<UISettings
+									reasoningBlockCollapsed={reasoningBlockCollapsed ?? true}
+									enterBehavior={enterBehavior ?? "send"}
+									setCachedStateField={setCachedStateField}
+								/>
+								<CheckpointSettings
+									enableCheckpoints={enableCheckpoints}
+									checkpointTimeout={checkpointTimeout}
+									setCachedStateField={setCachedStateField}
+								/>
+								<LanguageSettings
+									language={language || "en"}
+									setCachedStateField={setCachedStateField}
+								/>
+								<ExperimentalSettings
+									setExperimentEnabled={setExperimentEnabled}
+									experiments={experiments}
+									apiConfiguration={apiConfiguration}
+									setApiConfigurationField={setApiConfigurationField}
+								/>
+							</div>
 						)}
 
 						{/* About Section */}

@@ -68,8 +68,8 @@ vi.mock("../../common/Tab", () => ({
 		<div data-testid={testId} data-value={value} data-compact={String(compact)}>
 			<button data-testid="tab-list-select-terminal" onClick={() => onValueChange("terminal")} />
 			<button data-testid="tab-list-select-about" onClick={() => onValueChange("about")} />
-			<button data-testid="tab-list-select-experimental" onClick={() => onValueChange("experimental")} />
-			<button data-testid="tab-list-select-prompts" onClick={() => onValueChange("prompts")} />
+			<button data-testid="tab-list-select-general" onClick={() => onValueChange("general")} />
+			<button data-testid="tab-list-select-modes" onClick={() => onValueChange("modes")} />
 			{children}
 		</div>
 	),
@@ -375,7 +375,8 @@ describe("SettingsView wiring", () => {
 		expect(screen.getByTestId("settings-tab-list")).toHaveAttribute("data-compact", "true")
 
 		// コンパクト時はツールチップ側のトリガー経由でタブを切り替える。
-		fireEvent.click(screen.getAllByTestId("compact-tab-trigger")[8])
+		// terminal は sections 配列の 8 番目（0 始まりで index 7）。
+		fireEvent.click(screen.getAllByTestId("compact-tab-trigger")[7])
 		expect(screen.getByTestId("terminal")).toBeInTheDocument()
 
 		act(() => {
@@ -426,7 +427,7 @@ describe("SettingsView wiring", () => {
 
 		it("tracks experiment toggles", () => {
 			renderView()
-			fireEvent.click(screen.getByTestId("tab-list-select-experimental"))
+			fireEvent.click(screen.getByTestId("tab-list-select-general"))
 			const save = () => screen.getByTestId("save-button") as HTMLButtonElement
 
 			fireEvent.click(screen.getByTestId("experiment-enable-again"))
@@ -453,7 +454,7 @@ describe("SettingsView wiring", () => {
 		it("tracks custom support prompt edits", () => {
 			setState({ ...fullState(), customSupportPrompts: {} })
 			renderView()
-			fireEvent.click(screen.getByTestId("tab-list-select-prompts"))
+			fireEvent.click(screen.getByTestId("tab-list-select-modes"))
 			const save = () => screen.getByTestId("save-button") as HTMLButtonElement
 
 			// 同じ内容の書き戻しは変更として数えない。
@@ -468,7 +469,7 @@ describe("SettingsView wiring", () => {
 		it("tracks the enhance-with-task-history switch", () => {
 			setState({ ...fullState(), includeTaskHistoryInEnhance: true })
 			renderView()
-			fireEvent.click(screen.getByTestId("tab-list-select-prompts"))
+			fireEvent.click(screen.getByTestId("tab-list-select-modes"))
 
 			fireEvent.click(screen.getByTestId("prompts-history-off"))
 			fireEvent.click(screen.getByTestId("save-button"))

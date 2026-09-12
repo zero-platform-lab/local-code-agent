@@ -210,5 +210,11 @@
 	"docsLink": {
 		"label": "Docs",
 		"url": "https://github.com/example-org/local-agent"
+	},
+	"skills": {
+		"fetched": "{{url}} からスキルを取得しました。",
+		"updated": "{{url}} のスキルを更新しました。",
+		"fetchFailed": "スキルを取得できませんでした: {{error}}",
+		"proxyIgnoredForSsh": "SSH の取得元では proxy の設定が効きません。git が SSH で直接つなぎます。"
 	}
 }

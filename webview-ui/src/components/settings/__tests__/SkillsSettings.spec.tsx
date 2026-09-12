@@ -183,7 +183,7 @@ const renderSkillsSettings = (skills: SkillMetadata[] = mockSkills, cwd?: string
 	return render(
 		<QueryClientProvider client={queryClient}>
 			<ExtensionStateContextProvider>
-				<SkillsSettings />
+				<SkillsSettings skillSources={[]} setSkillSources={() => {}} />
 			</ExtensionStateContextProvider>
 		</QueryClientProvider>,
 	)
@@ -562,7 +562,7 @@ describe("SkillsSettings", () => {
 
 		render(
 			<QueryClientProvider client={new QueryClient()}>
-				<SkillsSettings />
+				<SkillsSettings skillSources={[]} setSkillSources={() => {}} />
 			</QueryClientProvider>,
 		)
 

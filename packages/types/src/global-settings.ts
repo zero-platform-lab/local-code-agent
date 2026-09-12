@@ -5,6 +5,7 @@ import { autonomyModeSchema } from "./autonomy.js"
 import {
 	type ProviderSettings,
 	PROVIDER_SETTINGS_KEYS,
+	openAiProxyModeSchema,
 	providerSettingsEntrySchema,
 	providerSettingsSchema,
 } from "./provider-settings.js"
@@ -133,6 +134,23 @@ export const DEFAULT_CHECKPOINT_TIMEOUT_SECONDS = 15
 /**
  * GlobalSettings
  */
+
+/**
+ * スキルの取得元（`FR-EXT-05c`）。
+ *
+ * 置き場所は URL から機械的に決まるので、利用者が名前を付ける項目は持たない
+ * （`FR-EXT-05c1`）。proxy は取得元ごとに指定でき、選択肢は接続先のプロファイルと
+ * 同じ 3 種類である（`FR-EXT-05b` `FR-NET-12e`）。
+ *
+ * **資格情報はここに持たない。** git の保管庫へ預ける（`FR-EXT-06a`）。
+ */
+export const skillSourceSchema = z.object({
+	url: z.string(),
+	proxyMode: openAiProxyModeSchema.optional(),
+	proxyUrl: z.string().optional(),
+})
+
+export type SkillSource = z.infer<typeof skillSourceSchema>
 
 export const globalSettingsSchema = z.object({
 	currentApiConfigName: z.string().optional(),
@@ -268,6 +286,7 @@ export const globalSettingsSchema = z.object({
 	 * Tools in this list will be excluded from prompt generation and rejected at execution time.
 	 */
 	disabledTools: z.array(toolNamesSchema).optional(),
+	skillSources: z.array(skillSourceSchema).optional(),
 })
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>

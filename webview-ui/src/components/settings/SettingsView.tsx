@@ -205,6 +205,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		includeCurrentTime,
 		includeCurrentCost,
 		maxGitStatusFiles,
+		skillSources,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -349,6 +350,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					profileThresholds,
 					experiments,
 					customSupportPrompts,
+					skillSources,
 				},
 			})
 
@@ -726,7 +728,12 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						{renderTab === "slashCommands" && <SlashCommandsSettings />}
 
 						{/* Skills Section */}
-						{renderTab === "skills" && <SkillsSettings />}
+						{renderTab === "skills" && (
+							<SkillsSettings
+								skillSources={skillSources}
+								setSkillSources={(sources) => setCachedStateField("skillSources", sources)}
+							/>
+						)}
 
 						{/* Checkpoints Section */}
 						{/* Context Management Section */}

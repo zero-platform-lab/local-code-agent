@@ -145,6 +145,16 @@
 			"nameHyphenPlacement": "Hyphens must separate words (not at the start or end, and not doubled)",
 			"descriptionRequired": "Description is required",
 			"descriptionTooLong": "Description must be 1024 characters or less"
+		},
+		"sources": {
+			"title": "Skill sources",
+			"description": "Fetch skills from a git repository. Nothing is fetched until you press the button.",
+			"add": "Add source",
+			"none": "No sources configured",
+			"fetch": "Fetch",
+			"remove": "Remove",
+			"sshIgnoresProxy": "This is an SSH URL. The proxy setting does not apply; git connects over SSH.",
+			"proxyDescription": "Proxy used when fetching this source."
 		}
 	},
 	"ui": {

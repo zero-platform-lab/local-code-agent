@@ -209,5 +209,11 @@
 			"withSecretsDetail": "The file will contain API keys and custom header values in plain text.",
 			"containsSecrets": "The exported file contains API keys in plain text. Handle it as you would the keys themselves."
 		}
+	},
+	"skills": {
+		"fetched": "Fetched skills from {{url}}.",
+		"updated": "Updated skills from {{url}}.",
+		"fetchFailed": "Could not fetch skills: {{error}}",
+		"proxyIgnoredForSsh": "The proxy setting is ignored for SSH sources. git uses SSH directly."
 	}
 }

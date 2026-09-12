@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react"
 import { Trans } from "react-i18next"
 import { Plus, Globe, Folder, Edit, Trash2, Settings } from "lucide-react"
 
-import type { SkillMetadata } from "@openai-agent/types"
+import type { SkillMetadata, SkillSource } from "@openai-agent/types"
 
 import { getAllModes } from "@agent/modes"
 
@@ -32,8 +32,14 @@ import { buildDocLink } from "@/utils/docLinks"
 
 import { SectionHeader } from "./SectionHeader"
 import { CreateSkillDialog } from "./CreateSkillDialog"
+import { SkillSourcesSettings } from "./SkillSourcesSettings"
 
-export const SkillsSettings: React.FC = () => {
+type SkillsSettingsProps = {
+	skillSources: SkillSource[] | undefined
+	setSkillSources: (sources: SkillSource[]) => void
+}
+
+export const SkillsSettings: React.FC<SkillsSettingsProps> = ({ skillSources, setSkillSources }) => {
 	const { t } = useAppTranslation()
 	const { cwd, skills: rawSkills } = useExtensionState()
 	const skills = useMemo(() => rawSkills ?? [], [rawSkills])
@@ -238,6 +244,8 @@ export const SkillsSettings: React.FC = () => {
 						<Plus />
 						{t("settings:skills.addSkill")}
 					</Button>
+
+					<SkillSourcesSettings skillSources={skillSources} setSkillSources={setSkillSources} />
 				</div>
 			</div>
 

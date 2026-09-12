@@ -4,16 +4,19 @@ import {
 	type AgentSettings,
 	type ExperimentId,
 	type Language,
+	type SkillSource,
 	type WebviewMessage,
 	isGlobalStateKey,
 	isSecretStateKey,
 } from "@openai-agent/types"
 
-import { changeLanguage } from "../../i18n"
+import { changeLanguage, t } from "../../i18n"
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { Package } from "../../shared/package"
 import { experimentDefault } from "../../shared/experiments"
 import { exportSettings, importSettingsWithFeedback } from "../config/importExport"
+import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
+import { skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
 
@@ -190,6 +193,42 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 
 	resetState: async (provider) => {
 		await provider.resetState()
+	},
+
+	/**
+	 * スキルの取得元を取ってくる（`FR-EXT-05` `FR-EXT-05a`）。
+	 *
+	 * **利用者が押したときだけ通信する。** 起動時にも定期的にも取りに行かない
+	 * （`NFR-PRV-03`）。
+	 */
+	fetchSkillSource: async (provider, message) => {
+		const url = typeof message.values?.url === "string" ? message.values.url : ""
+		const proxyMode = message.values?.proxyMode as SkillSource["proxyMode"]
+		const proxyUrl = typeof message.values?.proxyUrl === "string" ? message.values.proxyUrl : undefined
+
+		const result = await fetchSkillSource({
+			url,
+			baseDir: skillSourcesBaseDir(),
+			proxy: { mode: proxyMode, url: proxyUrl },
+		})
+
+		if (!result.ok) {
+			await vscode.window.showErrorMessage(t("common:skills.fetchFailed", { error: result.error }))
+			return
+		}
+
+		if (result.proxyIgnored) {
+			// 黙って無視しない。設定したのに効かない状態を切り分けられなくなる
+			// （`FR-EXT-05b3`）。
+			await vscode.window.showWarningMessage(t("common:skills.proxyIgnoredForSsh"))
+		}
+
+		await vscode.window.showInformationMessage(
+			t(result.action === "cloned" ? "common:skills.fetched" : "common:skills.updated", { url }),
+		)
+
+		await provider.getSkillsManager()?.discoverSkills()
+		await provider.postStateToWebview()
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

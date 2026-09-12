@@ -90,7 +90,7 @@
 - プロファイル一覧の項目は別スキーマである（`providerSettingsEntrySchema` の id / name /
   apiProvider / modelId）。上の 28 キーには含まれない。
 
-### B2. グローバル設定（`packages/types/src/global-settings.ts`、73キー）
+### B2. グローバル設定（`packages/types/src/global-settings.ts`、74キー）
 
 - **自動承認（~16）**: autoApprovalEnabled, alwaysAllow{ReadOnly, ReadOnlyOutsideWorkspace, Write,
   WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks, FollowupQuestions},
@@ -111,6 +111,7 @@
 - **UI 状態**: historyPreviewCollapsed, reasoningBlockCollapsed, dismissedUpsells, enterBehavior
 - **チェックポイント**: enableCheckpoints → **要精査**（shadow git のコスト）
 - **ルール**: customInstructions, enableSubfolderRules, showAgentIgnoredFiles
+- **スキルの取得元**: skillSources（URL と proxy。資格情報は持たない）
 - **その他**: mcpEnabled, disabledTools（UI 無し）, preventCompletionWithOpenTodos, rateLimitSeconds, writeDelayMs
 
 ### B3. VS Code 設定（`src/package.json` contributes.configuration、17キー）

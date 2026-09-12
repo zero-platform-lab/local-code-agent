@@ -53,16 +53,25 @@ describe("processCompleteToolCall", () => {
 		)
 	})
 
-	it("host の戻し方を parser へ渡す（FR-PII-02a）", () => {
-		const { deps, host } = makeDeps()
-		const unmask = vi.fn((text: string) => text)
-		host.unmask = unmask
+	it("host の戻し方を、束縛したうえで parser へ渡す（FR-PII-02a）", () => {
+		// **本物の host はクラスである。** `vi.fn()` を挿すと `this` を辿らないので、
+		// 束縛の抜けを見逃す。`this` を使う実装で確かめる。
+		class Restorer {
+			readonly table = new Map([["{{email-001}}", "taro@corp.example"]])
+			taskId = "task-1"
+			stream = { assistantMessageContent: [] as unknown[], userMessageContentReady: true }
+			unmask(text: string): string {
+				return text.replace("{{email-001}}", this.table.get("{{email-001}}")!)
+			}
+		}
+		const classHost = new Restorer()
 		parser.parseToolCall.mockReturnValue({ type: "tool_use" })
 
-		processCompleteToolCall(deps as never, chunk)
+		processCompleteToolCall({ host: classHost, presentAssistantMessage: () => {} } as never, chunk)
 
-		// 戻さずにファイルへ書くと、伏せ字がそのまま書かれる。
-		expect(parser.parseToolCall).toHaveBeenCalledWith(expect.anything(), unmask)
+		const passed = parser.parseToolCall.mock.calls[0][1] as (text: string) => string
+		// 外して渡すと、ここで TypeError になる。
+		expect(passed('{"content":"{{email-001}}"}')).toBe('{"content":"taro@corp.example"}')
 	})
 
 	it("成功時：toolUse.id を chunk.id で上書きし、assistantMessageContent へ push、userMessageContentReady=false、present を呼ぶ", () => {

@@ -47,7 +47,8 @@ export function finalizeStreamingToolCalls(
 
 		// Finalize the streaming tool call
 		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を通す（`FR-PII-02a`）。
-		const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id, host.unmask)
+		// 束縛して渡す。外すと `this` が undefined になり、道具を呼ぶたびに落ちる。
+		const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id, host.unmask?.bind(host))
 
 		// Get the index for this tool call
 		const toolUseIndex = host.stream.streamingToolCallIndices.get(event.id)

@@ -38,7 +38,11 @@ export function detectEmails(text: string): PiiMatch[] {
  * `0` か `+81` で始まり、数字が合わせて 10 桁か 11 桁のものだけを採る。桁数を確かめないと、
  * 版番号や日付の並びまで拾う。
  */
-const PHONE = /(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}/g
+/**
+ * **数字の境界を要求する。** 無いと長い数字列の途中に当たる。時刻の値
+ * `1700000000000` の中の 11 桁が電話番号として伏せられ、記録が読めなくなる。
+ */
+const PHONE = /(?<![0-9])(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}(?![0-9])/g
 
 export function detectPhones(text: string): PiiMatch[] {
 	return collect(text, PHONE, "phone").filter((match) => {
@@ -68,8 +72,17 @@ export function detectPhones(text: string): PiiMatch[] {
  */
 const INTERNAL_TLDS = ["internal", "local", "lan", "corp", "intra", "intranet", "private", "home", "localdomain"]
 
+/**
+ * **内部向けの TLD が最後の label であることを要求する。**
+ *
+ * そうしないと、`.env.local` や `vite.config.local.ts` のようなファイル名が
+ * ホスト名として伏せられる。モデルへ `.{{host-001}}` を編集させることになり、
+ * 指示が読めなくなる。`assets.home.example.com` の途中の `home` も同じ理由で採らない。
+ *
+ * 前が `.` のもの（`.env.local`）と、後ろに拡張子が続くもの（`...local.ts`）を外す。
+ */
 const INTERNAL_HOST = new RegExp(
-	String.raw`\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:${INTERNAL_TLDS.join("|")})\b`,
+	String.raw`(?<!\.)\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:${INTERNAL_TLDS.join("|")})\b(?!\.[A-Za-z0-9])`,
 	"gi",
 )
 
@@ -105,9 +118,12 @@ export function detectIps(text: string): PiiMatch[] {
 		if (octets.some((value) => value > 255)) continue
 		if (isPrivateOrClosed(octets)) continue
 
+		// **伏せる範囲は、書かれている文字から測る。** 数に直してから長さを測ると、
+		// `003.004.5.6` のように 0 で始まる書き方で範囲がずれ、戻したときに別の文字列に
+		// なる。2 つ目の `.` の位置を本文から探す。
 		const start = found.index
-		// 先頭 2 オクテットの終わりは、3 つ目の `.` ではなく 2 つ目の `.` の手前。
-		const prefix = `${octets[0]}.${octets[1]}`
+		const secondDot = found[0].indexOf(".", found[0].indexOf(".") + 1)
+		const prefix = found[0].slice(0, secondDot)
 		matches.push({ kind: "ip", start, end: start + prefix.length, value: prefix })
 	}
 	return matches
@@ -312,9 +328,17 @@ export function detectZipCodes(text: string): PiiMatch[] {
  */
 const PLACE_HEAD = /[぀-ヿ一-鿿ー々ヶケ]{1,8}?[都道府県市区町村]/g
 
-/** 番地。`1-2-3` と `1丁目2番3号` の両方を採る。全角の数字も見る。 */
+/**
+ * 番地。
+ *
+ * **番地の形を要求する。** 「まず数字が来るまで」で採ると、地名のあとの普通の文章まで
+ * 飲み込む（「東京都の人口は 1400 万人です」が丸ごと住所になる）。裸の数字は番地では
+ * ないので、`1-2-3` の形か `1丁目2番3号` の形だけを採る。
+ *
+ * 町域（`神南` `丸の内`）は 12 文字までとし、番地との間に空白を 1 つだけ許す。
+ */
 const ADDRESS_TAIL =
-	/^[぀-ヿ一-鿿ー々ヶケA-Za-z0-9０-９\-‐−ー－丁目番地号の,、\s]*?[0-9０-９][0-9０-９\-‐−ー－丁目番地号]*/
+	/^[぀-ヿ一-鿿ー々ヶケA-Za-z0-9０-９の]{0,12}[ 　]?(?:[0-9０-９]+(?:[-‐−ー－][0-9０-９]+)+|[0-9０-９]+[丁目番地号][0-9０-９丁目番地号ー－‐−-]*)/
 
 export function detectAddresses(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []

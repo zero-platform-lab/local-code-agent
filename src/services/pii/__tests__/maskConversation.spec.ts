@@ -103,6 +103,17 @@ describe("maskConversation", () => {
 		expect(result.counts).toEqual({})
 	})
 
+	it("item をまたいだ一致を作らない", () => {
+		// 住所の照合は空白を飲み込む。連結してから置き換えると、別の item の数字まで
+		// 1 つの住所として拾い、片方が伏せられないまま送られる。
+		const messages: AgentMessage[] = [message("user", "住所は港区"), message("assistant", "1-2-3 です")]
+
+		const result = maskConversation("", messages, { kinds: ["address"] })
+
+		expect(result.messages[0]).toMatchObject({ content: "住所は港区" })
+		expect(result.messages[1]).toMatchObject({ content: "1-2-3 です" })
+	})
+
 	it("区切りをまたいで置き換えない", () => {
 		// 連結した本文で隣り合っても、別の item の文字列が 1 つの値として扱われては困る。
 		const messages: AgentMessage[] = [message("user", "taro@corp"), message("assistant", "example.com")]
@@ -122,6 +133,35 @@ describe("PiiVault", () => {
 
 		expect(vault.size).toBe(1)
 		expect(vault.restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
+	})
+
+	it("要求ごとに番号を振り直さない（FR-PII-02）", () => {
+		const vault = new PiiVault()
+
+		// 1 回目は alice が先に出るので 001 になる。
+		maskConversation("", [message("user", "alice@x.example と bob@y.example")], { kinds: ["email"] }, vault)
+		// 2 回目は bob だけが出る。番号を振り直すと bob が 001 になり、前の応答で
+		// alice を指していた {{email-001}} が別人を指す。戻すと別人の値が書かれる。
+		const second = maskConversation("", [message("user", "bob@y.example のみ")], { kinds: ["email"] }, vault)
+
+		expect(second.messages[0]).toMatchObject({ content: "{{email-002}} のみ" })
+		expect(vault.restore("{{email-001}}")).toBe("alice@x.example")
+		expect(vault.restore("{{email-002}}")).toBe("bob@y.example")
+	})
+
+	it("item をまたいで同じ値へ同じ番号を割り当てる", () => {
+		const vault = new PiiVault()
+
+		const result = maskConversation(
+			"",
+			[message("user", "taro@corp.example"), message("assistant", "また taro@corp.example")],
+			{ kinds: ["email"] },
+			vault,
+		)
+
+		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
+		expect(result.messages[1]).toMatchObject({ content: "また {{email-001}}" })
+		expect(vault.size).toBe(1)
 	})
 
 	it("割り当てていない伏せ字には触らない（FR-PII-08a）", () => {

@@ -183,6 +183,9 @@ describe("finalizeStreamingToolCalls", () => {
 		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を通す。
 		finalizeStreamingToolCalls([{ type: "tool_call_end", id: "call_1" }] as never, deps as never)
 
-		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1", unmask)
+		// 束縛して渡すので、同一性ではなく働きで確かめる。
+		const passed = parser.finalizeStreamingToolCall.mock.calls.at(-1)?.[1] as (text: string) => string
+		expect(passed("{{x}}")).toBe("{{x}}")
+		expect(unmask).toHaveBeenCalledWith("{{x}}")
 	})
 })

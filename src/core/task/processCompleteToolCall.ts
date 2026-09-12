@@ -50,7 +50,9 @@ export function processCompleteToolCall(deps: ProcessCompleteToolCallDeps, chunk
 			name: chunk.name as ToolName,
 			arguments: chunk.arguments,
 		},
-		deps.host.unmask,
+		// **束縛して渡す。** host はクラスのインスタンスで、`unmask` は `this` を辿る。
+		// 外して渡すと `this` が undefined になり、道具を呼ぶたびに落ちる。
+		deps.host.unmask?.bind(deps.host),
 	)
 
 	if (!toolUse) {

@@ -59,7 +59,7 @@ export type MaskResult = {
 	 * 右クリックからの置き換えでは使わない（`FR-PII-11d`）。持てば、その対応表が伏せた値を
 	 * 抱えることになり、伏せた意味が無くなる。
 	 */
-	table: Map<string, string>
+	table: ReadonlyMap<string, string>
 }
 
 /**
@@ -72,6 +72,43 @@ const PLACEHOLDER = /\{\{([a-z]+)-(\d{3,})\}\}/g
 
 function placeholderFor(kind: PiiKind, index: number): string {
 	return `{{${kind}-${String(index).padStart(3, "0")}}}`
+}
+
+/**
+ * 伏せ字を割り当てる係。
+ *
+ * **番号を持つのは呼び出し側にする。** `planMasking` が毎回 1 から振ると、要求ごとに
+ * 同じ番号が別の値へ結び付く。前の応答で `{{email-001}}` と書いたモデルに、次の要求で
+ * 別人を指す `{{email-001}}` を見せることになる。
+ */
+export type PlaceholderAllocator = {
+	/** 同じ種類と値には同じ伏せ字を返す。初めてなら新しい番号を振る。 */
+	assign: (kind: PiiKind, value: string) => string
+	/** 伏せ字 → 元の値。戻すときに使う。 */
+	readonly table: ReadonlyMap<string, string>
+}
+
+/** 1 回の置き換えだけで使う割り当て係。要求をまたがない用途に使う。 */
+export function createAllocator(): PlaceholderAllocator {
+	const table = new Map<string, string>()
+	const assigned = new Map<string, string>()
+	const next = new Map<PiiKind, number>()
+
+	return {
+		table,
+		assign(kind, value) {
+			const key = `${kind} ${value}`
+			const existing = assigned.get(key)
+			if (existing !== undefined) return existing
+
+			const index = (next.get(kind) ?? 0) + 1
+			next.set(kind, index)
+			const placeholder = placeholderFor(kind, index)
+			assigned.set(key, placeholder)
+			table.set(placeholder, value)
+			return placeholder
+		},
+	}
 }
 
 /**
@@ -129,7 +166,7 @@ export type MaskEdit = {
 export type MaskPlan = {
 	edits: MaskEdit[]
 	counts: Partial<Record<PiiKind, number>>
-	table: Map<string, string>
+	table: ReadonlyMap<string, string>
 }
 
 /**
@@ -138,34 +175,27 @@ export type MaskPlan = {
  * **範囲を渡すと、その中に収まる箇所だけを対象にする**（`FR-PII-11a`）。検出は本文全体で
  * 行う。範囲だけを切り出して渡すと、範囲の外から続く住所や鍵の並びが途中で切れる。
  */
-export function planMasking(text: string, options: MaskOptions = {}, range?: { start: number; end: number }): MaskPlan {
+export function planMasking(
+	text: string,
+	options: MaskOptions = {},
+	range?: { start: number; end: number },
+	/** 要求をまたいで番号をそろえたい場合に渡す。省略すると 1 回限りの割り当てになる。 */
+	allocator?: PlaceholderAllocator,
+): MaskPlan {
 	const matches = findPii(text, options).filter(
 		(match) => range === undefined || (match.start >= range.start && match.end <= range.end),
 	)
 
-	const table = new Map<string, string>()
+	const own = allocator ?? createAllocator()
 	const counts: Partial<Record<PiiKind, number>> = {}
-	// 同じ値へ同じ伏せ字を割り当てるための索引。種類と値の組で引く。
-	const assigned = new Map<string, string>()
-	const next: Partial<Record<PiiKind, number>> = {}
 
 	const edits: MaskEdit[] = []
 	for (const match of matches) {
-		const key = `${match.kind} ${match.value}`
-		let placeholder = assigned.get(key)
-		if (placeholder === undefined) {
-			const index = (next[match.kind] ?? 0) + 1
-			next[match.kind] = index
-			placeholder = placeholderFor(match.kind, index)
-			assigned.set(key, placeholder)
-			table.set(placeholder, match.value)
-		}
-
 		counts[match.kind] = (counts[match.kind] ?? 0) + 1
-		edits.push({ start: match.start, end: match.end, placeholder })
+		edits.push({ start: match.start, end: match.end, placeholder: own.assign(match.kind, match.value) })
 	}
 
-	return { edits, counts, table }
+	return { edits, counts, table: own.table }
 }
 
 /** 計画を本文へ適用する。`edits` は前から順に並んでいて重ならない。 */

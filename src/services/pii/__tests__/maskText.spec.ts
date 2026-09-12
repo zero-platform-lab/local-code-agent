@@ -34,6 +34,13 @@ describe("電話番号（FR-PII-05）", () => {
 		},
 	)
 
+	it("長い数字列の途中は伏せない", () => {
+		// 時刻の値の中の 11 桁を拾うと、記録が読めなくなる。
+		const text = "timestamp 1700000000000 end"
+
+		expect(maskText(text, { kinds: ["phone"] }).text).toBe(text)
+	})
+
 	it.each(["1.2.3", "2026-09-12", "1234-5678"])("%s は伏せない", (text) => {
 		// 0 で始まらない、あるいは桁が足りない。版番号や日付まで伏せると読めなくなる。
 		expect(maskText(text, { kinds: ["phone"] }).text).toBe(text)
@@ -51,6 +58,14 @@ describe("ホスト名（FR-PII-06）", () => {
 		// 伏せても守るものが無く、質問の意味が失われる。
 		expect(maskText(`${host} を見る`, { kinds: ["host"] }).text).toBe(`${host} を見る`)
 	})
+
+	it.each([".env.local", "settings.local.json", "vite.config.local.ts", "assets.home.example.com"])(
+		"ファイル名や途中の label は伏せない: %s",
+		(text) => {
+			// モデルへ `.{{host-001}}` を編集させることになり、指示が読めなくなる。
+			expect(maskText(`read ${text} please`, { kinds: ["host"] }).text).toBe(`read ${text} please`)
+		},
+	)
 
 	it("localhost.localdomain は伏せない（FR-PII-06a）", () => {
 		expect(maskText("localhost.localdomain", { kinds: ["host"] }).text).toBe("localhost.localdomain")
@@ -71,6 +86,14 @@ describe("IP アドレス（FR-PII-06d）", () => {
 			expect(maskText(ip, { kinds: ["ip"] }).text).toBe(ip)
 		},
 	)
+
+	it("0 で始まる書き方でも、範囲がずれない", () => {
+		// 数に直してから長さを測ると範囲がずれ、戻したときに別の文字列になる。
+		const result = maskText("003.004.5.6", { kinds: ["ip"] })
+
+		expect(result.text).toBe("{{ip-001}}.5.6")
+		expect(unmaskText(result.text, result.table)).toBe("003.004.5.6")
+	})
 
 	it("オクテットが 255 を超える並びは IP と見なさない", () => {
 		expect(maskText("999.1.1.1", { kinds: ["ip"] }).text).toBe("999.1.1.1")
@@ -234,6 +257,20 @@ describe("住所（FR-PII-13）", () => {
 			expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
 		},
 	)
+
+	it.each([
+		"東京都の人口は 1400 万人です",
+		"中央区の面積は 10 平方キロ",
+		"光市場の調査 2024 年版",
+		"那覇市を 3 回訪ねた",
+	])("数字があっても、番地の形でなければ伏せない: %s", (text) => {
+		// 「まず数字が来るまで」で採ると、地名のあとの普通の文章まで飲み込む。
+		expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
+	})
+
+	it("番地との間の空白は 1 つまで許す", () => {
+		expect(maskText("東京都渋谷区神南 1-2-3", { kinds: ["address"] }).text).toBe("{{address-001}}")
+	})
 
 	it("一覧に無い語は住所と見なさない", () => {
 		expect(maskText("架空市1-2-3", { kinds: ["address"] }).text).toBe("架空市1-2-3")

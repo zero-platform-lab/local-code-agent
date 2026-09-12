@@ -1,6 +1,13 @@
 import type { AgentMessage } from "@openai-agent/types"
 
-import { planMasking, unmaskText, type MaskOptions } from "./maskText"
+import {
+	applyPlan,
+	createAllocator,
+	planMasking,
+	unmaskText,
+	type MaskOptions,
+	type PlaceholderAllocator,
+} from "./maskText"
 import type { PiiKind } from "./types"
 
 /**
@@ -25,16 +32,20 @@ import type { PiiKind } from "./types"
  *
  * **JSON を壊さない。** `function_call.arguments` は JSON の文字列だが、伏せ字は
  * `{{email-001}}` の形で引用符も逆斜線も含まないため、値の中へ入れても JSON のままである。
+ * 戻すときは逆に、元の値が引用符や改行を含み得る。戻す側が JSON を壊さないようにする。
  */
 
 /**
- * タスク 1 つ分の対応表。
+ * タスク 1 つ分の対応表であり、伏せ字を割り当てる係でもある。
  *
- * 番号を続きから振るために、割り当ての状態を持ち越す。`maskText` は呼ぶたびに 1 から
- * 振り直すので、会話全体を 1 回で通し、結果をここへ溜める。
+ * **番号を持つのはここである。** 置き換えの側で番号を振ると、要求ごとに 1 から振り直され、
+ * 同じ番号が別の値へ結び付く。
  */
-export class PiiVault {
-	private readonly table = new Map<string, string>()
+export class PiiVault implements PlaceholderAllocator {
+	/** 伏せ字 → 元の値。割り当て係としてもこの表を差し出す。 */
+	readonly table = new Map<string, string>()
+	private readonly assigned = new Map<string, string>()
+	private readonly next = new Map<PiiKind, number>()
 
 	/** 伏せ字 → 元の値。戻すときに使う。 */
 	get entries(): ReadonlyMap<string, string> {
@@ -45,10 +56,25 @@ export class PiiVault {
 		return this.table.size
 	}
 
-	remember(table: ReadonlyMap<string, string>): void {
-		for (const [placeholder, value] of table) {
-			this.table.set(placeholder, value)
-		}
+	/**
+	 * 同じ種類と値には同じ伏せ字を返す。
+	 *
+	 * **番号を持つのは対応表である。** 置き換えのたびに 1 から振ると、要求ごとに同じ
+	 * 番号が別の値へ結び付く。前の応答で `{{email-001}}` と書いたモデルに、次の要求で
+	 * 別人を指す `{{email-001}}` を見せることになり、戻すときに別人の値がファイルへ
+	 * 書かれる。
+	 */
+	assign(kind: PiiKind, value: string): string {
+		const key = `${kind} ${value}`
+		const existing = this.assigned.get(key)
+		if (existing !== undefined) return existing
+
+		const index = (this.next.get(kind) ?? 0) + 1
+		this.next.set(kind, index)
+		const placeholder = `{{${kind}-${String(index).padStart(3, "0")}}}`
+		this.assigned.set(key, placeholder)
+		this.table.set(placeholder, value)
+		return placeholder
 	}
 
 	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。割り当てたものだけを戻す（`FR-PII-08a`）。 */
@@ -65,10 +91,10 @@ export type MaskConversationResult = {
 }
 
 /**
- * 会話を 1 回で伏せる。
+ * 会話を伏せる。
  *
- * **1 つの文字列へ連結してから置き換える。** item ごとに `maskText` を呼ぶと、番号が
- * item ごとに 1 から振り直され、同じ値に別の伏せ字が当たる。区切りには改行を使う。
+ * **部分ごとに置き換え、割り当て係だけを共有する。** 番号は割り当て係が持つので、
+ * 部分に分けても同じ値には同じ伏せ字が当たる。
  */
 export function maskConversation(
 	systemPrompt: string,
@@ -76,84 +102,46 @@ export function maskConversation(
 	options: MaskOptions = {},
 	vault?: PiiVault,
 ): MaskConversationResult {
-	const parts: string[] = [systemPrompt]
-	const slots: { set: (value: string) => void }[] = []
+	// **部分ごとに置き換え、割り当て係だけを共有する。** 連結してから置き換えると、
+	// 区切りをまたいだ一致が起きる（住所の照合は空白も飲み込む）。またいだ分は片方が
+	// 伏せられないまま送られ、対応表には区切りを含む値が入る。
+	const allocator = vault ?? createAllocator()
+	const counts: Partial<Record<PiiKind, number>> = {}
+
+	const mask = (text: string): string => {
+		const plan = planMasking(text, options, undefined, allocator)
+		for (const [kind, count] of Object.entries(plan.counts)) {
+			counts[kind as PiiKind] = (counts[kind as PiiKind] ?? 0) + (count ?? 0)
+		}
+		return applyPlan(text, plan.edits)
+	}
 
 	const copies = messages.map((item) => structuredClone(item) as AgentMessage)
 
 	for (const item of copies) {
 		if (item.type === "message") {
 			if (typeof item.content === "string") {
-				parts.push(item.content)
-				slots.push({ set: (value) => (item.content = value) })
+				item.content = mask(item.content)
 				continue
 			}
 			for (const part of item.content) {
 				// 画像には文字列が無い。触らない。
 				if (part.type === "input_image") continue
-				parts.push(part.text)
-				slots.push({ set: (value) => (part.text = value) })
+				part.text = mask(part.text)
 			}
 			continue
 		}
 
 		if (item.type === "function_call") {
-			parts.push(item.arguments)
-			slots.push({ set: (value) => (item.arguments = value) })
+			item.arguments = mask(item.arguments)
 			continue
 		}
 
 		if (item.type === "function_call_output") {
-			parts.push(item.output)
-			slots.push({ set: (value) => (item.output = value) })
+			item.output = mask(item.output)
 		}
 		// reasoning は暗号化された不透明な値なので触らない。
 	}
 
-	// 区切りは改行 2 つ。検出が区切りをまたがないよう、本文に現れない形にはしない
-	// （住所や鍵が改行をまたぐことは無い）。
-	const separator = "\n\n"
-	const plan = planMasking(parts.join(separator), options)
-
-	if (plan.edits.length === 0) {
-		return { messages: copies, systemPrompt, counts: plan.counts }
-	}
-
-	vault?.remember(plan.table)
-
-	const masked = splitMasked(parts, separator, plan)
-	const [maskedSystemPrompt, ...rest] = masked
-	rest.forEach((value, index) => slots[index].set(value))
-
-	return { messages: copies, systemPrompt: maskedSystemPrompt, counts: plan.counts }
-}
-
-/**
- * 連結した本文へ置き換えを当て、元の区切りで割り直す。
- *
- * 置き換えで長さが変わるため、位置をそのまま使えない。**区切りをまたぐ置き換えは
- * 起きない**ので、部分ごとに当ててから繋ぎ直す。
- */
-function splitMasked(parts: readonly string[], separator: string, plan: ReturnType<typeof planMasking>): string[] {
-	const out: string[] = []
-	let offset = 0
-	let next = 0
-
-	for (const part of parts) {
-		const end = offset + part.length
-		let piece = ""
-		let cursor = offset
-
-		while (next < plan.edits.length && plan.edits[next].start < end) {
-			const edit = plan.edits[next]
-			piece += part.slice(cursor - offset, edit.start - offset) + edit.placeholder
-			cursor = edit.end
-			next++
-		}
-
-		out.push(piece + part.slice(cursor - offset))
-		offset = end + separator.length
-	}
-
-	return out
+	return { messages: copies, systemPrompt: mask(systemPrompt), counts }
 }

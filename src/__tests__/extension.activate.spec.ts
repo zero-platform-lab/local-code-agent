@@ -13,7 +13,6 @@ import * as vscode from "vscode"
 
 const mocks = vi.hoisted(() => ({
 	initializeNetworkProxy: vi.fn(async () => undefined),
-	migrateSettings: vi.fn(async () => undefined),
 	initializeI18n: vi.fn(),
 	formatLanguage: vi.fn(() => "en"),
 	terminalInitialize: vi.fn(),
@@ -67,7 +66,6 @@ vi.mock("vscode", () => ({
 }))
 
 vi.mock("../utils/networkProxy", () => ({ initializeNetworkProxy: mocks.initializeNetworkProxy }))
-vi.mock("../utils/migrateSettings", () => ({ migrateSettings: mocks.migrateSettings }))
 vi.mock("../utils/autoImportSettings", () => ({ autoImportSettings: mocks.autoImportSettings }))
 vi.mock("../i18n", () => ({ initializeI18n: mocks.initializeI18n, t: (k: string) => k }))
 vi.mock("../shared/package", () => ({
@@ -155,7 +153,6 @@ describe("activate - 基本フロー", () => {
 		const api = await activate(context)
 
 		expect(mocks.initializeNetworkProxy).toHaveBeenCalledTimes(1)
-		expect(mocks.migrateSettings).toHaveBeenCalledTimes(1)
 		expect(mocks.terminalInitialize).toHaveBeenCalledTimes(1)
 		expect(mocks.registerCommands).toHaveBeenCalledTimes(1)
 		expect(mocks.registerCodeActions).toHaveBeenCalledTimes(1)

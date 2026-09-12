@@ -47,8 +47,15 @@ const FEATURES_README = "docs/features/README.md"
 /** 機能仕様が必ず持つ節。README.md は索引なので対象から外す。 */
 const REQUIRED_SECTIONS = ["目的", "方式", "制約", "危険なところ", "確かめ方", "できていないこと"]
 
-/** 要件の識別子。派生は末尾の英小文字で表す（`FR-LOOP-08a`）。 */
-const ID_PATTERN = /(?:FR|NFR)-[A-Z0-9]+-[0-9]+[a-z]?/
+/**
+ * 要件の識別子。派生は末尾の英小文字で表し（`FR-LOOP-08a`）、その派生をさらに
+ * 分けるときは数字を足す（`FR-EXT-05b1`）。
+ *
+ * **2 段目を見落とすと、その行を 1 件も数えない。** 末尾を `[a-z]?` までにしていたため、
+ * `FR-EXT-05b1` は `FR-EXT-05b` までしか一致せず、閉じるバッククォートに届かずに
+ * 行ごと無視されていた。
+ */
+const ID_PATTERN = /(?:FR|NFR)-[A-Z0-9]+-[0-9]+[a-z]?[0-9]?/
 
 const problems = []
 const report = (where, message) => problems.push(`${where}: ${message}`)

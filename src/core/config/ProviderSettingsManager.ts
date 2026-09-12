@@ -30,7 +30,6 @@ export const providerProfilesSchema = z.object({
 			rateLimitSecondsMigrated: z.boolean().optional(),
 			consecutiveMistakeLimitMigrated: z.boolean().optional(),
 			todoListEnabledMigrated: z.boolean().optional(),
-			claudeCodeLegacySettingsMigrated: z.boolean().optional(),
 		})
 		.optional(),
 })
@@ -58,7 +57,6 @@ export class ProviderSettingsManager {
 			rateLimitSecondsMigrated: true, // Mark as migrated on fresh installs
 			consecutiveMistakeLimitMigrated: true, // Mark as migrated on fresh installs
 			todoListEnabledMigrated: true, // Mark as migrated on fresh installs
-			claudeCodeLegacySettingsMigrated: true, // Mark as migrated on fresh installs
 		},
 	}
 
@@ -131,7 +129,6 @@ export class ProviderSettingsManager {
 						rateLimitSecondsMigrated: false,
 						consecutiveMistakeLimitMigrated: false,
 						todoListEnabledMigrated: false,
-						claudeCodeLegacySettingsMigrated: false,
 					} // Initialize with default values
 					isDirty = true
 				}
@@ -151,29 +148,6 @@ export class ProviderSettingsManager {
 				if (!providerProfiles.migrations.todoListEnabledMigrated) {
 					await this.migrateTodoListEnabled(providerProfiles)
 					providerProfiles.migrations.todoListEnabledMigrated = true
-					isDirty = true
-				}
-
-				if (!providerProfiles.migrations.claudeCodeLegacySettingsMigrated) {
-					// These keys were used by the removed local Claude Code CLI wrapper.
-					for (const apiConfig of Object.values(providerProfiles.apiConfigs)) {
-						// Cast to string for comparison since "claude-code" is no longer a valid ProviderName
-						/* v8 ignore start -- 到達不能: load() の sanitizeProviderConfig が "claude-code"（無効な ProviderName）を持つ config の apiProvider を除去するため、ここへ届く時点で apiProvider === "claude-code" は成立せず、削除ブロックには入らない。安全のため防御的に残す */
-						if ((apiConfig.apiProvider as string) !== "claude-code") continue
-
-						const config = apiConfig as unknown as Record<string, unknown>
-						if ("claudeCodePath" in config) {
-							delete config.claudeCodePath
-							isDirty = true
-						}
-						if ("claudeCodeMaxOutputTokens" in config) {
-							delete config.claudeCodeMaxOutputTokens
-							isDirty = true
-						}
-						/* v8 ignore stop */
-					}
-
-					providerProfiles.migrations.claudeCodeLegacySettingsMigrated = true
 					isDirty = true
 				}
 

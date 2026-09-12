@@ -64,7 +64,6 @@ describe("ProviderSettingsManager", () => {
 						rateLimitSecondsMigrated: true,
 						consecutiveMistakeLimitMigrated: true,
 						todoListEnabledMigrated: true,
-						claudeCodeLegacySettingsMigrated: true,
 					},
 				}),
 			)
@@ -740,7 +739,6 @@ describe("ProviderSettingsManager", () => {
 				rateLimitSecondsMigrated: true,
 				consecutiveMistakeLimitMigrated: true,
 				todoListEnabledMigrated: true,
-				claudeCodeLegacySettingsMigrated: true,
 			})
 		})
 	})

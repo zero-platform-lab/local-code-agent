@@ -174,18 +174,34 @@ describe("finalizeStreamingToolCalls", () => {
 		expect(host.stream.streamingToolCallIndices.size).toBe(0)
 	})
 
-	it("host の戻し方を parser へ渡す（FR-PII-02a）", () => {
-		const { deps, host } = makeDeps()
-		const unmask = vi.fn((text: string) => text)
-		host.unmask = unmask
+	it("host の戻し方を、束縛したうえで parser へ渡す（FR-PII-02a）", () => {
+		// **本物の host はクラスである。** `vi.fn()` を挿すと `this` を辿らないので、
+		// 束縛の抜けを見逃す。`this` を使う実装で確かめる。
+		class Restorer {
+			readonly table = new Map([["{{email-001}}", "taro@corp.example"]])
+			stream = {
+				streamingToolCallIndices: new Map<string, number>(),
+				assistantMessageContent: [] as unknown[],
+				userMessageContentReady: true,
+			}
+			unmask(text: string): string {
+				return text.replace("{{email-001}}", this.table.get("{{email-001}}")!)
+			}
+		}
+		const host = new Restorer()
 		parser.finalizeStreamingToolCall.mockReturnValue({ type: "tool_use", name: "read_file" })
 
-		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を通す。
-		finalizeStreamingToolCalls([{ type: "tool_call_end", id: "call_1" }] as never, deps as never)
+		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を実行する。
+		finalizeStreamingToolCalls(
+			[{ type: "tool_call_end", id: "call_1" }] as never,
+			{
+				host,
+				presentAssistantMessage: () => {},
+			} as never,
+		)
 
-		// 束縛して渡すので、同一性ではなく働きで確かめる。
 		const passed = parser.finalizeStreamingToolCall.mock.calls.at(-1)?.[1] as (text: string) => string
-		expect(passed("{{x}}")).toBe("{{x}}")
-		expect(unmask).toHaveBeenCalledWith("{{x}}")
+		// 外して渡すと、ここで TypeError になる。
+		expect(passed('{"content":"{{email-001}}"}')).toBe('{"content":"taro@corp.example"}')
 	})
 })

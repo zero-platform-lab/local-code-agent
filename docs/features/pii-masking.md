@@ -288,6 +288,7 @@ API キーは書き出しから除いてある（`NFR-SEC-06`）。伏せる語�
 | 送信の直前の置き換え               | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`                   |
 | 会話全体の置き換え                 | `src/services/pii/__tests__/maskConversation.spec.ts`                |
 | ツールの引数を戻すこと             | `src/core/task/__tests__/processCompleteToolCall.spec.ts`            |
+| 逐次で届く引数を戻すこと           | `src/core/task/__tests__/processToolCallPartial.spec.ts`             |
 | 伏せる箇所と戻す箇所の数           | `src/services/pii/__tests__/maskingSeams.invariants.spec.ts`         |
 | 書き出しに語が残ること             | `src/core/config/__tests__/ContextProxy.spec.ts`                     |
 

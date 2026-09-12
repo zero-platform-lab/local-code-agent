@@ -1,0 +1,166 @@
+import { useCallback, useMemo } from "react"
+import { Shield, Plus, Trash2, FileText, Download } from "lucide-react"
+import { Checkbox } from "vscrui"
+import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
+
+import { piiKinds, type PiiKind, type PiiMasking } from "@openai-agent/types"
+
+import { useAppTranslation } from "@/i18n/TranslationContext"
+import { Button, StandardTooltip } from "@/components/ui"
+import { vscode } from "@/utils/vscode"
+
+import { SectionHeader } from "./SectionHeader"
+import { Section } from "./Section"
+
+type PiiSettingsProps = {
+	piiMasking: PiiMasking | undefined
+	setPiiMasking: (value: PiiMasking) => void
+}
+
+/**
+ * 機密情報の伏せ字の設定（`FR-PII-01` `FR-PII-07` `FR-PII-16` `FR-PII-17`）。
+ *
+ * **種類を 1 つも選んでいない状態は作れる。** その場合は 1 件も伏せられないので、
+ * その旨を出す。利用者が伏せているつもりになるのを防ぐ。
+ */
+export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => {
+	const { t } = useAppTranslation()
+
+	// useCallback の依存に入るので、毎回の描画で別物にならないようにする。
+	const masking = useMemo(() => piiMasking ?? {}, [piiMasking])
+	// 未指定は「全部の種類を伏せる」。設定を触らなくても既定の動きが決まる。
+	const kinds = useMemo(() => masking.kinds ?? [...piiKinds], [masking.kinds])
+	const paths = masking.dictionaryPaths ?? []
+
+	const update = useCallback(
+		(patch: Partial<PiiMasking>) => setPiiMasking({ ...masking, ...patch }),
+		[masking, setPiiMasking],
+	)
+
+	const toggleKind = useCallback(
+		(kind: PiiKind, checked: boolean) =>
+			update({ kinds: checked ? [...kinds, kind] : kinds.filter((one) => one !== kind) }),
+		[kinds, update],
+	)
+
+	return (
+		<div>
+			<SectionHeader>
+				<div className="flex items-center gap-2">
+					<Shield className="w-4" />
+					<div>{t("settings:pii.title")}</div>
+				</div>
+			</SectionHeader>
+
+			<Section>
+				<div className="flex flex-col gap-3">
+					<Checkbox
+						checked={masking.enabled === true}
+						onChange={(checked: boolean) => update({ enabled: checked })}
+						data-testid="pii-enabled-checkbox">
+						{t("settings:pii.enable")}
+					</Checkbox>
+					<div className="text-sm text-vscode-descriptionForeground ml-6">
+						{t("settings:pii.description")}
+					</div>
+
+					<label className="block font-medium mt-2">{t("settings:pii.kinds")}</label>
+					<div className="grid grid-cols-2 gap-1">
+						{piiKinds.map((kind) => (
+							<Checkbox
+								key={kind}
+								checked={kinds.includes(kind)}
+								onChange={(checked: boolean) => toggleKind(kind, checked)}
+								data-testid={`pii-kind-${kind}`}>
+								{t(`settings:pii.kind.${kind}`)}
+							</Checkbox>
+						))}
+					</div>
+					{kinds.length === 0 ? (
+						<div className="text-sm text-vscode-errorForeground" data-testid="pii-no-kinds">
+							{t("settings:pii.noKinds")}
+						</div>
+					) : null}
+
+					<div className="flex justify-between items-center mt-2">
+						<label className="block font-medium">{t("settings:pii.dictionaries")}</label>
+						<div className="flex gap-1">
+							<StandardTooltip content={t("settings:pii.export")}>
+								<Button
+									variant="secondary"
+									className="py-1"
+									onClick={() => vscode.postMessage({ type: "exportPiiDictionary" })}
+									data-testid="pii-export">
+									<Download />
+								</Button>
+							</StandardTooltip>
+							<StandardTooltip content={t("settings:pii.addDictionary")}>
+								<Button
+									variant="secondary"
+									className="py-1"
+									onClick={() => update({ dictionaryPaths: [...paths, ""] })}
+									data-testid="pii-dictionary-add">
+									<Plus />
+								</Button>
+							</StandardTooltip>
+						</div>
+					</div>
+					<div className="text-sm text-vscode-descriptionForeground">
+						{t("settings:pii.dictionariesDescription")}
+					</div>
+
+					{paths.length === 0 ? (
+						<div className="text-sm text-vscode-descriptionForeground">
+							{t("settings:pii.noDictionary")}
+						</div>
+					) : (
+						paths.map((one, index) => (
+							<div key={index} className="flex items-center gap-2">
+								<VSCodeTextField
+									value={one}
+									className="flex-1"
+									placeholder="~/.agent/pii-dictionary.txt"
+									data-testid={`pii-dictionary-${index}`}
+									onInput={(event: unknown) =>
+										update({
+											dictionaryPaths: paths.map((value, i) =>
+												i === index
+													? (event as { target: { value: string } }).target.value
+													: value,
+											),
+										})
+									}
+								/>
+								<StandardTooltip content={t("settings:pii.openDictionary")}>
+									<Button
+										variant="secondary"
+										className="py-1"
+										// 無ければ作って開く。書き方はファイルの先頭に書いてある。
+										onClick={() =>
+											vscode.postMessage({
+												type: "openFile",
+												text: one,
+												values: { create: true },
+											})
+										}
+										data-testid={`pii-dictionary-open-${index}`}>
+										<FileText />
+									</Button>
+								</StandardTooltip>
+								<StandardTooltip content={t("settings:pii.removeDictionary")}>
+									<Button
+										variant="secondary"
+										className="py-1"
+										onClick={() => update({ dictionaryPaths: paths.filter((_, i) => i !== index) })}
+										data-testid={`pii-dictionary-remove-${index}`}>
+										<Trash2 />
+									</Button>
+								</StandardTooltip>
+							</div>
+						))
+					)}
+				</div>
+			</Section>
+		</div>
+	)
+}

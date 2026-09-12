@@ -249,6 +249,7 @@ export type ExtensionState = Pick<
 	| "showWorktreesInHomeScreen"
 	| "disabledTools"
 	| "skillSources"
+	| "piiMasking"
 > & {
 	lockApiConfigAcrossModes?: boolean
 	version: string
@@ -358,6 +359,7 @@ export interface WebviewMessage {
 		| "testApiConnection"
 		| "fetchSkillSource"
 		| "saveSkillSourceCredentials"
+		| "exportPiiDictionary"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

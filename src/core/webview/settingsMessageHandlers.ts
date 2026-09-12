@@ -18,6 +18,7 @@ import { exportSettings, importSettingsWithFeedback } from "../config/importExpo
 import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
 import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../services/skills/skillSourceCredentials"
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
+import { exportDictionary } from "../../services/pii/dictionaryEditor"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
@@ -306,6 +307,13 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		}
 
 		await vscode.window.showErrorMessage(t("common:skills.credentialFailed", { error: result.error ?? "" }))
+	},
+
+	exportPiiDictionary: async (provider, _message) => {
+		// 語は設定と辞書の両方に散らばる。書き出すときは、どちらに書いたかを
+		// 気にせずに済むよう 1 つにまとめる（`FR-PII-17a`）。
+		const masking = provider.contextProxy.getValue("piiMasking")
+		await exportDictionary({ terms: masking?.terms, dictionaryPaths: masking?.dictionaryPaths })
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

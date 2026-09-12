@@ -686,5 +686,33 @@
 			"copyToShared": "ほかのツールと共有する場所へ複製する",
 			"copyToSharedDescription": "~/.agents/skills へ複製します。同じ名前のものが既にあれば触りません。複製した取得元は、二重に並ばないよう探索先から外れます。"
 		}
+	},
+	"pii": {
+		"title": "機密情報のマスク",
+		"enable": "シークレットモード",
+		"description": "LLM へ送る内容から、個人情報と社名を伏せ字へ置き換えます。既定では置き換えません。",
+		"kinds": "伏せる種類",
+		"noKinds": "種類を 1 つも選んでいないため、1 件も伏せられません。",
+		"dictionaries": "辞書のファイル",
+		"dictionariesDescription": "1 行 1 語。タブの後ろに種類（person / org）を書けます。/EMP-\\\\d{5}/ と囲むと正規表現になります。",
+		"noDictionary": "辞書は設定されていません。",
+		"addDictionary": "辞書を足す",
+		"removeDictionary": "取り除く",
+		"openDictionary": "開く（無ければ作る）",
+		"export": "辞書を書き出す",
+		"kind": {
+			"person": "人名",
+			"org": "社名",
+			"term": "語",
+			"email": "メールアドレス",
+			"phone": "電話番号",
+			"host": "ホスト名",
+			"ip": "IP アドレス",
+			"card": "クレジットカード",
+			"secret": "鍵",
+			"zip": "郵便番号",
+			"address": "住所",
+			"mynumber": "マイナンバー"
+		}
 	}
 }

@@ -236,16 +236,19 @@ API キーは書き出しから除いてある（`NFR-SEC-06`）。伏せる語�
 
 ## 確かめ方
 
-| 何を                     | どこで |
-| ------------------------ | ------ |
-| 検出と置き換え           |        |
-| IP の部分的な置き換え    |        |
-| 検査で絞る照合           |        |
-| 辞書の符号化の判別       |        |
-| 対応表の一貫性と可逆性   |        |
-| 公開ドメインと閉じた宛先 |        |
-| 辞書の読み取り           |        |
-| 画面のボタンと件数の提示 |        |
+| 何を                               | どこで                                                              |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| 検出と置き換え                     | `src/services/pii/__tests__/maskText.spec.ts`                       |
+| 検査で絞る照合（Luhn・検査用数字） | `src/services/pii/__tests__/maskText.spec.ts`                       |
+| IP の部分的な置き換え              | `src/services/pii/__tests__/maskText.spec.ts`                       |
+| 対応表の一貫性と可逆性             | `src/services/pii/__tests__/maskText.spec.ts`                       |
+| 公開ドメインと閉じた宛先           | `src/services/pii/__tests__/maskText.spec.ts`                       |
+| 辞書の読み取りと符号化の判別       | `src/services/pii/__tests__/dictionary.spec.ts`                     |
+| 辞書への語の追加と書き出し         | `src/services/pii/__tests__/dictionaryEditor.spec.ts`               |
+| ファイルの置き換えと確認           | `src/services/pii/__tests__/maskEditor.spec.ts`                     |
+| コマンドの登録                     | `src/activate/__tests__/registerPiiCommands.spec.ts`                |
+| 設定の画面                         | `webview-ui/src/components/settings/__tests__/PiiSettings.spec.tsx` |
+| 書き出しに語が残ること             | `src/core/config/__tests__/ContextProxy.spec.ts`                    |
 
 ## できていないこと
 

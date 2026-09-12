@@ -130,6 +130,14 @@ vi.mock("../SectionHeader", () => ({ SectionHeader: ({ children }: any) => <div>
 vi.mock("../Section", () => ({ Section: ({ children }: any) => <div>{children}</div> }))
 vi.mock("../CheckpointSettings", () => ({ CheckpointSettings: () => <div data-testid="checkpoints" /> }))
 vi.mock("../SlashCommandsSettings", () => ({ SlashCommandsSettings: () => <div data-testid="slash-commands" /> }))
+vi.mock("../PiiSettings", () => ({
+	PiiSettings: ({ piiMasking, setPiiMasking }: any) => (
+		<div data-testid="pii" data-enabled={String(piiMasking?.enabled)}>
+			<button data-testid="pii-enable" onClick={() => setPiiMasking({ enabled: true })} />
+		</div>
+	),
+}))
+
 vi.mock("../SkillsSettings", () => ({
 	SkillsSettings: ({ skillSources, setSkillSources }: any) => (
 		<div data-testid="skills" data-source-urls={(skillSources ?? []).map((s: any) => s.url).join(",")}>
@@ -468,6 +476,22 @@ describe("SettingsView wiring", () => {
 			expect(lastSettings()).toMatchObject({
 				skillSources: [{ url: "https://gitlab.example.com/platform/skills.git" }],
 			})
+		})
+
+		it("シークレットモードを持ち帰り、保存で送る（FR-PII-01）", () => {
+			// payload に載せ忘れると、画面では切り替えられるのに保存されない。
+			renderView()
+			fireEvent.click(screen.getByTestId("tab-list-select-general"))
+			const save = () => screen.getByTestId("save-button") as HTMLButtonElement
+
+			fireEvent.click(screen.getByTestId("pii-enable"))
+
+			expect(save().disabled).toBe(false)
+			expect(screen.getByTestId("pii")).toHaveAttribute("data-enabled", "true")
+
+			fireEvent.click(save())
+
+			expect(lastSettings()).toMatchObject({ piiMasking: { enabled: true } })
 		})
 
 		it("tracks the debug switch", () => {

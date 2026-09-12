@@ -686,5 +686,33 @@
 	"includeMaxOutputTokensDescription": "Send max output tokens parameter in API requests. Some providers may not support this.",
 	"limitMaxTokensDescription": "Limit the maximum number of tokens in the response",
 	"maxOutputTokensLabel": "Max output tokens",
-	"maxTokensGenerateDescription": "Maximum tokens to generate in response"
+	"maxTokensGenerateDescription": "Maximum tokens to generate in response",
+	"pii": {
+		"title": "Masking Sensitive Information",
+		"enable": "Secret mode",
+		"description": "Replaces personal information and company names with placeholders before sending to the LLM. Off by default.",
+		"kinds": "What to mask",
+		"noKinds": "No kind is selected, so nothing will be masked.",
+		"dictionaries": "Dictionary files",
+		"dictionariesDescription": "One term per line. A tab can be followed by a kind (person / org). Wrapping in /EMP-\\\\d{5}/ makes it a regular expression.",
+		"noDictionary": "No dictionary is configured.",
+		"addDictionary": "Add a dictionary",
+		"removeDictionary": "Remove",
+		"openDictionary": "Open (create if missing)",
+		"export": "Export the dictionary",
+		"kind": {
+			"person": "Names",
+			"org": "Company names",
+			"term": "Terms",
+			"email": "Email addresses",
+			"phone": "Phone numbers",
+			"host": "Host names",
+			"ip": "IP addresses",
+			"card": "Card numbers",
+			"secret": "Keys",
+			"zip": "Postal codes",
+			"address": "Addresses",
+			"mynumber": "My Number"
+		}
+	}
 }

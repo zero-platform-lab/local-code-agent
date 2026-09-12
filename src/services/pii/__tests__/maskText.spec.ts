@@ -133,6 +133,17 @@ describe("マイナンバー（FR-PII-14）", () => {
 		expect(maskText(broken, { kinds: ["mynumber"] }).text).toBe(broken)
 	})
 
+	it.each([
+		["長い数字列の一部", (n: string) => `${n}3`],
+		["識別子の中", (n: string) => `abc${n}`],
+		["語の途中", (n: string) => `${n}def`],
+	])("%s の 12 桁は拾わない", (_label, wrap) => {
+		// 区切られていない 12 桁は、番号として書かれたものではない。
+		const embedded = wrap(withCheckDigit("12345678901"))
+
+		expect(maskText(embedded, { kinds: ["mynumber"] }).text).toBe(embedded)
+	})
+
 	it("12 桁でない並びは見ない", () => {
 		expect(passesMyNumberCheck("1234567890")).toBe(false)
 	})

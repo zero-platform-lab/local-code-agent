@@ -9,7 +9,7 @@
 
 import type { AgentMessage } from "@openai-agent/types"
 
-import { PiiVault, maskConversation } from "../maskConversation"
+import { PiiVault, maskConversation, type MaskMemo } from "../maskConversation"
 
 const message = (role: "user" | "assistant", content: string): AgentMessage =>
 	({ type: "message", role, content }) as AgentMessage
@@ -171,6 +171,56 @@ describe("PiiVault", () => {
 		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
 		expect(result.messages[1]).toMatchObject({ content: "また {{email-001}}" })
 		expect(vault.size).toBe(1)
+	})
+
+	it("覚えた結果を使い回す。件数も同じになる", () => {
+		const vault = new PiiVault()
+		const memo: MaskMemo = new Map()
+		const messages = [message("user", "taro@corp.example へ")]
+
+		const first = maskConversation("", messages, { kinds: ["email"] }, vault, memo)
+		const second = maskConversation("", messages, { kinds: ["email"] }, vault, memo)
+
+		// 2 往復目の履歴は 1 往復目とほとんど同じ。走査し直すと二乗で増える。
+		expect(second.messages[0]).toMatchObject({ content: "{{email-001}} へ" })
+		expect(second.counts).toEqual(first.counts)
+		expect(memo.size).toBeGreaterThan(0)
+	})
+
+	it("覚える件数が上限を越えたら捨てる", () => {
+		const memo: MaskMemo = new Map()
+		const vault = new PiiVault()
+		const messages = Array.from({ length: 5001 }, (_, i) => message("user", `taro${i}@corp.example`))
+
+		maskConversation("", messages, { kinds: ["email"] }, vault, memo)
+
+		// 長い会話で際限なく増やさない。
+		expect(memo.size).toBeLessThanOrEqual(5000)
+	})
+
+	it("覚えていても、新しい item は伏せる", () => {
+		const vault = new PiiVault()
+		const memo: MaskMemo = new Map()
+
+		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault, memo)
+		const second = maskConversation(
+			"",
+			[message("user", "taro@corp.example"), message("assistant", "hanako@corp.example")],
+			{ kinds: ["email"] },
+			vault,
+			memo,
+		)
+
+		expect(second.messages[1]).toMatchObject({ content: "{{email-002}}" })
+	})
+
+	it("伏せるものが無ければ、元の item をそのまま返す", () => {
+		const messages = [message("user", "ふつうの文章")]
+
+		const result = maskConversation("", messages, { kinds: ["email"] })
+
+		// 履歴の全体を毎回複製すると、会話が伸びるほど送信の直前の処理が増える。
+		expect(result.messages[0]).toBe(messages[0])
 	})
 
 	it("割り当てていない伏せ字には触らない（FR-PII-08a）", () => {

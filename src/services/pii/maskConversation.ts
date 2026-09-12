@@ -95,11 +95,31 @@ export type MaskConversationResult = {
  * **部分ごとに置き換え、割り当て係だけを共有する。** 番号は割り当て係が持つので、
  * 部分に分けても同じ値には同じ伏せ字が当たる。
  */
+/**
+ * 伏せた結果を覚えておく入れ物。
+ *
+ * **同じ文字列を毎回走査し直さない。** 2 往復目の履歴は 1 往復目とほとんど同じなのに、
+ * 全部を照合し直している。会話が伸びるほど、送信の直前の処理が二乗で増える。
+ *
+ * 同じ割り当て係と同じ設定なら、同じ文字列は必ず同じ結果になる（割り当ては一度決めたら
+ * 変わらない）。だから覚えてよい。設定が変わったら呼び出し側が捨てる。
+ */
+export type MaskMemo = Map<string, { text: string; counts: Partial<Record<PiiKind, number>> }>
+
+/**
+ * 覚える件数の上限。越えたら捨てる。長い会話で際限なく増やさない。
+ *
+ * **件数で数える。** 文字数は呼び出しをまたいで数え続ける必要があり、入れ物の外に
+ * 数える場所が要る。件数なら入れ物そのものが持っている。
+ */
+const MEMO_LIMIT = 5000
+
 export function maskConversation(
 	systemPrompt: string,
 	messages: readonly AgentMessage[],
 	options: MaskOptions = {},
 	vault?: PiiVault,
+	memo?: MaskMemo,
 ): MaskConversationResult {
 	// **部分ごとに置き換え、割り当て係だけを共有する。** 連結してから置き換えると、
 	// 区切りをまたいだ一致が起きる（住所の照合は空白も飲み込む）。またいだ分は片方が
@@ -107,38 +127,64 @@ export function maskConversation(
 	const allocator = vault ?? createAllocator()
 	const counts: Partial<Record<PiiKind, number>> = {}
 
-	const mask = (text: string): string => {
-		const plan = planMasking(text, options, undefined, allocator)
+	const add = (from: Partial<Record<PiiKind, number>>) => {
 		// 値を入れるのは `planMasking` だけで、未定義は入らない。分けて扱わない。
-		for (const [kind, count] of Object.entries(plan.counts as Record<string, number>)) {
+		for (const [kind, count] of Object.entries(from as Record<string, number>)) {
 			counts[kind as PiiKind] = (counts[kind as PiiKind] ?? 0) + count
 		}
-		return applyPlan(text, plan.edits)
 	}
 
-	const copies = messages.map((item) => structuredClone(item) as AgentMessage)
+	const mask = (text: string): string => {
+		const known = memo?.get(text)
+		if (known) {
+			add(known.counts)
+			return known.text
+		}
 
-	for (const item of copies) {
+		const plan = planMasking(text, options, undefined, allocator)
+		add(plan.counts)
+		const masked = applyPlan(text, plan.edits)
+
+		if (memo) {
+			if (memo.size >= MEMO_LIMIT) memo.clear()
+			memo.set(text, { text: masked, counts: plan.counts })
+		}
+		return masked
+	}
+
+	// **変わらない item は写さない。** 伏せるものが無ければ元をそのまま返す。履歴の全体を
+	// 毎回複製すると、会話が伸びるほど送信の直前の処理が増える。
+	const copies = messages.map((item) => item)
+
+	for (let index = 0; index < copies.length; index++) {
+		const item = copies[index]
+
 		if (item.type === "message") {
 			if (typeof item.content === "string") {
-				item.content = mask(item.content)
+				const masked = mask(item.content)
+				if (masked !== item.content) copies[index] = { ...item, content: masked }
 				continue
 			}
-			for (const part of item.content) {
+
+			const parts = item.content.map((part) =>
 				// 画像には文字列が無い。触らない。
-				if (part.type === "input_image") continue
-				part.text = mask(part.text)
+				part.type === "input_image" ? part : { ...part, text: mask(part.text) },
+			)
+			if (parts.some((part, at) => part !== item.content[at])) {
+				copies[index] = { ...item, content: parts }
 			}
 			continue
 		}
 
 		if (item.type === "function_call") {
-			item.arguments = mask(item.arguments)
+			const masked = mask(item.arguments)
+			if (masked !== item.arguments) copies[index] = { ...item, arguments: masked }
 			continue
 		}
 
 		if (item.type === "function_call_output") {
-			item.output = mask(item.output)
+			const masked = mask(item.output)
+			if (masked !== item.output) copies[index] = { ...item, output: masked }
 		}
 		// reasoning は暗号化された不透明な値なので触らない。
 	}

@@ -1,7 +1,7 @@
 import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 
 import { readDictionaries } from "./dictionary"
-import { maskConversation, PiiVault } from "./maskConversation"
+import { maskConversation, PiiVault, type MaskMemo } from "./maskConversation"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
@@ -29,6 +29,8 @@ export class TaskPiiMasker {
 	private readonly read: () => PiiMasking | undefined
 	/** 最後に読めた設定。読めなくなっても、伏せる側を黙って切らないために持つ。 */
 	private lastKnown: PiiMasking = {}
+	/** 伏せた結果の覚え書き。設定が変わったら捨てる。 */
+	private readonly memo: MaskMemo = new Map()
 
 	/**
 	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上
@@ -69,9 +71,19 @@ export class TaskPiiMasker {
 		const settings = this.settings
 		// 辞書は読み直さない。ただし**指す先が変わったら読み直す**。設定の画面で辞書を
 		// 足しても効かない、という取り違えを避ける。
-		const key = JSON.stringify([settings.dictionaryPaths ?? [], settings.terms ?? []])
+		//
+		// **鍵は伏せ方に効く設定を全部含める。** 辞書だけを見ていると、種類を足しても
+		// 覚えていた結果を返し、増やした種類が効かない。
+		const key = JSON.stringify([
+			settings.dictionaryPaths ?? [],
+			settings.terms ?? [],
+			settings.kinds ?? [],
+			settings.secretLabels ?? [],
+		])
 		if (this.terms === undefined || this.loadedFrom !== key) {
 			this.loadedFrom = key
+			// 設定が変われば、覚えていた結果はもう当てにならない。
+			this.memo.clear()
 			const fromFiles = await readDictionaries(settings.dictionaryPaths ?? [])
 			this.terms = [...(settings.terms ?? []), ...fromFiles.terms]
 			// **黙らない。** 辞書が読めないと、社名も顧客名も伏せられないまま送られる。
@@ -110,7 +122,7 @@ export class TaskPiiMasker {
 			return { systemPrompt, messages, counts: {}, troubles: [], enabled: false }
 		}
 
-		const result = maskConversation(systemPrompt, messages, await this.options(), this.vault)
+		const result = maskConversation(systemPrompt, messages, await this.options(), this.vault, this.memo)
 		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
 	}
 

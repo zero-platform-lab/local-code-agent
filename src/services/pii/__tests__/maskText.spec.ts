@@ -5,7 +5,13 @@
 // **誤って伏せないこと**を、伏せることと同じ重さで確かめる。誤検出はモデルが読む内容を
 // 変えるので、漏れより害が大きい場面がある。
 
-import { myNumberCheckDigit, passesLuhn, passesMyNumberCheck } from "../detectors"
+import {
+	clearCompiledCache,
+	detectLabelledSecrets,
+	myNumberCheckDigit,
+	passesLuhn,
+	passesMyNumberCheck,
+} from "../detectors"
 import { applyPlan, findPii, maskText, planMasking, resolveOverlaps, totalCount, unmaskText } from "../maskText"
 
 describe("メールアドレス（FR-PII-04）", () => {
@@ -240,6 +246,30 @@ describe("鍵（FR-PII-10）", () => {
 		const result = maskText("Authorization: Bearer abcdefghijklmnop", { kinds: ["secret"] })
 
 		expect(result.text).toBe("Authorization: Bearer {{secret-001}}")
+	})
+
+	it("ラベルが 1 つも無ければ、何も伏せない", () => {
+		expect(detectLabelledSecrets('password = "s3cr3tvalue"', [])).toEqual([])
+	})
+
+	it("覚える数が上限を越えたら捨てる", () => {
+		clearCompiledCache()
+		// 上限は 2000。越えるまで別々の語を照合する。
+		const terms = Array.from({ length: 2100 }, (_, i) => ({ value: `語${i}` }))
+
+		const result = maskText("語5 と 語2099", { terms, kinds: ["term"] })
+
+		// 捨てたあとも結果は変わらない。
+		expect(result.text).toBe("{{term-001}} と {{term-002}}")
+	})
+
+	it("覚えた正規表現を捨てても、同じ結果になる", () => {
+		const text = 'password = "s3cr3tvalue"'
+		const before = maskText(text, { kinds: ["secret"] }).text
+
+		clearCompiledCache()
+
+		expect(maskText(text, { kinds: ["secret"] }).text).toBe(before)
 	})
 
 	it("空のラベルが混じっても、あらゆる代入に当たらない", () => {

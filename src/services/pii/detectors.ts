@@ -298,13 +298,43 @@ const SECRET_VALUE =
 	"`" +
 	String.raw`]|(?<bare>[A-Za-z0-9_-]*[0-9][A-Za-z0-9_-]*)(?![\w(]))`
 
+/**
+ * 組み立てた正規表現を覚えておく。
+ *
+ * **要求のたびに組み直さない。** 会話の item ごと、語ごとに `new RegExp` を作ると、
+ * 辞書が 300 語で履歴が 200 件なら 1 回の要求で 6 万回になる。送信の直前に同期で走るので、
+ * そのぶん待たされる。
+ *
+ * 上限を決めて、越えたら捨てる。設定を変えながら長く使っても際限なく増えない。
+ */
+const CACHE_LIMIT = 2000
+const compiled = new Map<string, RegExp>()
+
+/** 覚えた正規表現を捨てる。上限に達したときと、試験でこの経路を確かめるときに実行する。 */
+export function clearCompiledCache(): void {
+	compiled.clear()
+}
+
+function cachedRegExp(key: string, build: () => RegExp): RegExp {
+	const found = compiled.get(key)
+	if (found) return found
+
+	if (compiled.size >= CACHE_LIMIT) clearCompiledCache()
+	const built = build()
+	compiled.set(key, built)
+	return built
+}
+
 export function detectLabelledSecrets(text: string, labels: readonly string[] = DEFAULT_SECRET_LABELS): PiiMatch[] {
 	// **空のラベルを外す。** 1 つでも混じると選択肢が空になり、ラベルを省略できる形へ
 	// 変わって、あらゆる `名前 = 値` に一致する。設定の 1 行を消し忘れただけで起きる。
 	const usable = labels.map((one) => one.trim()).filter((one) => one.length > 0)
 	if (usable.length === 0) return []
 
-	const pattern = new RegExp(String.raw`(?:${usable.map(labelPattern).join("|")})\s*[:=]\s*${SECRET_VALUE}`, "gi")
+	const pattern = cachedRegExp(
+		`labels\u0000${usable.join("\u0000")}`,
+		() => new RegExp(String.raw`(?:${usable.map(labelPattern).join("|")})\s*[:=]\s*${SECRET_VALUE}`, "gi"),
+	)
 
 	const matches: PiiMatch[] = []
 	for (const found of text.matchAll(pattern)) {
@@ -400,8 +430,8 @@ export function detectAddresses(text: string): PiiMatch[] {
 		const tail = ADDRESS_TAIL.exec(rest)
 		if (!tail) continue
 
-		// 日付は番地ではない。
-		if (DATE_LIKE.test(tail.groups?.banchi ?? "")) continue
+		// 日付は番地ではない。`banchi` は正規表現が必ず捉えるので、無い場合は考えない。
+		if (DATE_LIKE.test(tail.groups!.banchi)) continue
 
 		const body = tail[0].replace(/\s+$/, "")
 		matches.push({ kind: "address", start, end: start + name.length + body.length, value: name + body })
@@ -431,7 +461,8 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 		// すると長さが変わる文字があり、そこから先の位置が全部ずれる。伏せる範囲が
 		// 1 文字ずれ、伏せ残しが出て、対応表にも切れた値が入る。
 		// 正規表現の `i` を使えば、索引は元の文字列のものになる。
-		const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")
+		// `matchAll` は正規表現を写してから使うので、覚えておいても `lastIndex` は汚れない。
+		const pattern = cachedRegExp(`term\u0000${needle}`, () => new RegExp(escapeForRegExp(needle), "gi"))
 		for (const found of text.matchAll(pattern)) {
 			matches.push({
 				kind: term.kind ?? "term",
@@ -451,6 +482,10 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
  * 埋まる。読み込む側（`parseDictionary`）で弾いてあるが、設定から直接来る場合もあるので
  * ここでも見る。
  */
+function escapeForRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 function matchByRegex(text: string, term: PiiTerm): PiiMatch[] {
 	let pattern: RegExp
 	try {

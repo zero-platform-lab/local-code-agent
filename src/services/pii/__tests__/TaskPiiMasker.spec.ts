@@ -98,6 +98,25 @@ describe("TaskPiiMasker", () => {
 		})
 	})
 
+	it("1 つの文も伏せて、返ってきた文を戻せる（FR-PII-01）", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+
+		const masked = await masker.maskPrompt("taro@corp.example を直して")
+
+		expect(masked.text).toBe("{{email-001}} を直して")
+		// 返ってきた文は利用者の入力欄へ戻る。伏せ字のままでは読めない。
+		expect(masked.restore("{{email-001}} の件")).toBe("taro@corp.example の件")
+	})
+
+	it("伏せていなければ、1 つの文も素通しする", async () => {
+		const masker = new TaskPiiMasker({})
+
+		const masked = await masker.maskPrompt("taro@corp.example")
+
+		expect(masked.text).toBe("taro@corp.example")
+		expect(masked.restore("そのまま")).toBe("そのまま")
+	})
+
 	it("伏せていなければ、戻す側も素通しする", () => {
 		expect(new TaskPiiMasker({}).unmask("{{email-001}}")).toBe("{{email-001}}")
 	})
@@ -115,6 +134,32 @@ describe("TaskPiiMasker", () => {
 
 		expect((await masker.maskForRequest("", [message("taro@corp.example")])).messages[0]).toMatchObject({
 			content: "{{email-001}}",
+		})
+	})
+
+	it("種類を書かない設定でも動く", async () => {
+		const masker = new TaskPiiMasker({ enabled: true })
+
+		const result = await masker.maskForRequest("", [message("taro@corp.example")])
+
+		// 種類を書かなければ全部を伏せる。
+		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
+	})
+
+	it("設定が変わったら、覚えた結果を捨てる", async () => {
+		const settings: { enabled: boolean; kinds: string[] } = { enabled: true, kinds: ["email"] }
+		const masker = new TaskPiiMasker(() => settings as never)
+		const text = "taro@corp.example と 03-1234-5678"
+
+		expect((await masker.maskForRequest("", [message(text)])).messages[0]).toMatchObject({
+			content: "{{email-001}} と 03-1234-5678",
+		})
+
+		// 種類を足したのに古い結果を返すと、増やした種類が効かない。
+		settings.kinds = ["email", "phone"]
+
+		expect((await masker.maskForRequest("", [message(text)])).messages[0]).toMatchObject({
+			content: "{{email-001}} と {{phone-001}}",
 		})
 	})
 

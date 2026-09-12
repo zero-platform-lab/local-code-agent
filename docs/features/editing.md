@@ -30,7 +30,7 @@ LLM がファイルを書き換えるときの経路である。**変更は承�
 | 読み取りの可否   | [file-access.md](file-access.md) |
 | 自動承認の設定   | [approval.md](approval.md)       |
 
-## 決めごと
+## 方式
 
 実装は `src/core/tools/` の編集ツール群と `src/integrations/editor/DiffViewProvider.ts`。
 検索置換の適用は `src/core/diff/strategies/multi-search-replace.ts`。
@@ -43,7 +43,7 @@ LLM がファイルを書き換えるときの経路である。**変更は承�
 
 ### 保護と除外は役割が違う
 
-| 仕組み            | 何をするか                                   |
+| 仕組み            | 役割                                         |
 | ----------------- | -------------------------------------------- |
 | `.agentignore`    | アクセスそのものを拒む。編集を始めない       |
 | `.agentprotected` | アクセスは許すが、自動承認をすり抜けさせない |

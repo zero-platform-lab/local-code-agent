@@ -25,7 +25,7 @@ LLM へ送る内容を組み立て、長くなったら圧縮する仕組みで�
 | 自律モードの節           | [approval.md](approval.md)                 |
 | ルールとスキルの読み込み | [extension-points.md](extension-points.md) |
 
-## 決めごと
+## 方式
 
 システムプロンプトは `src/core/prompts/sections/` の節ごとに組み立てる。環境情報は
 `src/core/environment/getEnvironmentDetails.ts` が作る。要約は `src/core/condense/`、

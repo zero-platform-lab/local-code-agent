@@ -31,7 +31,7 @@
 | 送信内容の組み立てと要約       | [context.md](context.md)   |
 | LLM への接続そのもの           | [provider.md](provider.md) |
 
-## 決めごと
+## 方式
 
 実装は `src/core/task/`。`Task` は公開の窓口だけを持ち、状態は collaborator が、
 手続きは `run*` の関数モジュールが持つ。

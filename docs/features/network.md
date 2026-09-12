@@ -21,7 +21,7 @@
 | LLM への要求の形       | [provider.md](provider.md)       |
 | MCP サーバの接続の管理 | [mcp-servers.md](mcp-servers.md) |
 
-## 決めごと
+## 方式
 
 proxy の解決は `src/utils/proxyDispatcher.ts` の 1 か所に置く。LLM の呼び出し・疎通の
 確認・`web_fetch` の 3 つがここを通る。

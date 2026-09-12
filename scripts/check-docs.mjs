@@ -18,10 +18,10 @@
  *
  * 1. 機能仕様が書いた要件の識別子が、`docs/requirements.md` の 3 章に実在すること
  * 2. 3 章の要件が、4.2 の検証の表に漏れなく載っていること
- * 3. 3 章の要件が、いずれかの機能仕様に載っていること（受け持ちの無い要件を作らない）
+ * 3. 3 章の要件が、いずれかの機能仕様に載っていること（対応先の無い要件を作らない）
  * 4. `docs/requirements.md` の 5.1 の対応表と、`docs/features/` の実ファイルが一致すること
- * 5. 機能仕様が 6 節（目的・決めごと・制約・危険なところ・確かめ方・できていないこと）を持つこと
- * 6. `docs/features/README.md` の「数える表」の件数が、一次ソースから数えた値と合うこと
+ * 5. 機能仕様が 6 節（目的・方式・制約・危険なところ・確かめ方・できていないこと）を持つこと
+ * 6. `docs/features/README.md` の「件数」の表が、一次ソースから数えた値と合うこと
  * 7. ほかの文書に書いた件数が、同じ値と合うこと（`inlineCounts`）
  * 8. 解決し損ねた衝突の印が入っていないこと
  *
@@ -44,7 +44,7 @@ const FEATURES_DIR = "docs/features"
 const FEATURES_README = "docs/features/README.md"
 
 /** 機能仕様が必ず持つ節。README.md は索引なので対象から外す。 */
-const REQUIRED_SECTIONS = ["目的", "決めごと", "制約", "危険なところ", "確かめ方", "できていないこと"]
+const REQUIRED_SECTIONS = ["目的", "方式", "制約", "危険なところ", "確かめ方", "できていないこと"]
 
 /** 要件の識別子。派生は末尾の英小文字で表す（`FR-LOOP-08a`）。 */
 const ID_PATTERN = /(?:FR|NFR)-[A-Z0-9]+-[0-9]+[a-z]?/
@@ -217,7 +217,7 @@ const featureFiles = existsSync(join(repoRoot, FEATURES_DIR))
 
 if (featureFiles.length === 0) report(FEATURES_DIR, "機能仕様が 1 本も無い")
 
-// 1. 機能仕様が書いた識別子が実在するか / 3. 受け持ちの無い要件が無いか
+// 1. 機能仕様が書いた識別子が実在するか / 3. 対応先の無い要件が無いか
 const covered = new Set()
 for (const name of [...featureFiles, "README.md"]) {
 	const rel = `${FEATURES_DIR}/${name}`
@@ -237,7 +237,7 @@ for (const name of [...featureFiles, "README.md"]) {
 }
 
 for (const id of declared) {
-	if (!covered.has(id)) report(FEATURES_DIR, `要件 ${id} を受け持つ機能仕様が無い`)
+	if (!covered.has(id)) report(FEATURES_DIR, `要件 ${id} に対応する機能仕様が無い`)
 }
 
 // 2. 4.2 の検証の表の網羅
@@ -258,7 +258,7 @@ for (const name of listed) {
 	if (!existsSync(join(repoRoot, FEATURES_DIR, name))) report(REQUIREMENTS, `5.1 が指す ${name} が存在しない`)
 }
 
-// 6. 数える表
+// 6. 件数の表
 const readmeBody = read(FEATURES_README)
 // prettier が列の幅を揃えるので、桁を決め打ちにせず `|` で割ってから前後を落とす。
 const declaredCounts = new Map()
@@ -280,7 +280,7 @@ function countOf(label) {
 
 for (const label of Object.keys(counters)) {
 	if (!declaredCounts.has(label)) {
-		report(FEATURES_README, `「数える表」に「${label}」の行が無い`)
+		report(FEATURES_README, `「件数」の表に「${label}」の行が無い`)
 		continue
 	}
 	const actual = countOf(label)

@@ -246,19 +246,23 @@ API キーは書き出しから除いてある（`NFR-SEC-06`）。伏せる語�
 
 ## 確かめ方
 
-| 何を                               | どこで                                                              |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| 検出と置き換え                     | `src/services/pii/__tests__/maskText.spec.ts`                       |
-| 検査で絞る照合（Luhn・検査用数字） | `src/services/pii/__tests__/maskText.spec.ts`                       |
-| IP の部分的な置き換え              | `src/services/pii/__tests__/maskText.spec.ts`                       |
-| 対応表の一貫性と可逆性             | `src/services/pii/__tests__/maskText.spec.ts`                       |
-| 公開ドメインと閉じた宛先           | `src/services/pii/__tests__/maskText.spec.ts`                       |
-| 辞書の読み取りと符号化の判別       | `src/services/pii/__tests__/dictionary.spec.ts`                     |
-| 辞書への語の追加と書き出し         | `src/services/pii/__tests__/dictionaryEditor.spec.ts`               |
-| ファイルの置き換えと確認           | `src/services/pii/__tests__/maskEditor.spec.ts`                     |
-| コマンドの登録                     | `src/activate/__tests__/registerPiiCommands.spec.ts`                |
-| 設定の画面                         | `webview-ui/src/components/settings/__tests__/PiiSettings.spec.tsx` |
-| 書き出しに語が残ること             | `src/core/config/__tests__/ContextProxy.spec.ts`                    |
+| 何を                               | どこで                                                               |
+| ---------------------------------- | -------------------------------------------------------------------- |
+| 検出と置き換え                     | `src/services/pii/__tests__/maskText.spec.ts`                        |
+| 検査で絞る照合（Luhn・検査用数字） | `src/services/pii/__tests__/maskText.spec.ts`                        |
+| IP の部分的な置き換え              | `src/services/pii/__tests__/maskText.spec.ts`                        |
+| 対応表の一貫性と可逆性             | `src/services/pii/__tests__/maskText.spec.ts`                        |
+| 公開ドメインと閉じた宛先           | `src/services/pii/__tests__/maskText.spec.ts`                        |
+| 辞書の読み取りと符号化の判別       | `src/services/pii/__tests__/dictionary.spec.ts`                      |
+| 辞書への語の追加と書き出し         | `src/services/pii/__tests__/dictionaryEditor.spec.ts`                |
+| ファイルの置き換えと確認           | `src/services/pii/__tests__/maskEditor.spec.ts`                      |
+| コマンドの登録                     | `src/activate/__tests__/registerPiiCommands.spec.ts`                 |
+| 設定の画面                         | `webview-ui/src/components/settings/__tests__/PiiSettings.spec.tsx`  |
+| 会話の画面の切り替え               | `webview-ui/src/components/chat/__tests__/SecretModeToggle.spec.tsx` |
+| 送信の直前の置き換え               | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`                   |
+| 会話全体の置き換え                 | `src/services/pii/__tests__/maskConversation.spec.ts`                |
+| 道具の引数を戻すこと               | `src/core/task/__tests__/processCompleteToolCall.spec.ts`            |
+| 書き出しに語が残ること             | `src/core/config/__tests__/ContextProxy.spec.ts`                     |
 
 ### 手で確かめること
 

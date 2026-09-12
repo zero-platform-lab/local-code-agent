@@ -13,6 +13,8 @@ import {
 	SKILL_NAME_MAX_LENGTH,
 } from "@openai-agent/types"
 import { t } from "../../i18n"
+import { findSkillSourceRoots } from "./skillSourceDiscovery"
+import { skillSourcesBaseDir } from "./skillSourcePaths"
 
 // Re-export for convenience
 export type { SkillMetadata, SkillContent }
@@ -599,6 +601,13 @@ Add your skill instructions here.
 		// - Global: .agents/skills first, then .agent/skills (so .agent wins)
 		// - Project: .agents/skills first, then .agent/skills (so .agent wins)
 
+		// 取得したスキル（最も優先度が低い）。
+		// **既存の 4 系統より前に置く。** 後ろほど優先されるので、同じ名前なら
+		// 利用者が手で置いたものが勝つ（`FR-EXT-05e`）。
+		for (const root of await findSkillSourceRoots(skillSourcesBaseDir())) {
+			dirs.push({ dir: root, source: "global" })
+		}
+
 		// Global .agents directories (lowest priority - shared across agents)
 		dirs.push({ dir: path.join(globalAgentsDir, "skills"), source: "global" })
 		for (const mode of modesList) {
@@ -653,6 +662,11 @@ Add your skill instructions here.
 		const globalAgentsDir = getGlobalAgentsDirectory()
 		const projectAgentDir = path.join(provider.cwd, ".agent")
 		const projectAgentsDir = getProjectAgentsDirectoryForCwd(provider.cwd)
+
+		// 取得したスキルも監視する。`git pull` を VS Code を開いたまま反映させる。
+		for (const root of await findSkillSourceRoots(skillSourcesBaseDir())) {
+			this.watchDirectory(root)
+		}
 
 		// Watch global .agent skills directory
 		this.watchDirectory(path.join(globalAgentDir, "skills"))

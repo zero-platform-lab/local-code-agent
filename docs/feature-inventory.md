@@ -90,7 +90,7 @@
 - プロファイル一覧の項目は別スキーマである（`providerSettingsEntrySchema` の id / name /
   apiProvider / modelId）。上の 28 キーには含まれない。
 
-### B2. グローバル設定（`packages/types/src/global-settings.ts`、75キー）
+### B2. グローバル設定（`packages/types/src/global-settings.ts`、73キー）
 
 - **自動承認（~16）**: autoApprovalEnabled, alwaysAllow{ReadOnly, ReadOnlyOutsideWorkspace, Write,
   WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks, FollowupQuestions},
@@ -107,7 +107,7 @@
 - ~~**サウンド / TTS**: soundEnabled, soundVolume, ttsEnabled, ttsSpeed~~ → **済**（PR #422 で機能ごと全削除）
 - **画像**: maxImageFileSize, maxTotalImageSize, lastImageSavePath
 - **worktree**: showWorktreesInHomeScreen, worktreeAutoOpenPath
-- **履歴 / エクスポート**: taskHistory, lastTaskExportPath, lastSettingsExportPath, lastModeExportPath, lastModeImportPath
+- **履歴 / エクスポート**: taskHistory, lastTaskExportPath, lastSettingsExportPath
 - **UI 状態**: historyPreviewCollapsed, reasoningBlockCollapsed, dismissedUpsells, enterBehavior
 - **チェックポイント**: enableCheckpoints → **要精査**（shadow git のコスト）
 - **ルール**: customInstructions, enableSubfolderRules, showAgentIgnoredFiles

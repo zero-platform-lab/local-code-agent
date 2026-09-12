@@ -480,7 +480,12 @@ export class ProviderSettingsManager {
 			const content = await this.context.secrets.get(this.secretsKey)
 
 			if (!content) {
-				return this.defaultProviderProfiles
+				// **複製して返す。** 参照のまま返すと、呼び出し側（saveConfig /
+				// activateProfile / setModeConfig）が戻り値を書き換えたときに、この
+				// テンプレート自体が汚れる。resetAllConfigs は secrets を消すだけで
+				// インスタンスを作り直さないので、汚れたテンプレートが次の load で
+				// 返り、消したはずのプロファイルが API キーごと戻る。
+				return structuredClone(this.defaultProviderProfiles)
 			}
 
 			const providerProfiles = providerProfilesSchema

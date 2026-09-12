@@ -38,6 +38,41 @@ describe("ProviderSettingsManager", () => {
 		providerSettingsManager = new ProviderSettingsManager(mockContext)
 	})
 
+	describe("load の既定値の複製", () => {
+		it("保存したプロファイルが、リセットの後に復活しない", async () => {
+			// secrets が空のあいだは load() が既定のテンプレートを返す。**その戻り値を
+			// 呼び出し側が書き換えるので、複製していないとテンプレートが汚れる。**
+			mockSecrets.get.mockResolvedValue(null)
+
+			await providerSettingsManager.saveConfig("mine", {
+				apiProvider: "openai",
+				openAiApiKey: "sk-secret",
+			} as ProviderSettings)
+
+			// リセット。secrets を消すだけで、インスタンスは作り直されない。
+			await providerSettingsManager.resetAllConfigs()
+			mockSecrets.get.mockResolvedValue(null)
+
+			const profiles = await providerSettingsManager.export()
+
+			expect(profiles).toBeDefined()
+			expect(Object.keys(profiles!.apiConfigs)).toEqual(["default"])
+			expect(JSON.stringify(profiles)).not.toContain("sk-secret")
+		})
+
+		it("既定の modeApiConfigs も複製する", async () => {
+			mockSecrets.get.mockResolvedValue(null)
+
+			await providerSettingsManager.setModeConfig("code", "some-other-id")
+			await providerSettingsManager.resetAllConfigs()
+			mockSecrets.get.mockResolvedValue(null)
+
+			const profiles = await providerSettingsManager.export()
+
+			expect(profiles!.modeApiConfigs!.code).not.toBe("some-other-id")
+		})
+	})
+
 	describe("initialize", () => {
 		it("should not write to storage when secrets.get returns null", async () => {
 			// Mock readConfig to return null

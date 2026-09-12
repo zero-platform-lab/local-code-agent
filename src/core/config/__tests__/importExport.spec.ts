@@ -153,6 +153,42 @@ describe("importExport", () => {
 			expect(mockContextProxy.setValues).not.toHaveBeenCalled()
 		})
 
+		it("移行の記録を引き継ぐ。落とすと移行が全部やり直しになる", async () => {
+			;(vscode.window.showOpenDialog as Mock).mockResolvedValue([{ fsPath: "/mock/path/settings.json" }])
+			;(fs.readFile as Mock).mockResolvedValue(
+				JSON.stringify({
+					providerProfiles: {
+						currentApiConfigName: "test",
+						apiConfigs: { test: { apiProvider: "openai" as ProviderName, id: "test-id" } },
+					},
+					globalSettings: {},
+				}),
+			)
+
+			mockProviderSettingsManager.export.mockResolvedValue({
+				currentApiConfigName: "default",
+				apiConfigs: { default: { apiProvider: "openai" as ProviderName, id: "default-id" } },
+				migrations: {
+					rateLimitSecondsMigrated: true,
+					consecutiveMistakeLimitMigrated: true,
+					todoListEnabledMigrated: true,
+				},
+			})
+			mockProviderSettingsManager.listConfig.mockResolvedValue([])
+
+			await importSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			const imported = mockProviderSettingsManager.import.mock.calls[0][0]
+			expect(imported.migrations).toEqual({
+				rateLimitSecondsMigrated: true,
+				consecutiveMistakeLimitMigrated: true,
+				todoListEnabledMigrated: true,
+			})
+		})
+
 		it("should import settings successfully from a valid file", async () => {
 			;(vscode.window.showOpenDialog as Mock).mockResolvedValue([{ fsPath: "/mock/path/settings.json" }])
 

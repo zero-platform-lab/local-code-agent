@@ -31,7 +31,13 @@ import { CodeIndexManager } from "./services/code-index/manager"
 import { autoImportSettings } from "./utils/autoImportSettings"
 import { API } from "./extension/api"
 
-import { registerCommands, registerCodeActions, registerTerminalActions, CodeActionProvider } from "./activate"
+import {
+	registerCommands,
+	registerCodeActions,
+	registerPiiCommands,
+	registerTerminalActions,
+	CodeActionProvider,
+} from "./activate"
 import { initializeI18n } from "./i18n"
 
 /**
@@ -217,6 +223,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	registerCodeActions(context)
 	registerTerminalActions(context)
+	// 機密情報の伏せ字は編集中のファイルだけを見る。provider を必要としない。
+	registerPiiCommands(context, () => contextProxy.getValue("piiMasking") ?? {})
 
 	// Allows other extensions to activate once Agent is ready.
 	vscode.commands.executeCommand(`${Package.name}.activationCompleted`)

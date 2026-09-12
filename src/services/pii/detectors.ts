@@ -308,6 +308,11 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 	const lower = text.toLowerCase()
 
 	for (const term of terms) {
+		if (term.regex) {
+			matches.push(...matchByRegex(text, term))
+			continue
+		}
+
 		const needle = term.value.trim().toLowerCase()
 		if (needle.length === 0) continue
 
@@ -323,6 +328,36 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 			})
 			from = at + needle.length
 		}
+	}
+	return matches
+}
+
+/**
+ * 正規表現として書かれた語（`FR-PII-03f`）。
+ *
+ * **空に一致する書き方は使わない**（`FR-PII-03h`）。全ての位置に一致して、文書が伏せ字で
+ * 埋まる。読み込む側（`parseDictionary`）で弾いてあるが、設定から直接来る場合もあるので
+ * ここでも見る。
+ */
+function matchByRegex(text: string, term: PiiTerm): PiiMatch[] {
+	let pattern: RegExp
+	try {
+		pattern = new RegExp(term.value, "g")
+	} catch {
+		return []
+	}
+	if (pattern.test("")) return []
+	pattern.lastIndex = 0
+
+	const matches: PiiMatch[] = []
+	for (const found of text.matchAll(pattern)) {
+		if (found[0].length === 0) continue
+		matches.push({
+			kind: term.kind ?? "term",
+			start: found.index,
+			end: found.index + found[0].length,
+			value: found[0],
+		})
 	}
 	return matches
 }

@@ -38,29 +38,71 @@ export function decodeText(bytes: Uint8Array): string {
  * 1 行 1 語で読む（`FR-PII-03c`）。`#` で始まる行と空行は読み飛ばす。
  * タブの後ろに種類を書ける。種類が無い、または読めない場合は `term` として扱う。
  */
-export function parseDictionary(text: string): PiiTerm[] {
-	const terms: PiiTerm[] = []
+/** `/EMP-\d{5}/` の形。囲んだときだけ正規表現として扱う（`FR-PII-03f`）。 */
+const REGEX_LINE = /^\/(.+)\/$/
 
-	for (const line of text.split(/\r?\n/)) {
+export type ParsedDictionary = {
+	terms: PiiTerm[]
+	/** 読めなかった行（`FR-PII-03g`）。黙って読み飛ばさない。 */
+	problems: { line: number; value: string; reason: string }[]
+}
+
+export function parseDictionaryLines(text: string): ParsedDictionary {
+	const terms: PiiTerm[] = []
+	const problems: ParsedDictionary["problems"] = []
+
+	text.split(/\r?\n/).forEach((line, index) => {
 		const stripped = line.trim()
-		if (stripped.length === 0 || stripped.startsWith("#")) continue
+		if (stripped.length === 0 || stripped.startsWith("#")) return
 
 		// **分割を先に行う。** 行ごと trim すると、値が空白だけの行でタブが消え、
 		// 種類として書いた語が値として読まれる。
 		const [value, rawKind] = line.split("\t", 2)
 		const trimmed = value.trim()
-		if (trimmed.length === 0) continue
+		if (trimmed.length === 0) return
 
-		terms.push({ value: trimmed, kind: KINDS[(rawKind ?? "").trim().toLowerCase()] ?? "term" })
+		const kind = KINDS[(rawKind ?? "").trim().toLowerCase()] ?? "term"
+		const asRegex = REGEX_LINE.exec(trimmed)
+		if (!asRegex) {
+			terms.push({ value: trimmed, kind })
+			return
+		}
+
+		const source = asRegex[1]
+		const problem = regexProblem(source)
+		if (problem) {
+			problems.push({ line: index + 1, value: trimmed, reason: problem })
+			return
+		}
+
+		terms.push({ value: source, kind, regex: true })
+	})
+
+	return { terms, problems }
+}
+
+/** 使えない正規表現の理由を返す。使えるなら `undefined`。 */
+function regexProblem(source: string): string | undefined {
+	let pattern: RegExp
+	try {
+		pattern = new RegExp(source)
+	} catch (error) {
+		return String(error)
 	}
+	// 空に一致すると全ての位置に当たり、文書が伏せ字で埋まる（`FR-PII-03h`）。
+	return pattern.test("") ? "空の文字列に一致します" : undefined
+}
 
-	return terms
+export function parseDictionary(text: string): PiiTerm[] {
+	return parseDictionaryLines(text).terms
 }
 
 export type DictionaryResult = {
 	terms: PiiTerm[]
 	/** 読めなかった辞書のパスと理由（`FR-PII-03d`）。 */
 	failures: { path: string; error: string }[]
+	/** 読めなかった行（`FR-PII-03g`）。辞書は読めたが、その行だけ使えない。 */
+	problems: { path: string; line: number; value: string; reason: string }[]
 }
 
 /**
@@ -73,14 +115,17 @@ export type DictionaryResult = {
 export async function readDictionaries(paths: readonly string[]): Promise<DictionaryResult> {
 	const terms: PiiTerm[] = []
 	const failures: DictionaryResult["failures"] = []
+	const problems: DictionaryResult["problems"] = []
 
 	for (const path of paths) {
 		try {
-			terms.push(...parseDictionary(decodeText(await fs.readFile(path))))
+			const parsed = parseDictionaryLines(decodeText(await fs.readFile(path)))
+			terms.push(...parsed.terms)
+			problems.push(...parsed.problems.map((problem) => ({ path, ...problem })))
 		} catch (error) {
 			failures.push({ path, error: String(error) })
 		}
 	}
 
-	return { terms, failures }
+	return { terms, failures, problems }
 }

@@ -10,7 +10,7 @@ import * as os from "os"
 import * as path from "path"
 import { promises as fs } from "fs"
 
-import { decodeText, parseDictionary, readDictionaries } from "../dictionary"
+import { decodeText, parseDictionary, parseDictionaryLines, readDictionaries } from "../dictionary"
 
 /** Shift_JIS の「田中太郎」。`TextDecoder` に頼らず、バイト列として書く。 */
 const SJIS_TANAKA = Uint8Array.from([0x93, 0x63, 0x92, 0x86, 0x91, 0xbe, 0x98, 0x59])
@@ -72,6 +72,34 @@ describe("parseDictionary（FR-PII-03c）", () => {
 	})
 })
 
+describe("正規表現（FR-PII-03f）", () => {
+	it("スラッシュで囲むと正規表現として扱う", () => {
+		expect(parseDictionary("/EMP-\\d{5}/\tterm\n")).toEqual([{ value: "EMP-\\d{5}", kind: "term", regex: true }])
+	})
+
+	it("囲まなければ普通の語として扱う", () => {
+		// `.` を含む社名を書いたときに、いきなり正規表現として動くと危ない。
+		expect(parseDictionary("A.C.M.E\n")).toEqual([{ value: "A.C.M.E", kind: "term" }])
+	})
+
+	it("書き間違えた正規表現は、行番号を添えて知らせる（FR-PII-03g）", () => {
+		const parsed = parseDictionaryLines("# 見出し\n/EMP-[/\n")
+
+		// 黙って読み飛ばすと、伏せているつもりで 1 件も一致しない。
+		expect(parsed.terms).toEqual([])
+		expect(parsed.problems).toHaveLength(1)
+		expect(parsed.problems[0].line).toBe(2)
+	})
+
+	it("空の文字列に一致する書き方は受け付けない（FR-PII-03h）", () => {
+		const parsed = parseDictionaryLines("/a*/\n")
+
+		// 全ての位置に当たり、文書が伏せ字で埋まる。
+		expect(parsed.terms).toEqual([])
+		expect(parsed.problems[0].reason).toContain("空の文字列")
+	})
+})
+
 describe("readDictionaries", () => {
 	let dir: string
 
@@ -108,6 +136,17 @@ describe("readDictionaries", () => {
 	})
 
 	it("辞書を 1 つも指定しなければ空を返す", async () => {
-		expect(await readDictionaries([])).toEqual({ terms: [], failures: [] })
+		expect(await readDictionaries([])).toEqual({ terms: [], failures: [], problems: [] })
+	})
+
+	it("使えない行は、どの辞書のどの行かを添えて返す（FR-PII-03g）", async () => {
+		await fs.writeFile(path.join(dir, "a.txt"), "アクメ\n/EMP-[/\n", "utf8")
+
+		const result = await readDictionaries([path.join(dir, "a.txt")])
+
+		expect(result.terms).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(result.problems).toHaveLength(1)
+		expect(result.problems[0]).toMatchObject({ line: 2, value: "/EMP-[/" })
+		expect(result.problems[0].path).toContain("a.txt")
 	})
 })

@@ -226,5 +226,28 @@
 		"copied": "{{count}} 件のスキルを共有する場所へ複製しました。",
 		"copySkipped": "同じ名前のスキルが既にありました。複製していません: {{names}}",
 		"copyRemoved": "共有する場所から {{count}} 件の複製を取り除きました。"
+	},
+	"pii": {
+		"noEditor": "開いているファイルがありません。",
+		"nothingFound": "伏せる情報は見つかりませんでした。",
+		"confirm": "{{summary}} を伏せ字へ置き換えます。取り消しの操作でしか元へ戻せません。",
+		"confirmReplace": "置き換える",
+		"replaced": "{{summary}} を伏せ字へ置き換えました。",
+		"replaceFailed": "置き換えられませんでした。",
+		"dictionaryFailed": "辞書を読めませんでした: {{paths}}",
+		"kind": {
+			"person": "人名",
+			"org": "社名",
+			"term": "語",
+			"email": "メールアドレス",
+			"phone": "電話番号",
+			"host": "ホスト名",
+			"ip": "IP アドレス",
+			"card": "クレジットカード",
+			"secret": "鍵",
+			"zip": "郵便番号",
+			"address": "住所",
+			"mynumber": "マイナンバー"
+		}
 	}
 }

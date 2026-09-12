@@ -1,4 +1,5 @@
 export { registerCommands } from "./registerCommands"
 export { registerCodeActions } from "./registerCodeActions"
 export { registerTerminalActions } from "./registerTerminalActions"
+export { registerPiiCommands } from "./registerPiiCommands"
 export { CodeActionProvider } from "./CodeActionProvider"

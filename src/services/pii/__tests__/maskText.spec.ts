@@ -6,7 +6,7 @@
 // 変えるので、漏れより害が大きい場面がある。
 
 import { myNumberCheckDigit, passesLuhn, passesMyNumberCheck } from "../detectors"
-import { maskText, findPii, resolveOverlaps, totalCount, unmaskText } from "../maskText"
+import { applyPlan, findPii, maskText, planMasking, resolveOverlaps, totalCount, unmaskText } from "../maskText"
 
 describe("メールアドレス（FR-PII-04）", () => {
 	it("伏せて、同じ値には同じ伏せ字を割り当てる（FR-PII-02）", () => {
@@ -267,6 +267,35 @@ describe("挙げた語（FR-PII-03）", () => {
 		expect(unmaskText(result.text, result.table)).toBe("ACME と acme")
 	})
 
+	it("正規表現として書いた語を伏せる（FR-PII-03f）", () => {
+		const result = maskText("担当は EMP-12345 と EMP-67890", {
+			// 種類を書かなければ term になる。
+			terms: [{ value: "EMP-\\d{5}", regex: true }],
+			kinds: ["term"],
+		})
+
+		expect(result.text).toBe("担当は {{term-001}} と {{term-002}}")
+	})
+
+	it("壊れた正規表現は 1 件も伏せない。本文は変わらない", () => {
+		const text = "EMP-12345"
+
+		expect(maskText(text, { terms: [{ value: "EMP-[", regex: true }], kinds: ["term"] }).text).toBe(text)
+	})
+
+	it("空に一致する正規表現は使わない（FR-PII-03h）", () => {
+		const text = "なにか"
+
+		expect(maskText(text, { terms: [{ value: "x*", regex: true }], kinds: ["term"] }).text).toBe(text)
+	})
+
+	it("長さ 0 に一致する位置は飛ばす", () => {
+		// `\b` は空の文字列には一致しないので受け付けるが、本文では長さ 0 に一致する。
+		const text = "abc def"
+
+		expect(maskText(text, { terms: [{ value: "\\b", regex: true }], kinds: ["term"] }).text).toBe(text)
+	})
+
 	it("空の語は無視する", () => {
 		expect(maskText("何か", { terms: [{ value: "   " }] }).text).toBe("何か")
 	})
@@ -333,6 +362,33 @@ describe("復元（FR-PII-02a）", () => {
 
 	it("対応表が空なら何もしない", () => {
 		expect(unmaskText("{{email-001}}", new Map())).toBe("{{email-001}}")
+	})
+})
+
+describe("planMasking（FR-PII-11a）", () => {
+	const text = "taro@corp.example と hanako@corp.example"
+
+	it("範囲を渡さなければ全部を対象にする", () => {
+		expect(planMasking(text, { kinds: ["email"] }).edits).toHaveLength(2)
+	})
+
+	it("範囲に収まる箇所だけを対象にする", () => {
+		const plan = planMasking(text, { kinds: ["email"] }, { start: 0, end: 17 })
+
+		expect(plan.edits).toHaveLength(1)
+		expect(applyPlan(text, plan.edits)).toBe("{{email-001}} と hanako@corp.example")
+	})
+
+	it("範囲からはみ出す箇所は対象にしない", () => {
+		// 途中で切れた値を伏せると、残りが本文に残って伏せた意味が無くなる。
+		expect(planMasking(text, { kinds: ["email"] }, { start: 0, end: 10 }).edits).toHaveLength(0)
+	})
+
+	it("検出は本文全体で行う。範囲の外から続く並びを途中で切らない", () => {
+		const address = "東京都渋谷区神南1-2-3"
+		// 「東京都」だけを範囲にすると、住所は範囲に収まらないので対象にしない。
+		expect(planMasking(address, { kinds: ["address"] }, { start: 0, end: 3 }).edits).toHaveLength(0)
+		expect(planMasking(address, { kinds: ["address"] }).edits).toHaveLength(1)
 	})
 })
 

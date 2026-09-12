@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { piiKinds } from "./pii.js"
 import { type Keys } from "./type-fu.js"
 import { autonomyModeSchema } from "./autonomy.js"
 import {
@@ -144,6 +145,27 @@ export const DEFAULT_CHECKPOINT_TIMEOUT_SECONDS = 15
  *
  * **資格情報はここに持たない。** git の保管庫へ預ける（`FR-EXT-06a`）。
  */
+/**
+ * 機密情報の伏せ字（`FR-PII-01`）。
+ *
+ * **既定では置き換えない**（`FR-PII-01a`）。置き換えはモデルが読む内容を変えるので、
+ * 気づかないうちに挙動が変わる状態を避ける。
+ */
+export const piiMaskingSchema = z.object({
+	/** シークレットモード。送信の直前に置き換えるかどうか（`FR-PII-01b`）。 */
+	enabled: z.boolean().optional(),
+	/** 伏せる種類。省略すると全部を伏せる（`FR-PII-07`）。 */
+	kinds: z.array(z.enum(piiKinds)).optional(),
+	/** 利用者が挙げた語（`FR-PII-03`）。 */
+	terms: z.array(z.object({ value: z.string(), kind: z.enum(["person", "org", "term"]).optional() })).optional(),
+	/** 辞書のファイル（`FR-PII-03b`）。チームで 1 つの辞書を共有できる。 */
+	dictionaryPaths: z.array(z.string()).optional(),
+	/** 鍵のラベルに足す語（`FR-PII-10g`）。社内で使う語まで先に並べておくことはできない。 */
+	secretLabels: z.array(z.string()).optional(),
+})
+
+export type PiiMasking = z.infer<typeof piiMaskingSchema>
+
 export const skillSourceSchema = z.object({
 	url: z.string(),
 	proxyMode: openAiProxyModeSchema.optional(),
@@ -289,6 +311,7 @@ export const globalSettingsSchema = z.object({
 	 */
 	disabledTools: z.array(toolNamesSchema).optional(),
 	skillSources: z.array(skillSourceSchema).optional(),
+	piiMasking: piiMaskingSchema.optional(),
 })
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>

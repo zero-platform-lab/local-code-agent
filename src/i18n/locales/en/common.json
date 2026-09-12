@@ -225,5 +225,28 @@
 		"copied": "Copied {{count}} skill(s) to the shared location.",
 		"copySkipped": "Skills with the same name already exist and were not copied: {{names}}",
 		"copyRemoved": "Removed {{count}} copied skill(s) from the shared location."
+	},
+	"pii": {
+		"noEditor": "No file is open.",
+		"nothingFound": "No sensitive information was found.",
+		"confirm": "Replace {{summary}} with placeholders. Only undo can restore the original values.",
+		"confirmReplace": "Replace",
+		"replaced": "Replaced {{summary}} with placeholders.",
+		"replaceFailed": "Could not replace the values.",
+		"dictionaryFailed": "Could not read the dictionary: {{paths}}",
+		"kind": {
+			"person": "names",
+			"org": "company names",
+			"term": "terms",
+			"email": "email addresses",
+			"phone": "phone numbers",
+			"host": "host names",
+			"ip": "IP addresses",
+			"card": "card numbers",
+			"secret": "keys",
+			"zip": "postal codes",
+			"address": "addresses",
+			"mynumber": "My Number"
+		}
 	}
 }

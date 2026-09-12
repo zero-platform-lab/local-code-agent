@@ -10,10 +10,11 @@ import {
 	globalSettingsSchema,
 	providerSettingsWithIdSchema,
 	isProviderName,
+	SECRET_STATE_KEYS,
 	type ProviderSettingsWithId,
 } from "@openai-agent/types"
 
-import { ProviderSettingsManager, providerProfilesSchema } from "./ProviderSettingsManager"
+import { ProviderSettingsManager, providerProfilesSchema, type ProviderProfiles } from "./ProviderSettingsManager"
 import { ContextProxy } from "./ContextProxy"
 import { resolveDefaultSaveUri, saveLastExportPath } from "../../utils/export"
 import { t } from "../../i18n"
@@ -233,7 +234,71 @@ export const importSettingsFromFile = async (
 	})
 }
 
+/**
+ * 書き出し用に、プロファイルから秘密の情報を落とす。
+ *
+ * 落とすのは `SECRET_STATE_KEYS` の 3 つと、追加ヘッダーの値である。
+ *
+ * **追加ヘッダーは、名前を残して値だけ空にする。** 値が API キーであることがあるので
+ * 落とすが、名前まで消すと、読み込んだ側は何を入れ直せばよいか分からない。
+ */
+export function stripSecretsForExport(providerProfiles: ProviderProfiles): ProviderProfiles {
+	const apiConfigs = Object.fromEntries(
+		Object.entries(providerProfiles.apiConfigs).map(([name, config]) => {
+			const stripped: ProviderSettingsWithId = { ...config }
+
+			for (const key of SECRET_STATE_KEYS) {
+				delete stripped[key]
+			}
+
+			if (stripped.openAiHeaders) {
+				stripped.openAiHeaders = Object.fromEntries(
+					Object.keys(stripped.openAiHeaders).map((headerName) => [headerName, ""]),
+				)
+			}
+
+			return [name, stripped]
+		}),
+	)
+
+	return { ...providerProfiles, apiConfigs }
+}
+
+/**
+ * 秘密の情報を書き出しに含めるかを選ばせる。
+ *
+ * **既定は含めない側にする。** 設定を別のマシンへ移す・人に渡すという普通の使い方では
+ * 鍵が要らない。含める場合だけ、平文で入ることを承知したうえで選ばせる。
+ *
+ * 選ばずに閉じた場合は `undefined` を返し、書き出しそのものを取りやめる。
+ */
+async function askWhetherToIncludeSecrets(): Promise<boolean | undefined> {
+	const withoutSecrets = {
+		label: t("common:settings.export.withoutSecrets"),
+		detail: t("common:settings.export.withoutSecretsDetail"),
+		includeSecrets: false,
+	}
+	const withSecrets = {
+		label: t("common:settings.export.withSecrets"),
+		detail: t("common:settings.export.withSecretsDetail"),
+		includeSecrets: true,
+	}
+
+	const picked = await vscode.window.showQuickPick([withoutSecrets, withSecrets], {
+		title: t("common:settings.export.title"),
+		placeHolder: t("common:settings.export.placeHolder"),
+	})
+
+	return picked?.includeSecrets
+}
+
 export const exportSettings = async ({ providerSettingsManager, contextProxy }: ExportOptions) => {
+	const includeSecrets = await askWhetherToIncludeSecrets()
+
+	if (includeSecrets === undefined) {
+		return
+	}
+
 	const defaultUri = await resolveDefaultSaveUri(contextProxy, "lastSettingsExportPath", "agent-settings.json", {
 		useWorkspace: false,
 		fallbackDir: path.join(os.homedir(), "Downloads"),
@@ -251,7 +316,8 @@ export const exportSettings = async ({ providerSettingsManager, contextProxy }: 
 	await saveLastExportPath(contextProxy, "lastSettingsExportPath", uri)
 
 	try {
-		const providerProfiles = await providerSettingsManager.export()
+		const exported = await providerSettingsManager.export()
+		const providerProfiles = exported === undefined || includeSecrets ? exported : stripSecretsForExport(exported)
 		const globalSettings = await contextProxy.export()
 
 		// It's okay if there are no global settings, but if there are no
@@ -268,6 +334,11 @@ export const exportSettings = async ({ providerSettingsManager, contextProxy }: 
 		const dirname = path.dirname(uri.fsPath)
 		await fs.mkdir(dirname, { recursive: true })
 		await safeWriteJson(uri.fsPath, { providerProfiles, globalSettings })
+
+		if (includeSecrets) {
+			// 黙って出さない。SecretStorage の外へ鍵が出る唯一の経路である。
+			await vscode.window.showWarningMessage(t("common:settings.export.containsSecrets"))
+		}
 	} catch (e) {
 		console.error("Failed to export settings:", e)
 		// Don't re-throw - the UI will handle showing error messages

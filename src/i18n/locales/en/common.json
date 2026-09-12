@@ -198,5 +198,16 @@
 	"docsLink": {
 		"label": "Docs",
 		"url": "https://github.com/example-org/local-agent"
+	},
+	"settings": {
+		"export": {
+			"title": "Export settings",
+			"placeHolder": "Choose whether to include API keys",
+			"withoutSecrets": "Exclude API keys (recommended)",
+			"withoutSecretsDetail": "API keys are removed and custom header values are blanked. Header names are kept.",
+			"withSecrets": "Include API keys",
+			"withSecretsDetail": "The file will contain API keys and custom header values in plain text.",
+			"containsSecrets": "The exported file contains API keys in plain text. Handle it as you would the keys themselves."
+		}
 	}
 }

@@ -26,7 +26,7 @@
 | ツールを提示するかどうかの判定の全体 | [tools.md](tools.md)     |
 | リモートのサーバと proxy の関係      | [network.md](network.md) |
 
-## 決めごと
+## 方式
 
 実装は `src/services/mcp/`。判断は純関数へ切り出し、副作用の順序だけを `McpHub` が持つ。
 

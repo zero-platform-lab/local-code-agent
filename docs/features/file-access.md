@@ -24,7 +24,7 @@ LLM がワークスペースの中身を知るための経路である。読み�
 | 書き込みの保護             | [editing.md](editing.md)       |
 | 環境情報としての自動の付加 | [context.md](context.md)       |
 
-## 決めごと
+## 方式
 
 検索は VS Code に同梱される ripgrep を使う。構造の解析は tree-sitter による
 （対応する言語は `README.md` に一覧がある）。

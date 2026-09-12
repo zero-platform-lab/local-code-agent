@@ -21,7 +21,7 @@
 | 正規表現による検索                   | [file-access.md](file-access.md) |
 | `codebase_search` を提示するかどうか | [tools.md](tools.md)             |
 
-## 決めごと
+## 方式
 
 実装は `src/services/code-index/`。埋め込みの実装は OpenAI 互換の 1 つだけで、
 ベクトルの保存先は Qdrant の 1 つだけである。

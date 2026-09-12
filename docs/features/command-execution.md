@@ -22,7 +22,7 @@ LLM がターミナルでコマンドを実行し、その出力を受け取る�
 | 実行してよいコマンドの判定 | [approval.md](approval.md)       |
 | コマンドの引数のパスの検査 | [file-access.md](file-access.md) |
 
-## 決めごと
+## 方式
 
 実装は `src/core/tools/ExecuteCommandTool.ts` と `src/integrations/terminal/`。
 

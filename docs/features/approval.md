@@ -1,7 +1,7 @@
 # 承認と自律モード
 
 ツールを実行する前に利用者へ確認するかどうかを決める仕組みである。**自律モードと
-役割モードは名前が似ているだけの別の仕組みで、こちらは権限を受け持つ。**
+役割モードは名前が似ているだけの別の仕組みで、こちらは権限を決める。**
 
 ## 目的
 
@@ -29,7 +29,7 @@
 | 読み取りだけを許すモードでのツールの拒否 | [tools.md](tools.md)     |
 | 保護対象のファイルの一覧                 | [editing.md](editing.md) |
 
-## 決めごと
+## 方式
 
 自律モードの定義は `packages/types/src/autonomy.ts` の `AUTONOMY_PRESETS` にある。適用は
 `ClineProvider.setAutonomyMode`。コマンドの判定は `src/core/auto-approval/commands.ts`。

@@ -21,14 +21,14 @@
 | `run_slash_command` と `skill` を提示するかどうか | [tools.md](tools.md) |
 | モードごとの接尾辞の付け方                        | [modes.md](modes.md) |
 
-## 決めごと
+## 方式
 
 実装は `src/services/agent-config/`（規則）・`src/services/skills/`（スキル）・
 `src/services/command/`（スラッシュコマンド）。
 
 ### 3 つの違い
 
-|                    | いつ読み込むか | LLM から見た形           |
+|                    | 読み込む時点   | LLM へ渡る形             |
 | ------------------ | -------------- | ------------------------ |
 | 規則               | 毎回           | システムプロンプトの一部 |
 | スキル             | 呼び出したとき | ツールの結果             |

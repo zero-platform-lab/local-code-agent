@@ -147,6 +147,11 @@ SOCKS では名前の解決を proxy 側で行う（`FR-NET-12a1`）。git の `
 | 範囲の逸脱とリンクの拒否 | `src/services/command/__tests__/commands.pathTraversal.spec.ts`、`src/services/command/__tests__/symlink-commands.spec.ts` |
 | スキルの探索と名前の検証 | `src/services/skills/__tests__/SkillsManager.spec.ts`                                                                      |
 | 規則の読み込み           | `src/core/prompts/sections/__tests__/custom-instructions.spec.ts`                                                          |
+| 取得元の URL の解釈      | `src/services/skills/__tests__/skillSourcePath.spec.ts`                                                                    |
+| proxy 付きの git の起動  | `src/services/skills/__tests__/skillSourceGit.spec.ts`                                                                     |
+| 取得と 2 回目以降の更新  | `src/services/skills/__tests__/skillSourceFetcher.spec.ts`                                                                 |
+| 取得先を探索先へ足す     | `src/services/skills/__tests__/skillSourceDiscovery.spec.ts`                                                               |
+| 取得元を編集する画面     | `webview-ui/src/components/settings/__tests__/SkillSourcesSettings.spec.tsx`                                               |
 
 ## できていないこと
 

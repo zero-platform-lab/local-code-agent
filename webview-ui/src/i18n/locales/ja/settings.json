@@ -241,6 +241,8 @@
 		"customHeaders": "カスタムヘッダー",
 		"headerName": "ヘッダー名",
 		"headerValue": "ヘッダー値",
+		"showHeaderValue": "値を表示する",
+		"hideHeaderValue": "値を隠す",
 		"noCustomHeaders": "カスタムヘッダーが定義されていません。+ ボタンをクリックして追加してください。",
 		"apiKey": "APIキー",
 		"openAiBaseUrl": "ベースURL",

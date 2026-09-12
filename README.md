@@ -70,7 +70,7 @@ LLM サーバが OpenAI 互換の `/v1/chat/completions` エンドポイント�
 
 > [!NOTE] > **接続先は `settings.json` では設定できません。** Base URL / API Key / Model ID は
 > プロバイダプロファイルとして拡張側のストレージ（API Key は SecretStorage）に保存され、
-> VS Code の設定値ではありません。設定は上記の Settings 画面か、環境変数 `OPENAI_BASE_URL` から行ってください。
+> VS Code の設定値ではありません。設定は上記の Settings 画面から行ってください。
 >
 > `settings.json` に置ける `openai-agent.*` は、`contributes.configuration` にある
 > 実行制御系のキー（`allowedCommands` / `deniedCommands` / `commandExecutionTimeout` など）

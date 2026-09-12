@@ -23,7 +23,8 @@
  * 5. 機能仕様が 6 節（目的・方式・制約・危険なところ・確かめ方・できていないこと）を持つこと
  * 6. `docs/features/README.md` の「件数」の表が、一次ソースから数えた値と合うこと
  * 7. ほかの文書に書いた件数が、同じ値と合うこと（`inlineCounts`）
- * 8. 解決し損ねた衝突の印が入っていないこと
+ * 8. 文書が引いたファイルが実在すること。**テストはディレクトリまで書くこと**
+ * 9. 解決し損ねた衝突の印が入っていないこと
  *
  * **7 は「各数値の記載箇所は 1 つに限る」（`AGENTS.md`）に反しない。** あの規則は、
  * 手で写した数値が黙って古くなることを避けるためにある。ここで突き合わせる数値は
@@ -309,7 +310,38 @@ for (const [rel, pattern, label] of inlineCounts) {
 	}
 }
 
-// 8. 要件定義書そのものの衝突の印
+// 8. 文書が引いたファイルが実在するか
+//
+// **なぜ要るか。** 4.2 が引いていた `utils/__tests__/export.spec.ts` は、保存先パスの
+// 解決を確かめるだけで、要件が言う「書き出しに秘密が入らないこと」を見ていなかった。
+// 実在しないファイルや、ディレクトリを省いた書き方も混じっていた。**実在するかどうかは
+// 機械で見られる。** 中身が要件に合っているかまでは見られないので、そこは人が読む。
+const FILE_REF = /`([A-Za-z0-9_@./-]+\.(?:ts|tsx|mjs|js|py|json|sh))`/g
+const TEST_FILE = /\.(?:spec|test)\.tsx?$/
+
+/** 4.2 と機能仕様だけを見る。3 章までは要件の条文で、ファイルを引かない。 */
+const referencingDocs = [
+	[REQUIREMENTS, doc.slice(doc.indexOf("### 4.2"))],
+	...[...featureFiles, "README.md"].map((name) => {
+		const rel = `${FEATURES_DIR}/${name}`
+		return [rel, read(rel)]
+	}),
+]
+
+for (const [rel, body] of referencingDocs) {
+	for (const [, ref] of body.matchAll(FILE_REF)) {
+		if (!ref.includes("/")) {
+			// テスト以外の裸の名前は、本文で機能を指しているだけのことがある。
+			if (TEST_FILE.test(ref)) report(rel, `${ref} はディレクトリまで書く`)
+			continue
+		}
+		if (!existsSync(join(repoRoot, ref)) && !existsSync(join(repoRoot, "src", ref))) {
+			report(rel, `${ref} は存在しない`)
+		}
+	}
+}
+
+// 9. 要件定義書そのものの衝突の印
 if (/^(<{7}|={7}|>{7})( |$)/m.test(doc)) report(REQUIREMENTS, "解決し損ねた衝突の印が残っている")
 
 // --- 結果 ----------------------------------------------------------------

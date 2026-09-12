@@ -5,19 +5,19 @@
 
 ## 目的
 
-| 満たす要件                                                           | 内容                                                         |
-| -------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `FR-PROV-01` `FR-PROV-01a`                                           | 接続先を OpenAI 互換に限る。試験用の接続先を別に持つ         |
-| `FR-PROV-02` `FR-PROV-02a` `FR-PROV-02b`                             | 接続先の登録、プロファイルの切り替え、環境変数からの読み込み |
-| `FR-PROV-03` `FR-PROV-03a`                                           | Azure OpenAI と Azure AI Inference                           |
-| `FR-PROV-04` `FR-PROV-05`                                            | 追加のヘッダーと、ストリーミングの切り替え                   |
-| `FR-PROV-06` `FR-PROV-06a` `FR-PROV-07` `FR-PROV-07a`                | 推論の深さと Responses API                                   |
-| `FR-PROV-08`                                                         | 温度と、出力の上限を送るかどうか                             |
-| `FR-PROV-09` `FR-PROV-09a` `FR-PROV-09b` `FR-PROV-09c` `FR-PROV-09d` | 疎通の確認                                                   |
-| `FR-PROV-10`                                                         | トークンの消費量と費用の集計                                 |
-| `NFR-SEC-06` `NFR-SEC-07`                                            | API キーを SecretStorage へ置き、追加ヘッダーの値を伏せる    |
-| `NFR-USA-03` `NFR-USA-03a`                                           | 失敗したときに、送信した内容と次の操作を示す                 |
-| `NFR-CMP-01` `NFR-CMP-01a`                                           | 実装ごとの差を設定で吸収する                                 |
+| 満たす要件                                                           | 内容                                                      |
+| -------------------------------------------------------------------- | --------------------------------------------------------- |
+| `FR-PROV-01` `FR-PROV-01a`                                           | 接続先を OpenAI 互換に限る。試験用の接続先を別に持つ      |
+| `FR-PROV-02` `FR-PROV-02a`                                           | 接続先の登録と、プロファイルの切り替え                    |
+| `FR-PROV-03` `FR-PROV-03a`                                           | Azure OpenAI と Azure AI Inference                        |
+| `FR-PROV-04` `FR-PROV-05`                                            | 追加のヘッダーと、ストリーミングの切り替え                |
+| `FR-PROV-06` `FR-PROV-06a` `FR-PROV-07` `FR-PROV-07a`                | 推論の深さと Responses API                                |
+| `FR-PROV-08`                                                         | 温度と、出力の上限を送るかどうか                          |
+| `FR-PROV-09` `FR-PROV-09a` `FR-PROV-09b` `FR-PROV-09c` `FR-PROV-09d` | 疎通の確認                                                |
+| `FR-PROV-10`                                                         | トークンの消費量と費用の集計                              |
+| `NFR-SEC-06` `NFR-SEC-07`                                            | API キーを SecretStorage へ置き、追加ヘッダーの値を伏せる |
+| `NFR-USA-03` `NFR-USA-03a`                                           | 失敗したときに、送信した内容と次の操作を示す              |
+| `NFR-CMP-01` `NFR-CMP-01a`                                           | 実装ごとの差を設定で吸収する                              |
 
 ユースケースは UC-17（接続先を登録し、疎通を確かめる）。
 

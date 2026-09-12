@@ -1,6 +1,6 @@
 import * as path from "path"
 
-import { getGlobalAgentDirectory } from "../agent-config"
+import { getGlobalAgentDirectory, getGlobalAgentsDirectory } from "../agent-config"
 
 /**
  * 取得したスキルの置き場所（`FR-EXT-05e`）。
@@ -15,4 +15,14 @@ import { getGlobalAgentDirectory } from "../agent-config"
  */
 export function skillSourcesBaseDir(): string {
 	return path.join(getGlobalAgentDirectory(), "skill-sources")
+}
+
+/**
+ * ほかの AI コーディングツールと共有するスキルの置き場所（`FR-EXT-05f`）。
+ *
+ * ここへ複製すると、ほかのツールからも同じスキルが見える。**ほかのツールが置いた
+ * ものが同居している**ので、こちらが置いたものだけを目印で見分ける（`FR-EXT-05f2`）。
+ */
+export function sharedSkillsDir(): string {
+	return path.join(getGlobalAgentsDirectory(), "skills")
 }

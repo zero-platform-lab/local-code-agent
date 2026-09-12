@@ -4,6 +4,7 @@ import * as os from "os"
 import * as path from "path"
 import { promises as fs } from "fs"
 
+import { COPIED_MARKER } from "../skillSourceCopy"
 import { defaultDiscoveryDeps, findSkillSourceRoots } from "../skillSourceDiscovery"
 
 /** `{ "a/b": [".git", "skill"] }` の形で木を与える。 */
@@ -25,6 +26,19 @@ describe("findSkillSourceRoots", () => {
 		})
 
 		await expect(findSkillSourceRoots(BASE, deps)).resolves.toEqual([j("gitlab.example.com", "platform", "skills")])
+	})
+
+	it("複製した取得元は足さない（FR-EXT-05f1）", async () => {
+		const deps = treeDeps({
+			[BASE]: ["host-a", "host-b"],
+			[j("host-a")]: ["one"],
+			[j("host-a", "one")]: [".git", COPIED_MARKER, "review"],
+			[j("host-b")]: ["two"],
+			[j("host-b", "two")]: [".git", "deploy"],
+		})
+
+		// 足すと、複製した先と取得元の両方から同じスキルが見つかる。
+		await expect(findSkillSourceRoots(BASE, deps)).resolves.toEqual([j("host-b", "two")])
 	})
 
 	it("複数の取得元を集める", async () => {

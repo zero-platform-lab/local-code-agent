@@ -28,6 +28,15 @@ import type { WebviewMessageHost } from "../webviewMessageHost"
 // ---------------------------------------------------------------------------
 
 const {
+	showWarningMessageMock,
+	showInformationMessageMock,
+	showInputBoxMock,
+	fetchSkillSourceMock,
+	copySkillsToSharedMock,
+	removeCopiedSkillsMock,
+	clearCopiedMarkerMock,
+	storeSkillSourceCredentialsMock,
+	discoverSkillsMock,
 	getConfigurationMock,
 	configUpdateMock,
 	configGetMock,
@@ -51,16 +60,55 @@ const {
 	},
 	importSettingsWithFeedbackMock: vi.fn(async () => undefined),
 	exportSettingsMock: vi.fn(async () => undefined),
+	showWarningMessageMock: vi.fn(),
+	showInformationMessageMock: vi.fn(),
+	showInputBoxMock: vi.fn(async (..._args: unknown[]): Promise<string | undefined> => undefined),
+	fetchSkillSourceMock: vi.fn(),
+	copySkillsToSharedMock: vi.fn(
+		async (): Promise<{ copied: string[]; skipped: string[] }> => ({ copied: [], skipped: [] }),
+	),
+	removeCopiedSkillsMock: vi.fn(async (): Promise<string[]> => []),
+	clearCopiedMarkerMock: vi.fn(async () => undefined),
+	storeSkillSourceCredentialsMock: vi.fn(),
+	discoverSkillsMock: vi.fn(async () => undefined),
 }))
 
 // ConfigurationTarget.Global は数値の enum。実物と同じ 1 を使う。
 vi.mock("vscode", () => ({
 	workspace: { getConfiguration: getConfigurationMock },
-	window: { showErrorMessage: showErrorMessageMock },
+	window: {
+		showErrorMessage: showErrorMessageMock,
+		showWarningMessage: showWarningMessageMock,
+		showInformationMessage: showInformationMessageMock,
+		showInputBox: showInputBoxMock,
+	},
 	ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
 }))
 
-vi.mock("../../../i18n", () => ({ changeLanguage: changeLanguageMock }))
+// t は鍵をそのまま返す。文言ではなく「どの鍵を出したか」を見る。
+vi.mock("../../../i18n", () => ({
+	changeLanguage: changeLanguageMock,
+	t: (key: string, args?: Record<string, unknown>) => (args ? `${key}:${JSON.stringify(args)}` : key),
+}))
+
+vi.mock("../../../services/skills/skillSourceFetcher", () => ({ fetchSkillSource: fetchSkillSourceMock }))
+
+vi.mock("../../../services/skills/skillSourcePaths", () => ({
+	skillSourcesBaseDir: () => "/base/skill-sources",
+	sharedSkillsDir: () => "/base/shared/skills",
+}))
+
+vi.mock("../../../services/skills/skillSourceCopy", () => ({
+	copySkillsToShared: copySkillsToSharedMock,
+	removeCopiedSkills: removeCopiedSkillsMock,
+	clearCopiedMarker: clearCopiedMarkerMock,
+}))
+
+// credentialTargetForUrl は本物のまま。宛先の判定はこの層の分岐そのもの。
+vi.mock("../../../services/skills/skillSourceCredentials", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../services/skills/skillSourceCredentials")>()),
+	storeSkillSourceCredentials: storeSkillSourceCredentialsMock,
+}))
 
 vi.mock("../../../integrations/terminal/Terminal", () => ({ Terminal: terminalMock }))
 
@@ -122,6 +170,7 @@ function setup(options: SetupOptions = {}) {
 	const getCurrentTask = vi.fn(() => options.currentTask)
 	const getMcpHub = vi.fn(() => options.mcpHub)
 	const providerSettingsManager = { marker: "providerSettingsManager" }
+	const getSkillsManager = vi.fn(() => ({ discoverSkills: discoverSkillsMock }))
 
 	const provider = {
 		contextProxy: { getValue, setValue },
@@ -131,6 +180,7 @@ function setup(options: SetupOptions = {}) {
 		resetState,
 		getCurrentTask,
 		getMcpHub,
+		getSkillsManager,
 		providerSettingsManager,
 		log,
 	} as unknown as WebviewMessageHost
@@ -871,6 +921,241 @@ describe("settingsMessageHandlers", () => {
 			expect(h.resetState).toHaveBeenCalledOnce()
 			// リセットの範囲は provider 側の責務。ここから VSCode 設定は触らない。
 			expectNoVSCodeSettingWrite()
+		})
+	})
+})
+
+describe("スキルの取得元", () => {
+	const ok = (over: Record<string, unknown> = {}) => ({
+		ok: true,
+		directory: "/base/skill-sources/gitlab.example.com/platform/skills",
+		action: "cloned",
+		proxyIgnored: false,
+		...over,
+	})
+
+	describe("fetchSkillSource", () => {
+		it("押した行の値と置き場所を渡す（FR-EXT-05a FR-EXT-05e）", async () => {
+			const h = setup()
+			fetchSkillSourceMock.mockResolvedValue(ok())
+
+			await call("fetchSkillSource", h.provider, {
+				values: { url: "https://gitlab.example.com/a", proxyMode: "custom", proxyUrl: "socks5://p:1080" },
+			})
+
+			// 置き場所は `~/.agent/skills` ではない。手で置いたスキルと混ざらない。
+			expect(fetchSkillSourceMock).toHaveBeenCalledExactlyOnceWith({
+				url: "https://gitlab.example.com/a",
+				baseDir: "/base/skill-sources",
+				proxy: { mode: "custom", url: "socks5://p:1080" },
+			})
+		})
+
+		it("URL が壊れていても落ちない", async () => {
+			const h = setup()
+			fetchSkillSourceMock.mockResolvedValue({ ok: false, error: "だめ" })
+
+			await call("fetchSkillSource", h.provider, { values: { url: 42 } })
+
+			expect(fetchSkillSourceMock).toHaveBeenCalledExactlyOnceWith({
+				url: "",
+				baseDir: "/base/skill-sources",
+				proxy: { mode: undefined, url: undefined },
+			})
+		})
+
+		it.each([
+			["cloned", "common:skills.fetched"],
+			["updated", "common:skills.updated"],
+		])("%s のときは %s を出し、スキルを読み直す", async (action, key) => {
+			const h = setup()
+			fetchSkillSourceMock.mockResolvedValue(ok({ action }))
+
+			await call("fetchSkillSource", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(showInformationMessageMock).toHaveBeenCalledExactlyOnceWith(
+				`${key}:{"url":"https://gitlab.example.com/a"}`,
+			)
+			// 取得しただけでは画面に出ない。読み直して初めて一覧へ載る。
+			expect(discoverSkillsMock).toHaveBeenCalledOnce()
+			expect(h.postStateToWebview).toHaveBeenCalledOnce()
+		})
+
+		it("取得できなければ理由を出し、読み直さない", async () => {
+			const h = setup()
+			fetchSkillSourceMock.mockResolvedValue({ ok: false, error: "つながらない" })
+
+			await call("fetchSkillSource", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(showErrorMessageMock).toHaveBeenCalledExactlyOnceWith(
+				'common:skills.fetchFailed:{"error":"つながらない"}',
+			)
+			expect(discoverSkillsMock).not.toHaveBeenCalled()
+			expect(showInformationMessageMock).not.toHaveBeenCalled()
+		})
+
+		it("SSH で proxy が無視されたら、黙って進めない（FR-EXT-05b3）", async () => {
+			const h = setup()
+			fetchSkillSourceMock.mockResolvedValue(ok({ proxyIgnored: true }))
+
+			await call("fetchSkillSource", h.provider, { values: { url: "git@gitlab.example.com:a/b.git" } })
+
+			// 設定したのに効かない状態を切り分けられなくなる。
+			expect(showWarningMessageMock).toHaveBeenCalledExactlyOnceWith("common:skills.proxyIgnoredForSsh")
+			expect(showInformationMessageMock).toHaveBeenCalledOnce()
+		})
+	})
+
+	describe("複製", () => {
+		beforeEach(() => {
+			fetchSkillSourceMock.mockResolvedValue(ok())
+			copySkillsToSharedMock.mockResolvedValue({ copied: [], skipped: [] })
+			removeCopiedSkillsMock.mockResolvedValue([])
+		})
+
+		it("選んでいれば、取得した先から共有する場所へ複製する（FR-EXT-05f）", async () => {
+			const h = setup()
+			copySkillsToSharedMock.mockResolvedValue({ copied: ["review", "deploy"], skipped: [] })
+
+			await call("fetchSkillSource", h.provider, {
+				values: { url: "https://gitlab.example.com/a", copyToShared: true },
+			})
+
+			expect(copySkillsToSharedMock).toHaveBeenCalledExactlyOnceWith({
+				sourceDir: "/base/skill-sources/gitlab.example.com/platform/skills",
+				sharedDir: "/base/shared/skills",
+				url: "https://gitlab.example.com/a",
+			})
+			expect(showInformationMessageMock).toHaveBeenCalledWith('common:skills.copied:{"count":2}')
+			expect(removeCopiedSkillsMock).not.toHaveBeenCalled()
+		})
+
+		it("同じ名前が先にあったら、黙って飛ばさない（FR-EXT-05f2）", async () => {
+			const h = setup()
+			copySkillsToSharedMock.mockResolvedValue({ copied: [], skipped: ["review"] })
+
+			await call("fetchSkillSource", h.provider, {
+				values: { url: "https://gitlab.example.com/a", copyToShared: true },
+			})
+
+			// 黙って飛ばすと、複製したつもりで古い中身が使われる。
+			expect(showWarningMessageMock).toHaveBeenCalledExactlyOnceWith(
+				'common:skills.copySkipped:{"names":"review"}',
+			)
+		})
+
+		it("選んでいなければ、前に置いた複製を片づけて探索先へ戻す（FR-EXT-05f1）", async () => {
+			const h = setup()
+			removeCopiedSkillsMock.mockResolvedValue(["review"])
+
+			await call("fetchSkillSource", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(copySkillsToSharedMock).not.toHaveBeenCalled()
+			expect(removeCopiedSkillsMock).toHaveBeenCalledExactlyOnceWith({
+				sharedDir: "/base/shared/skills",
+				url: "https://gitlab.example.com/a",
+			})
+			expect(clearCopiedMarkerMock).toHaveBeenCalledExactlyOnceWith(
+				"/base/skill-sources/gitlab.example.com/platform/skills",
+			)
+			expect(showInformationMessageMock).toHaveBeenCalledWith('common:skills.copyRemoved:{"count":1}')
+		})
+
+		it("片づけるものが無ければ、その旨は出さない", async () => {
+			const h = setup()
+
+			await call("fetchSkillSource", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(clearCopiedMarkerMock).toHaveBeenCalledOnce()
+			expect(showInformationMessageMock).toHaveBeenCalledOnce()
+		})
+	})
+
+	describe("saveSkillSourceCredentials", () => {
+		it("SSH の取得元では聞かない。鍵は git と ssh が扱う", async () => {
+			const h = setup()
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: "git@gitlab.example.com:a/b.git" } })
+
+			expect(showWarningMessageMock).toHaveBeenCalledExactlyOnceWith("common:skills.credentialNotHttps")
+			expect(showInputBoxMock).not.toHaveBeenCalled()
+			expect(storeSkillSourceCredentialsMock).not.toHaveBeenCalled()
+		})
+
+		it("URL が文字列でなくても聞かない", async () => {
+			const h = setup()
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: 42 } })
+
+			expect(showInputBoxMock).not.toHaveBeenCalled()
+		})
+
+		it("値は拡張ホスト側で聞き、パスワードは伏せる（FR-EXT-06b）", async () => {
+			const h = setup()
+			showInputBoxMock.mockResolvedValueOnce("u").mockResolvedValueOnce("t0ken")
+			storeSkillSourceCredentialsMock.mockResolvedValue({ ok: true, host: "gitlab.example.com" })
+
+			await call("saveSkillSourceCredentials", h.provider, {
+				values: { url: "https://gitlab.example.com/platform/skills.git" },
+			})
+
+			expect(showInputBoxMock).toHaveBeenCalledTimes(2)
+			expect(showInputBoxMock.mock.calls[1][0]).toMatchObject({ password: true })
+			expect(storeSkillSourceCredentialsMock).toHaveBeenCalledExactlyOnceWith({
+				url: "https://gitlab.example.com/platform/skills.git",
+				username: "u",
+				password: "t0ken",
+			})
+			expect(showInformationMessageMock).toHaveBeenCalledExactlyOnceWith(
+				'common:skills.credentialSaved:{"host":"gitlab.example.com"}',
+			)
+		})
+
+		it.each([
+			["利用者名", [undefined]],
+			["パスワード", ["u", undefined]],
+		])("%s を空で閉じたら預けない", async (_label, answers) => {
+			const h = setup()
+			answers.forEach((answer) => showInputBoxMock.mockResolvedValueOnce(answer))
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(storeSkillSourceCredentialsMock).not.toHaveBeenCalled()
+		})
+
+		it.each([
+			["no-helper", "common:skills.credentialNoHelper"],
+			["unsafe-value", "common:skills.credentialUnsafeValue"],
+		])("%s は理由を出す", async (reason, key) => {
+			const h = setup()
+			showInputBoxMock.mockResolvedValueOnce("u").mockResolvedValueOnce("t0ken")
+			storeSkillSourceCredentialsMock.mockResolvedValue({ ok: false, reason })
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(showWarningMessageMock).toHaveBeenCalledExactlyOnceWith(key)
+		})
+
+		it("預けられなかったときは、返ってきた文字列をそのまま出す", async () => {
+			const h = setup()
+			showInputBoxMock.mockResolvedValueOnce("u").mockResolvedValueOnce("t0ken")
+			storeSkillSourceCredentialsMock.mockResolvedValue({ ok: false, reason: "failed", error: "だめ" })
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(showErrorMessageMock).toHaveBeenCalledExactlyOnceWith(
+				'common:skills.credentialFailed:{"error":"だめ"}',
+			)
+		})
+
+		it("理由に文字列が無くても出せる", async () => {
+			const h = setup()
+			showInputBoxMock.mockResolvedValueOnce("u").mockResolvedValueOnce("t0ken")
+			storeSkillSourceCredentialsMock.mockResolvedValue({ ok: false, reason: "failed" })
+
+			await call("saveSkillSourceCredentials", h.provider, { values: { url: "https://gitlab.example.com/a" } })
+
+			expect(showErrorMessageMock).toHaveBeenCalledExactlyOnceWith('common:skills.credentialFailed:{"error":""}')
 		})
 	})
 })

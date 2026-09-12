@@ -148,6 +148,8 @@ export const skillSourceSchema = z.object({
 	url: z.string(),
 	proxyMode: openAiProxyModeSchema.optional(),
 	proxyUrl: z.string().optional(),
+	/** ほかの AI コーディングツールと共有する場所へ複製する（`FR-EXT-05f`）。 */
+	copyToShared: z.boolean().optional(),
 })
 
 export type SkillSource = z.infer<typeof skillSourceSchema>

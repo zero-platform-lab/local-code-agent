@@ -7,7 +7,13 @@ import * as vscode from "vscode"
 
 import type { ProviderName } from "@openai-agent/types"
 
-import { importSettings, importSettingsFromFile, importSettingsWithFeedback, exportSettings } from "../importExport"
+import {
+	importSettings,
+	importSettingsFromFile,
+	importSettingsWithFeedback,
+	exportSettings,
+	stripSecretsForExport,
+} from "../importExport"
 import { ProviderSettingsManager } from "../ProviderSettingsManager"
 import { ContextProxy } from "../ContextProxy"
 import { safeWriteJson } from "../../../utils/safeWriteJson"
@@ -23,6 +29,7 @@ vi.mock("vscode", () => ({
 	window: {
 		showOpenDialog: vi.fn(),
 		showSaveDialog: vi.fn(),
+		showQuickPick: vi.fn(),
 		showErrorMessage: vi.fn(),
 		showInformationMessage: vi.fn(),
 		showWarningMessage: vi.fn(),
@@ -997,6 +1004,142 @@ describe("importExport", () => {
 	})
 
 	describe("exportSettings", () => {
+		// 既存の検証は「秘密を含めて書き出す」前提なので、既定でそちらを選んだことにする。
+		beforeEach(() => {
+			;(vscode.window.showQuickPick as Mock).mockResolvedValue({ includeSecrets: true })
+		})
+
+		const profilesWithSecrets = {
+			currentApiConfigName: "test",
+			apiConfigs: {
+				test: {
+					apiProvider: "openai" as ProviderName,
+					id: "test-id",
+					openAiApiKey: "sk-secret",
+					openAiBaseUrl: "http://llm:8000/v1",
+					openAiHeaders: { "X-Tenant": "acme", "X-Gateway-Token": "s3cret" },
+				},
+			},
+			migrations: { rateLimitSecondsMigrated: false },
+		}
+
+		it("秘密を含めるかを選ばずに閉じたら、保存ダイアログを出さない", async () => {
+			;(vscode.window.showQuickPick as Mock).mockResolvedValue(undefined)
+
+			await exportSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			expect(vscode.window.showSaveDialog).not.toHaveBeenCalled()
+			expect(safeWriteJson).not.toHaveBeenCalled()
+		})
+
+		it("含めないときは、API キーを落としヘッダーの値を空にする。名前は残す", async () => {
+			;(vscode.window.showQuickPick as Mock).mockResolvedValue({ includeSecrets: false })
+			;(vscode.window.showSaveDialog as Mock).mockResolvedValue({ fsPath: "/mock/path/agent-settings.json" })
+			mockProviderSettingsManager.export.mockResolvedValue(profilesWithSecrets)
+			mockContextProxy.export.mockResolvedValue({ mode: "code" })
+
+			await exportSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			const written = (safeWriteJson as Mock).mock.calls[0][1]
+			const config = written.providerProfiles.apiConfigs.test
+			expect(config.openAiApiKey).toBeUndefined()
+			expect(config.openAiHeaders).toEqual({ "X-Tenant": "", "X-Gateway-Token": "" })
+			// 秘密でない値は残す。
+			expect(config.openAiBaseUrl).toBe("http://llm:8000/v1")
+		})
+
+		it("含めないときは、平文の警告を出さない", async () => {
+			;(vscode.window.showQuickPick as Mock).mockResolvedValue({ includeSecrets: false })
+			;(vscode.window.showSaveDialog as Mock).mockResolvedValue({ fsPath: "/mock/path/agent-settings.json" })
+			mockProviderSettingsManager.export.mockResolvedValue(profilesWithSecrets)
+			mockContextProxy.export.mockResolvedValue({})
+
+			// 近くのテストが mockRestore を呼ぶため、ここでは spyOn で張り直す。
+			const warn = vi.spyOn(vscode.window, "showWarningMessage").mockResolvedValue(undefined)
+
+			await exportSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			expect(warn).not.toHaveBeenCalled()
+			warn.mockRestore()
+		})
+
+		it("含めたときは、平文で入っていることを警告する", async () => {
+			;(vscode.window.showSaveDialog as Mock).mockResolvedValue({ fsPath: "/mock/path/agent-settings.json" })
+			mockProviderSettingsManager.export.mockResolvedValue(profilesWithSecrets)
+			mockContextProxy.export.mockResolvedValue({})
+
+			const warn = vi.spyOn(vscode.window, "showWarningMessage").mockResolvedValue(undefined)
+
+			await exportSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			expect(warn).toHaveBeenCalled()
+			warn.mockRestore()
+
+			const written = (safeWriteJson as Mock).mock.calls[0][1]
+			expect(written.providerProfiles.apiConfigs.test.openAiApiKey).toBe("sk-secret")
+		})
+
+		it("プロファイルが取れないときは、落とす処理へ渡さずそのまま終わる", async () => {
+			;(vscode.window.showQuickPick as Mock).mockResolvedValue({ includeSecrets: false })
+			;(vscode.window.showSaveDialog as Mock).mockResolvedValue({ fsPath: "/mock/path/agent-settings.json" })
+			;(mockProviderSettingsManager.export as Mock).mockResolvedValue(undefined)
+			mockContextProxy.export.mockResolvedValue({})
+
+			await exportSettings({
+				providerSettingsManager: mockProviderSettingsManager,
+				contextProxy: mockContextProxy,
+			})
+
+			expect(safeWriteJson).not.toHaveBeenCalled()
+		})
+
+		describe("stripSecretsForExport", () => {
+			it("ヘッダーを持たないプロファイルはそのまま返す", () => {
+				const profiles = {
+					currentApiConfigName: "a",
+					apiConfigs: { a: { apiProvider: "openai" as ProviderName, id: "a", openAiApiKey: "sk-1" } },
+					migrations: { rateLimitSecondsMigrated: false },
+				}
+
+				const stripped = stripSecretsForExport(profiles)
+
+				expect(stripped.apiConfigs.a.openAiApiKey).toBeUndefined()
+				expect(stripped.apiConfigs.a.openAiHeaders).toBeUndefined()
+			})
+
+			it("元のプロファイルを書き換えない", () => {
+				const profiles = {
+					currentApiConfigName: "a",
+					apiConfigs: {
+						a: {
+							apiProvider: "openai" as ProviderName,
+							id: "a",
+							openAiApiKey: "sk-1",
+							openAiHeaders: { "X-A": "v" },
+						},
+					},
+					migrations: { rateLimitSecondsMigrated: false },
+				}
+
+				stripSecretsForExport(profiles)
+
+				expect(profiles.apiConfigs.a.openAiApiKey).toBe("sk-1")
+				expect(profiles.apiConfigs.a.openAiHeaders).toEqual({ "X-A": "v" })
+			})
+		})
+
 		it("should not export settings when user cancels file selection", async () => {
 			;(vscode.window.showSaveDialog as Mock).mockResolvedValue(undefined)
 

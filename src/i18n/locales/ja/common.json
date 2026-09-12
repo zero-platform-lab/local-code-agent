@@ -166,7 +166,16 @@
 		"task_placeholder": "タスクをここに入力してください"
 	},
 	"settings": {
-		"providers": {}
+		"providers": {},
+		"export": {
+			"title": "設定の書き出し",
+			"placeHolder": "API キーを含めるかを選んでください",
+			"withoutSecrets": "API キーを含めない（推奨）",
+			"withoutSecretsDetail": "API キーを取り除き、追加ヘッダーの値を空にします。ヘッダーの名前は残します。",
+			"withSecrets": "API キーを含める",
+			"withSecretsDetail": "書き出したファイルに、API キーと追加ヘッダーの値が平文で入ります。",
+			"containsSecrets": "書き出したファイルに API キーが平文で入っています。鍵そのものと同じ扱いをしてください。"
+		}
 	},
 	"customModes": {
 		"errors": {

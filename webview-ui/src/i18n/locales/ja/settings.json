@@ -681,7 +681,10 @@
 			"fetch": "取得する",
 			"remove": "取り除く",
 			"sshIgnoresProxy": "SSH の URL です。proxy の設定は効きません。git が SSH でつなぎます。",
-			"proxyDescription": "この取得元で使う proxy。"
+			"proxyDescription": "この取得元で使う proxy。",
+			"credentials": "資格情報を預ける",
+			"copyToShared": "ほかのツールと共有する場所へ複製する",
+			"copyToSharedDescription": "~/.agents/skills へ複製します。同じ名前のものが既にあれば触りません。複製した取得元は、二重に並ばないよう探索先から外れます。"
 		}
 	}
 }

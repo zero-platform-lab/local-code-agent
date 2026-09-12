@@ -1,6 +1,8 @@
 import * as path from "path"
 import { promises as fs } from "fs"
 
+import { COPIED_MARKER } from "./skillSourceCopy"
+
 /**
  * 取得済みのスキルの取得元を、ディスクから見つける（`FR-EXT-05e`）。
  *
@@ -51,7 +53,11 @@ export async function findSkillSourceRoots(baseDir: string, deps: Deps = default
 		if (entries.length === 0) return
 
 		if (entries.includes(".git")) {
-			roots.push(dirPath)
+			// 複製した取得元は足さない（`FR-EXT-05f1`）。足すと、複製した先と取得元の
+			// 両方から同じスキルが見つかり、一覧に二重に並ぶ。
+			if (!entries.includes(COPIED_MARKER)) {
+				roots.push(dirPath)
+			}
 			return
 		}
 

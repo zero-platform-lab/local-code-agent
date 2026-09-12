@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react"
-import { Plus, Trash2, Download } from "lucide-react"
+import { Plus, Trash2, Download, KeyRound } from "lucide-react"
+import { Checkbox } from "vscrui"
 import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 
 import type { OpenAiProxyMode, SkillSource } from "@openai-agent/types"
@@ -51,6 +52,12 @@ export const SkillSourcesSettings = ({ skillSources, setSkillSources }: SkillSou
 		vscode.postMessage({ type: "fetchSkillSource", values: { ...source } })
 	}, [])
 
+	// 資格情報は URL だけ送って、値は拡張ホスト側で聞く（`FR-EXT-06b`）。
+	// webview を経由すると、渡す経路が 1 つ増える。
+	const askCredentials = useCallback((url: string) => {
+		vscode.postMessage({ type: "saveSkillSourceCredentials", values: { url } })
+	}, [])
+
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex justify-between items-center">
@@ -93,6 +100,17 @@ export const SkillSourcesSettings = ({ skillSources, setSkillSources }: SkillSou
 										<Download />
 									</Button>
 								</StandardTooltip>
+								{ssh ? null : (
+									<StandardTooltip content={t("settings:skills.sources.credentials")}>
+										<Button
+											variant="secondary"
+											className="py-1"
+											onClick={() => askCredentials(source.url)}
+											data-testid={`skill-source-credentials-${index}`}>
+											<KeyRound />
+										</Button>
+									</StandardTooltip>
+								)}
 								<StandardTooltip content={t("settings:skills.sources.remove")}>
 									<Button
 										variant="secondary"
@@ -111,6 +129,16 @@ export const SkillSourcesSettings = ({ skillSources, setSkillSources }: SkillSou
 									{t("settings:skills.sources.sshIgnoresProxy")}
 								</div>
 							) : null}
+
+							<Checkbox
+								checked={source.copyToShared === true}
+								onChange={(checked: boolean) => update(index, { copyToShared: checked })}
+								data-testid={`skill-source-copy-${index}`}>
+								{t("settings:skills.sources.copyToShared")}
+							</Checkbox>
+							<div className="text-sm text-vscode-descriptionForeground ml-6">
+								{t("settings:skills.sources.copyToSharedDescription")}
+							</div>
 
 							<ProxySettingsControl
 								mode={source.proxyMode}

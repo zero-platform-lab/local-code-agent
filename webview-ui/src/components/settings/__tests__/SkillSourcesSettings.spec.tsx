@@ -111,6 +111,51 @@ describe("SkillSourcesSettings", () => {
 		expect(postMessage).not.toHaveBeenCalled()
 	})
 
+	it("複製するかを取得元ごとに選べる（FR-EXT-05f）", () => {
+		const setSkillSources = renderWith([{ url: "https://host/a" }])
+
+		fireEvent.click(screen.getByTestId("skill-source-copy-0"))
+
+		expect(setSkillSources).toHaveBeenCalledWith([{ url: "https://host/a", copyToShared: true }])
+	})
+
+	it("複製を取り消せる", () => {
+		const setSkillSources = renderWith([{ url: "https://host/a", copyToShared: true }])
+
+		fireEvent.click(screen.getByTestId("skill-source-copy-0"))
+
+		expect(setSkillSources).toHaveBeenCalledWith([{ url: "https://host/a", copyToShared: false }])
+	})
+
+	it("複製するかも、押した行の値として送る", () => {
+		renderWith([{ url: "https://host/a", copyToShared: true }])
+
+		fireEvent.click(screen.getByTestId("skill-source-fetch-0"))
+
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "fetchSkillSource",
+			values: { url: "https://host/a", copyToShared: true },
+		})
+	})
+
+	it("資格情報は URL だけ送る。値は拡張ホスト側で聞く（FR-EXT-06b）", () => {
+		renderWith([{ url: "https://host/a", proxyMode: "custom", proxyUrl: "socks5://p:1080" }])
+
+		fireEvent.click(screen.getByTestId("skill-source-credentials-0"))
+
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "saveSkillSourceCredentials",
+			values: { url: "https://host/a" },
+		})
+	})
+
+	it("SSH の取得元では資格情報を預けさせない", () => {
+		// 鍵は git と ssh が扱う。預ける値が無い。
+		renderWith([{ url: "git@host:a/b.git" }])
+
+		expect(screen.queryByTestId("skill-source-credentials-0")).not.toBeInTheDocument()
+	})
+
 	it("SSH の取得元では proxy を選ばせず、効かない旨を出す（FR-UI-29a）", () => {
 		renderWith([{ url: "git@host:a/b.git", proxyMode: "custom", proxyUrl: "socks5://p:1080" }])
 

@@ -357,6 +357,7 @@ export interface WebviewMessage {
 		| "requestOpenAiModels"
 		| "testApiConnection"
 		| "fetchSkillSource"
+		| "saveSkillSourceCredentials"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

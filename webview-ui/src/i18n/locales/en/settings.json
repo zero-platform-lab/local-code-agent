@@ -154,7 +154,10 @@
 			"fetch": "Fetch",
 			"remove": "Remove",
 			"sshIgnoresProxy": "This is an SSH URL. The proxy setting does not apply; git connects over SSH.",
-			"proxyDescription": "Proxy used when fetching this source."
+			"proxyDescription": "Proxy used when fetching this source.",
+			"credentials": "Store credentials",
+			"copyToShared": "Copy to the location shared with other tools",
+			"copyToSharedDescription": "Copies into ~/.agents/skills. Existing skills with the same name are left alone. A copied source is dropped from the scan list so skills are not listed twice."
 		}
 	},
 	"ui": {

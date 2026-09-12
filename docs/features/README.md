@@ -79,7 +79,7 @@
 | 自律モード             | 4    | `packages/types/src/autonomy.ts` の `autonomyModes`                   |
 | 既定で拒否するコマンド | 18   | `packages/types/src/autonomy.ts` の `DEFAULT_DENIED_COMMANDS`         |
 | プロバイダ設定のキー   | 28   | `packages/types/src/provider-settings.ts` の `providerSettingsSchema` |
-| グローバル設定のキー   | 75   | `packages/types/src/global-settings.ts`                               |
+| グローバル設定のキー   | 73   | `packages/types/src/global-settings.ts`                               |
 | VS Code の設定のキー   | 17   | `src/package.json` の `contributes.configuration`                     |
 | コマンド               | 23   | `src/package.json` の `contributes.commands`                          |
 | キーバインド           | 3    | `src/package.json` の `contributes.keybindings`                       |

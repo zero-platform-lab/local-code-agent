@@ -130,14 +130,9 @@ export const webviewMessageHandler = async (provider: WebviewMessageHost, messag
 			// "codebaseIndexEnabled" |
 			// "enhancedPrompt" |
 			// "systemPrompt" |
-			// "exportModeResult" |
-			// "importModeResult" |
-			// "checkRulesDirectoryResult" |
-			// "browserConnectionResult" |
 			// "vsCodeSetting" |
 			// "indexingStatusUpdate" |
 			// "indexCleared" |
-			// "shareTaskSuccess" |
 			// "draggedImages" |
 			// "setApiConfigPassword" |
 			// "setopenAiCustomModelInfo"

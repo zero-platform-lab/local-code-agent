@@ -62,11 +62,11 @@
 
 ## 確かめ方
 
-| 何を                     | どこで                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------- |
-| 範囲の逸脱とリンクの拒否 | `src/services/command/__tests__/commands.pathTraversal.spec.ts`、`symlink-commands.spec.ts` |
-| スキルの探索と名前の検証 | `src/services/skills/__tests__/SkillsManager.spec.ts`                                       |
-| 規則の読み込み           | `src/core/prompts/sections/__tests__/custom-instructions.spec.ts`                           |
+| 何を                     | どこで                                                                                                                     |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 範囲の逸脱とリンクの拒否 | `src/services/command/__tests__/commands.pathTraversal.spec.ts`、`src/services/command/__tests__/symlink-commands.spec.ts` |
+| スキルの探索と名前の検証 | `src/services/skills/__tests__/SkillsManager.spec.ts`                                                                      |
+| 規則の読み込み           | `src/core/prompts/sections/__tests__/custom-instructions.spec.ts`                                                          |
 
 ## できていないこと
 

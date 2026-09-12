@@ -155,6 +155,12 @@ const counters = {
 		return (source.slice(at, close).match(/\{ id: "\w+"/g) ?? []).length
 	},
 	実験的な機能: () => countStrings(arrayLiteralAfter(read("packages/types/src/experiment.ts"), "experimentIds")),
+	品質ゲートの段: () => {
+		// `--strict` のときだけ走る install は数えない。`NFR-MNT-01a` が並べるのは
+		// 毎回走る段である。段を足したら件数が合わなくなり、条文へ戻される。
+		const steps = read("scripts/ci-local.sh").match(/^\s*run_step "[^"]+"/gm) ?? []
+		return steps.filter((line) => !line.includes("--frozen-lockfile")).length
+	},
 	プロバイダ設定のキー: () => {
 		// `providerSettingsSchema` は複数のスキーマの shape を広げて作る。
 		// 広げる先を 1 つずつ数えて、重複を除いた数を返す。

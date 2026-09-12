@@ -75,6 +75,18 @@ describe("TaskPiiMasker", () => {
 		expect(masker.restoreExplicitly("{{email-001}}")).toBe("taro@corp.example")
 	})
 
+	it("切り替えを切ったあとでも、ツールの引数は戻す", async () => {
+		const settings: { enabled: boolean; kinds: string[] } = { enabled: true, kinds: ["email"] }
+		const masker = new TaskPiiMasker(() => settings as never)
+		await masker.maskForRequest("", [message("taro@corp.example")])
+
+		// モデルの文脈には割り当て済みの伏せ字が残っている。切ったことを理由に戻さないと、
+		// 伏せ字がそのままファイルへ書かれる。
+		settings.enabled = false
+
+		expect(masker.unmask('{"content":"{{email-001}}"}')).toBe('{"content":"taro@corp.example"}')
+	})
+
 	it("切り替えを切ったあとでも、割り当て済みなら戻せる", async () => {
 		const settings: { enabled: boolean; restore?: boolean; kinds: string[] } = { enabled: true, kinds: ["email"] }
 		const masker = new TaskPiiMasker(() => settings as never)

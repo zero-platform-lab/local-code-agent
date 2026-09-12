@@ -76,13 +76,16 @@ describe("registerPiiCommands", () => {
 		expect(mocks.restoreSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(unmask)
 	})
 
-	it("会話が無ければ、戻し方を渡さない（FR-PII-20b）", () => {
+	it("会話が無ければ、戻し方も対応表も渡さない（FR-PII-20b）", () => {
 		const { handlerFor } = setup()
 
 		handlerFor("restoreSecretsInFile")()
+		handlerFor("maskSecretsInFile")()
 
 		// 対応表が無いことは、戻す側が利用者へ伝える。
 		expect(mocks.restoreSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(undefined)
+		// 会話が無ければ、その場限りの番号で振る。
+		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith({}, undefined)
 	})
 
 	it("Disposable を全部 subscriptions へ載せる", () => {
@@ -92,8 +95,27 @@ describe("registerPiiCommands", () => {
 		expect(subscriptions).toHaveLength(4)
 	})
 
+	it("ファイルの置き換えは、設定と会話の対応表を渡す", () => {
+		const allocator = { assign: vi.fn(), table: new Map() }
+		const settings = { dictionaryPaths: ["/w/dict.txt"] }
+		const subscriptions: { dispose: () => void }[] = []
+		registerPiiCommands(
+			{ subscriptions } as unknown as vscode.ExtensionContext,
+			() => settings,
+			() => undefined,
+			() => allocator,
+		)
+
+		const handler = mocks.registerCommand.mock.calls.find(
+			([name]) => name === `${Package.name}.maskSecretsInFile`,
+		)?.[1] as () => unknown
+		handler()
+
+		// 番号の場所を分けると、同じ形の伏せ字が別の値を指す。
+		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(settings, allocator)
+	})
+
 	it.each([
-		["maskSecretsInFile", () => mocks.maskSecretsInActiveEditor],
 		["addToDictionary", () => mocks.addSelectionToDictionary],
 		["exportDictionary", () => mocks.exportDictionary],
 	])("%s は、呼ばれた時点の設定を渡す", (id, target) => {

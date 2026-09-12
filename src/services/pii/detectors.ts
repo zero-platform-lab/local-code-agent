@@ -21,7 +21,7 @@ import type { PiiMatch, PiiTerm } from "./types"
  * 誤って伏せるとモデルが読む内容が変わる。本文も書き換えない。位置を返すだけで、伏せ字の
  * 割り当ては `maskText` が行う。分けておくと、検出だけを本文なしで確かめられる。
  *
- * **誤って伏せないことを、伏せることと同じ重さで扱う。** 検査や語で絞っているのは全て
+ * **誤って伏せないことを重く扱う。** 伏せることと同じ重さである。 検査や語で絞っているのは全て
  * そのためである。取りこぼしは利用者が挙げる語で補えるが、誤検出は補えない。
  */
 
@@ -282,7 +282,7 @@ function labelPattern(label: string): string {
 /**
  * 鍵の値。
  *
- * **引用符で囲まれているか、数字を含むものだけを採る。** そうしないと、
+ * **引用符か数字を要求する。** どちらも無いものは採らない。 そうしないと、
  * `const apiKey = defaultApiKey` の `defaultApiKey` のような普通の識別子まで伏せる。
  * モデルへ渡すコードの識別子が `{{secret-001}}` に変わり、参照の関係が読めなくなる。
  *
@@ -302,7 +302,7 @@ const SECRET_VALUE =
  * 組み立てた正規表現を覚えておく。
  *
  * **要求のたびに組み直さない。** 会話の item ごと、語ごとに `new RegExp` を作ると、
- * 辞書が 300 語で履歴が 200 件なら 1 回の要求で 6 万回になる。送信の直前に同期で走るので、
+ * 辞書が 300 語で履歴が 200 件なら 1 回の要求で 6 万回になる。送信の直前に同期で実行されるので、
  * そのぶん待たされる。
  *
  * 上限を決めて、越えたら捨てる。設定を変えながら長く使っても際限なく増えない。
@@ -389,29 +389,35 @@ export function detectZipCodes(text: string): PiiMatch[] {
  * 地名の一覧は同梱する（`FR-PII-13b`）。照合のために外部へ取得しに行くのは本末転倒である。
  */
 /**
- * 地名の見出し。`[都道府県市区町村]` で終わる 1〜8 文字を候補として拾い、一覧と突き合わせる。
+ * 地名の見出しの候補。`[都道府県市区町村]` で終わる並びを貪欲に取り、一覧と突き合わせる。
  *
- * **8 文字は、いちばん長い市区町村名に合わせた上限である。** 短く取る（`?`）ので、
- * 「東京都渋谷区」からはまず「東京都」が出る。本文の全体に 1,800 語の正規表現を照合せず、
- * 候補の位置だけを集合で引ける。
+ * **貪欲に取る。** 短く取ると、名前の途中に `市` や `町` を含む地名（`四日市市`
+ * `野々市市` `東村山市`）へ二度と届かない。短い側で一覧に当たらず、次の照合はその先から
+ * 始まるためである。長く取ってから、前から順に一覧へ当てる。
  */
-const PLACE_HEAD = /[぀-ヿ一-鿿ー々ヶケ]{1,8}?[都道府県市区町村]/g
+const PLACE_HEAD = /[぀-ヿ一-鿿ー々ヶケ]{1,9}[都道府県市区町村]/g
+
+/** 町域。**ひらがなは `の` だけ許す。** 許すと「の面積は」のような文がそのまま入る。 */
+const CHO = String.raw`[一-鿿ー々ヶケァ-ヿA-Za-z0-9０-９の]{0,12}`
+
+/** 番地。3 つ以上に区切る形、2 つに区切る形、丁目番号の形。 */
+const BANCHI_MULTI = String.raw`[0-9０-９]+(?:[-‐−ー－][0-9０-９]+){2,}`
+const BANCHI_TWO = String.raw`[0-9０-９]+[-‐−ー－][0-9０-９]+`
+const BANCHI_MARK = String.raw`[0-9０-９]+[丁目番地号][0-9０-９丁目番地号ー－‐−-]*`
 
 /**
- * 番地。
+ * 町域と番地。
  *
- * **番地の形を要求する。** 「まず数字が来るまで」で採ると、地名のあとの普通の文章まで
- * 飲み込む（「東京都の人口は 1400 万人です」が丸ごと住所になる）。裸の数字は番地では
- * ないので、`1-2-3` の形か `1丁目2番3号` の形だけを採る。
- *
- * 町域（`神南` `丸の内`）は 12 文字までとし、番地との間に空白を 1 つだけ許す。全角の
- * 空白は `\u3000` で書く。ソースへ直接置くと読む人に見えない。
+ * **離れている場合は強く要求する。** 空白を挟むときの話である。 離れていると町域ではなく文の続き
+ * である見込みが高い（「中央区の面積は 1-2 です」）。続けて書いてあるときだけ、2 つに
+ * 区切る番地（`銀座1-2`）を認める。
  */
-const ADDRESS_TAIL =
-	/^[぀-ヿ一-鿿ー々ヶケA-Za-z0-9０-９の]{0,12}[ \u3000]?(?<banchi>(?:[0-9０-９]+(?:[-‐−ー－][0-9０-９]+)+|[0-9０-９]+[丁目番地号][0-9０-９丁目番地号ー－‐−-]*))/
+const ADDRESS_TAIL = new RegExp(
+	String.raw`^(?:${CHO}(?<b1>${BANCHI_MULTI}|${BANCHI_TWO}|${BANCHI_MARK})|${CHO}[ \u3000](?<b2>${BANCHI_MULTI}|${BANCHI_MARK}))`,
+)
 
 /**
- * 日付や年度の範囲。番地と同じ `N-N-N` の形になるので、番地として採らない。
+ * 日付や年度の範囲。番地と同じ形になるので、番地として採らない。
  *
  * 「南区のテスト 2024-01-02 に実施」が丸ごと住所になると、モデルは日付を読めなくなる。
  */
@@ -419,23 +425,46 @@ const DATE_LIKE = /^(?:\d{4}[-‐−ー－]\d{1,2}[-‐−ー－]\d{1,2}|\d{4}[-
 
 export function detectAddresses(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []
-	for (const head of text.matchAll(PLACE_HEAD)) {
-		const name = head[0]
-		if (!PLACE_NAMES.has(name)) continue
+
+	PLACE_HEAD.lastIndex = 0
+	let head: RegExpExecArray | null
+	while ((head = PLACE_HEAD.exec(text)) !== null) {
+		// 長く取った候補を、前から順に一覧へ当てる。`四日市市石原町` からは `四日市市`。
+		let name: string | undefined
+		for (let length = head[0].length; length >= 1; length--) {
+			const candidate = head[0].slice(0, length)
+			if (PLACE_NAMES.has(candidate)) {
+				name = candidate
+				break
+			}
+		}
+
+		if (name === undefined) {
+			PLACE_HEAD.lastIndex = head.index + 1
+			continue
+		}
 
 		const start = head.index
-		const rest = text.slice(start + name.length)
-		// 数字へ届く前に文が終わっていれば住所ではない。`ADDRESS_TAIL` は数字を必須に
-		// しているので、一致しなければその並びは住所ではない。
-		const tail = ADDRESS_TAIL.exec(rest)
-		if (!tail) continue
+		const tail = ADDRESS_TAIL.exec(text.slice(start + name.length))
+		// 番地へ届かなければ住所ではない（`FR-PII-13c`）。
+		if (!tail) {
+			PLACE_HEAD.lastIndex = start + name.length
+			continue
+		}
 
-		// 日付は番地ではない。`banchi` は正規表現が必ず捉えるので、無い場合は考えない。
-		if (DATE_LIKE.test(tail.groups!.banchi)) continue
+		// 日付は番地ではない。
+		const banchi = tail.groups?.b1 ?? tail.groups?.b2 ?? ""
+		if (DATE_LIKE.test(banchi)) {
+			PLACE_HEAD.lastIndex = start + name.length
+			continue
+		}
 
 		const body = tail[0].replace(/\s+$/, "")
-		matches.push({ kind: "address", start, end: start + name.length + body.length, value: name + body })
+		const end = start + name.length + body.length
+		matches.push({ kind: "address", start, end, value: text.slice(start, end) })
+		PLACE_HEAD.lastIndex = end
 	}
+
 	return matches
 }
 
@@ -457,7 +486,7 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 		const needle = term.value.trim()
 		if (needle.length === 0) continue
 
-		// **小文字に直した文字列の索引を、元の文字列へ当てない。** `İ` のように小文字に
+		// **小文字の索引を借りない。** 元の文字列とずれる。 `İ` のように小文字に
 		// すると長さが変わる文字があり、そこから先の位置が全部ずれる。伏せる範囲が
 		// 1 文字ずれ、伏せ残しが出て、対応表にも切れた値が入る。
 		// 正規表現の `i` を使えば、索引は元の文字列のものになる。

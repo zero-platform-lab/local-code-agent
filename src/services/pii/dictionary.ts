@@ -42,7 +42,7 @@ const KINDS: Record<string, PiiTerm["kind"]> = {
  */
 export function decodeText(bytes: Uint8Array): string {
 	try {
-		// `TextDecoder` は既定で BOM を落とすので、1 語目の先頭に BOM は残らない。
+		// `TextDecoder` は既定で BOM を除くので、1 語目の先頭に BOM は残らない。
 		return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
 	} catch {
 		return new TextDecoder("shift_jis").decode(bytes)
@@ -123,7 +123,7 @@ export type DictionaryResult = {
 /**
  * 辞書をまとめて読む。
  *
- * **読めない辞書があっても、ほかの種類の置き換えは続ける**（`FR-PII-03d`）。辞書が
+ * **読めない辞書があっても続ける** ほかの種類の置き換えは止めない。（`FR-PII-03d`）。辞書が
  * 無いことを理由に、メールアドレスの伏せ字まで止めない。読めなかったことは呼び出し側へ
  * 返して、利用者へ示す。
  */
@@ -133,7 +133,7 @@ export type DictionaryResult = {
  * **`~` を展開する。** 設定の画面が `~/.agent/pii-dictionary.txt` を例示するので、その
  * とおりに書いた利用者の辞書が読めないと、伏せているつもりで素通りする。
  *
- * **空の行は落とす。** 画面の「辞書を足す」は空のパスを積むので、そのまま読むと毎回
+ * **空の行は除く。** 画面の「辞書を足す」は空のパスを積むので、そのまま読むと毎回
  * 失敗の警告が出る。
  */
 export function resolveDictionaryPath(raw: string): string | undefined {

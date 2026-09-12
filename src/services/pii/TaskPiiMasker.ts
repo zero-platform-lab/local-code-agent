@@ -132,7 +132,7 @@ export class TaskPiiMasker {
 	 * 文の手直しのように、会話とは別に 1 往復するときに実行する。対応表は同じものを使うので、
 	 * 会話で割り当てた伏せ字と食い違わない。
 	 *
-	 * **戻す側は `restore` の設定に従わない。** 返ってきた文は利用者の入力欄へ戻るので、
+	 * **戻す側は設定に従わない。** 返ってきた文は利用者の入力欄へ戻るので、
 	 * 伏せ字のままでは読めない。
 	 */
 	async maskPrompt(text: string): Promise<{ text: string; restore: (text: string) => string }> {
@@ -151,7 +151,11 @@ export class TaskPiiMasker {
 	 * 伏せ字をそのまま残したい。
 	 */
 	unmask(text: string): string {
-		return this.enabled && this.restores ? this.vault.restore(text) : text
+		// **いま入っているかで判断しない。** 切り替えを切ったあとでも、モデルの文脈には
+		// 割り当て済みの伏せ字が残っている。切ったことを理由に戻さないと、`{{email-001}}`
+		// という文字列がそのままファイルへ書かれる。戻すのは割り当てたものだけなので
+		// （`FR-PII-08a`）、入っていなくても安全である。
+		return this.restores ? this.vault.restore(text) : text
 	}
 
 	/**
@@ -175,6 +179,15 @@ export class TaskPiiMasker {
 		const taken = this.troubles
 		this.troubles = []
 		return taken
+	}
+
+	/**
+	 * 番号を振る係。ファイルの置き換えでも同じものを使う。
+	 *
+	 * 分けると、同じ形の伏せ字が別の値を指すことになる。
+	 */
+	get allocator(): PiiVault {
+		return this.vault
 	}
 
 	/** これまでに伏せた値の数。0 のまま進んでいれば、設定が効いていない。 */

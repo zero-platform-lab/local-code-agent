@@ -55,6 +55,7 @@ vi.mock("../../../i18n", () => ({
 	t: (key: string, args?: Record<string, unknown>) => (args ? `${key}:${JSON.stringify(args)}` : key),
 }))
 
+import { createAllocator } from "../maskText"
 import { describeCounts, maskSecretsInActiveEditor, restoreSecretsInActiveEditor } from "../maskEditor"
 
 const editorWith = (text: string, selection?: { start: number; end: number }) => ({
@@ -130,6 +131,20 @@ describe("maskSecretsInActiveEditor", () => {
 		expect(mocks.showInformationMessage).toHaveBeenCalledWith(
 			'common:pii.replaced:{"summary":"common:pii.kind.email 2"}',
 		)
+	})
+
+	it("会話の対応表を渡すと、その続きから番号を振る", async () => {
+		const allocator = createAllocator()
+		// 会話の側で 001 を別の値へ割り当て済み、という状況。
+		allocator.assign("email", "alice@corp.example")
+		mocks.activeTextEditor = editorWith("taro@corp.example")
+		answerConfirm()
+
+		await maskSecretsInActiveEditor({ kinds: ["email"] }, allocator)
+
+		// 分けると、同じ形の伏せ字が別の値を指す。
+		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
+		expect(edit.replacements[0].text).toBe("{{email-002}}")
 	})
 
 	it("選択している範囲があれば、その中だけを対象にする（FR-PII-11a）", async () => {
@@ -239,17 +254,15 @@ describe("restoreSecretsInActiveEditor（FR-PII-20）", () => {
 		expect(mocks.showInformationMessage).toHaveBeenCalledWith("common:pii.restored")
 	})
 
-	it("戻す間にファイルが変わったら当てない", async () => {
+	it("置き換える範囲は、いまの文書の終わりまでにする", async () => {
 		const editor = editorWith("宛先は {{email-001}}")
 		mocks.activeTextEditor = editor
-		// 文書の全体を写しで置き換えるので、間に入った編集ごと巻き戻してしまう。
-		await restoreSecretsInActiveEditor((text: string) => {
-			editor.document.version = 2
-			return text.replace("{{email-001}}", "taro@corp.example")
-		})
 
-		expect(mocks.applyEdit).not.toHaveBeenCalled()
-		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.documentChanged")
+		await restoreSecretsInActiveEditor(unmask)
+
+		// 写しの長さで測ると、間に入った編集の分だけ足りず、末尾が二重になる。
+		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
+		expect(edit.replacements[0].range).toMatchObject({ end: { offset: "宛先は {{email-001}}".length } })
 	})
 
 	it("当てられなかったら黙らせない", async () => {

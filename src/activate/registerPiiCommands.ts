@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
 
 import { getPiiCommand } from "../utils/commands"
+import type { PlaceholderAllocator } from "../services/pii/maskText"
 import {
 	maskSecretsInActiveEditor,
 	restoreSecretsInActiveEditor,
@@ -26,10 +27,17 @@ export const registerPiiCommands = (
 	readSettings: () => MaskEditorSettings,
 	/** いま動いているタスクの戻し方。会話が無ければ `undefined`（`FR-PII-20b`）。 */
 	getUnmask: () => ((text: string) => string) | undefined = () => undefined,
+	/**
+	 * いま動いているタスクの対応表。ファイルの置き換えでも同じ番号の場所を使う。
+	 *
+	 * 分けると、この操作で付けた伏せ字と会話の伏せ字が同じ形になり、あとで別人の値が
+	 * 書き込まれる。
+	 */
+	getAllocator: () => PlaceholderAllocator | undefined = () => undefined,
 ) => {
 	context.subscriptions.push(
 		vscode.commands.registerCommand(getPiiCommand("maskSecretsInFile"), () =>
-			maskSecretsInActiveEditor(readSettings()),
+			maskSecretsInActiveEditor(readSettings(), getAllocator()),
 		),
 		vscode.commands.registerCommand(getPiiCommand("restoreSecretsInFile"), () =>
 			restoreSecretsInActiveEditor(getUnmask()),

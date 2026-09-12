@@ -234,6 +234,9 @@ export async function activate(context: vscode.ExtensionContext) {
 			const task = provider.getCurrentTask()
 			return task ? (text: string) => task.restoreExplicitly(text) : undefined
 		},
+		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
+		// 別の値を指す。
+		() => provider.getCurrentTask()?.piiMasker.allocator,
 	)
 
 	// Allows other extensions to activate once Agent is ready.

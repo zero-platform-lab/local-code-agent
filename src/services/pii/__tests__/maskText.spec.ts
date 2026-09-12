@@ -351,6 +351,23 @@ describe("住所（FR-PII-13）", () => {
 		expect(maskText("東京都渋谷区神南 1-2-3", { kinds: ["address"] }).text).toBe("{{address-001}}")
 	})
 
+	it.each(["四日市市石原町1-2-3", "東村山市本町1-2-3", "野々市市三納1-2-3"])(
+		"名前の途中に市町村の字を含む地名も伏せる: %s",
+		(text) => {
+			// 短く取ると `四日市` で一覧に当たらず、その先から照合が始まって二度と届かない。
+			expect(maskText(text, { kinds: ["address"] }).text).toBe("{{address-001}}")
+		},
+	)
+
+	it.each(["中央区の面積は 1-2 です", "南区の担当は 3-5 名"])("地名のあとの文は伏せない: %s", (text) => {
+		// 空白で離れていれば町域ではなく文の続きである見込みが高い。
+		expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
+	})
+
+	it("続けて書いた 2 つ区切りの番地は伏せる", () => {
+		expect(maskText("中央区銀座1-2", { kinds: ["address"] }).text).toBe("{{address-001}}")
+	})
+
 	it.each(["南区のテスト 2024-01-02 に実施", "北区役所へ 2024-2025 年度"])(
 		"日付や年度の範囲は番地と見なさない: %s",
 		(text) => {

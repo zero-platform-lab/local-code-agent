@@ -259,10 +259,14 @@ export type ContextManagementOptions = {
 	/**
 	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。要約へそのまま渡す。
 	 *
-	 * 自動の要約は利用者が意識しないうちに走るので、ここを渡さないと、気づかないまま
+	 * 自動の要約は利用者が意識しないうちに実行されるので、ここを渡さないと、気づかないまま
 	 * 会話の全体が伏せられずに送られる。
 	 */
 	maskForRequest?: SummarizeConversationOptions["maskForRequest"]
+	/** 要約を履歴へ残す前に、伏せ字を元の値へ戻す（`FR-PII-02a`）。 */
+	restoreForHistory?: SummarizeConversationOptions["restoreForHistory"]
+	/** 辞書で読めなかったことを利用者へ示す。 */
+	reportTroubles?: SummarizeConversationOptions["reportTroubles"]
 }
 
 export type ContextManagementResult = SummarizeResponse & {
@@ -297,6 +301,8 @@ export async function manageContext({
 	cwd,
 	rooIgnoreController,
 	maskForRequest,
+	restoreForHistory,
+	reportTroubles,
 }: ContextManagementOptions): Promise<ContextManagementResult> {
 	let error: string | undefined
 	let errorDetails: string | undefined
@@ -354,6 +360,8 @@ export async function manageContext({
 				cwd,
 				rooIgnoreController,
 				maskForRequest,
+				restoreForHistory,
+				reportTroubles,
 			})
 			if (result.error) {
 				error = result.error

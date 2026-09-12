@@ -85,10 +85,10 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 		return
 	}
 
-	// **改行とタブを含む選択は受け付けない。** 辞書は 1 行 1 語で、タブの後ろが種類である。
-	// そのまま書き足すと、2 行目が種類の無い語として読まれ、タブの後ろは種類として
-	// 読まれる。どちらも利用者の意図と違う語が辞書に入る。
-	if (/[\t\r\n]/.test(value)) {
+	// **読み返せない形は受け付けない。** 辞書は 1 行 1 語で、タブの後ろが種類、`#` で
+	// 始まる行は読み飛ばし、`/.../` は正規表現である。そのまま書き足すと、足したつもりの
+	// 語が読み飛ばされたり、思わぬ範囲に一致する正規表現になったりする。
+	if (/[\t\r\n]/.test(value) || value.startsWith("#") || /^\/.+\/$/.test(value)) {
 		await vscode.window.showWarningMessage(t("common:pii.selectionNotOneTerm"))
 		return
 	}
@@ -110,7 +110,7 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 	}
 
 	await fs.mkdir(path.dirname(target), { recursive: true })
-	// **前の行が改行で終わっていなければ、改行を足してから書く。** 足さないと、前の語と
+	// **改行を足してから書く。** 前の行が改行で終わっていない場合である。 足さないと、前の語と
 	// 繋がって 1 つの語になり、どちらも二度と一致しなくなる。
 	const head = await headFor(target)
 	await fs.appendFile(target, head + dictionaryLine({ value, kind }), "utf8")
@@ -121,6 +121,16 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 /** 辞書を 1 つのファイルへ書き出す（`FR-PII-17`）。 */
 export async function exportDictionary(options: { terms?: readonly PiiTerm[]; dictionaryPaths?: readonly string[] }) {
 	const fromFiles = await readDictionaries(options.dictionaryPaths ?? [])
+	// **読めなかったものを黙らない。** 欠けたまま書き出したものをチームへ渡すと、渡された
+	// 側では欠けた語が 1 件も伏せられない。
+	const troubles = [
+		...fromFiles.failures.map((one) => one.path),
+		...fromFiles.problems.map((one) => `${one.path}:${one.line} ${one.value}`),
+	]
+	if (troubles.length > 0) {
+		await vscode.window.showWarningMessage(t("common:pii.dictionaryFailed", { paths: troubles.join(", ") }))
+	}
+
 	const all = [...(options.terms ?? []), ...fromFiles.terms]
 
 	// 同じ語は 1 つにまとめる（`FR-PII-17b`）。設定と辞書の両方に書いてあることがある。

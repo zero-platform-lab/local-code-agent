@@ -48,6 +48,7 @@ export type BuildApiRequestDepsHost = ApiRequestOrchestratorStateHost &
 				systemPrompt: string,
 				messages: AgentMessage[],
 			) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
+			restoreExplicitly: (text: string) => string
 		}
 		say: (
 			type: ClineSay,
@@ -100,6 +101,8 @@ export function buildApiRequestDeps(
 		getSystemPrompt: host.getSystemPrompt.bind(host),
 		// 伏せるのは送る写しだけ。保存した履歴は利用者が書いたままにする。
 		maskForRequest: host.piiMasker ? host.piiMasker.maskForRequest.bind(host.piiMasker) : undefined,
+		// 要約は履歴へ残るので、残す前に戻す（`FR-PII-02a`）。
+		restoreForHistory: host.piiMasker ? host.piiMasker.restoreExplicitly.bind(host.piiMasker) : undefined,
 		say: host.say.bind(host),
 		ask: host.ask.bind(host),
 		processQueuedMessages: host.processQueuedMessages.bind(host),

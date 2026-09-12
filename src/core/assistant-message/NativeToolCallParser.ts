@@ -251,7 +251,18 @@ export class NativeToolCallParser {
 	 * Uses partial-json-parser to extract values from incomplete JSON immediately.
 	 * Returns a partial ToolUse with currently parsed parameters.
 	 */
-	public static processStreamingChunk(id: string, chunk: string): ToolUse | null {
+	public static processStreamingChunk(
+		id: string,
+		chunk: string,
+		/**
+		 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+		 *
+		 * **途中の形も戻す。** 逐次の内容はそのまま差分の画面へ流れるので、戻さないと
+		 * `{{email-001}}` が見えたまま書き込まれ得る。解釈したあとの欄ごとに当てるので、
+		 * 途中で切れていても JSON は壊れない。
+		 */
+		unmask?: (text: string) => string,
+	): ToolUse | null {
 		const toolCall = this.streamingToolCalls.get(id)
 		if (!toolCall) {
 			return null
@@ -280,7 +291,7 @@ export class NativeToolCallParser {
 			return this.createPartialToolUse(
 				toolCall.id,
 				resolvedName,
-				partialArgs || {},
+				restoreDeep(partialArgs || {}, unmask) as Record<string, unknown>,
 				true, // partial
 				originalName,
 			)

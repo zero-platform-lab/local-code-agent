@@ -135,6 +135,14 @@ export interface ApiRequestOrchestratorDeps {
 		enabled?: boolean
 	}>
 
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * 要約は履歴へ残るので、残す前に戻す。伏せたまま残すと、対応表が消えたあと二度と
+	 * 戻せない。
+	 */
+	restoreForHistory?: (text: string) => string
+
 	// provider 経由の副作用
 	getProviderState: () => Promise<ApiRequestProviderState | undefined>
 	getSystemPrompt: () => Promise<string>
@@ -165,6 +173,13 @@ export interface ApiRequestOrchestratorDeps {
 
 	/** performance.now() を Task の static フィールドに書き戻すためのフック。 */
 	stampLastGlobalApiRequestTime: () => void
+}
+
+/** 辞書で読めなかったことを示す。黙って進めると、伏せたつもりで素通りする。 */
+async function reportDictionaryTroubles(deps: ApiRequestOrchestratorDeps, troubles: readonly string[]): Promise<void> {
+	for (const trouble of troubles) {
+		await deps.say("error", t("common:pii.dictionaryFailed", { paths: trouble }))
+	}
 }
 
 /**
@@ -251,6 +266,8 @@ export async function condenseContext(deps: ApiRequestOrchestratorDeps): Promise
 		// 要約も伏せてから送る（`FR-PII-01`）。ここを渡さないと、いちばん量の多い会話の
 		// 全体だけが素通りする。
 		maskForRequest: deps.maskForRequest,
+		restoreForHistory: deps.restoreForHistory,
+		reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 	})
 	if (error) {
 		await deps.say(
@@ -348,6 +365,8 @@ export async function handleContextWindowExceededError(deps: ApiRequestOrchestra
 			environmentDetails,
 			// 自動の要約も伏せてから送る（`FR-PII-01`）。
 			maskForRequest: deps.maskForRequest,
+			restoreForHistory: deps.restoreForHistory,
+			reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 		})
 
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
@@ -495,8 +514,10 @@ export async function applyInRequestContextManagement(
 			cwd: deps.host.cwd,
 			rooIgnoreController: deps.host.rooIgnoreController,
 			// **自動の要約も伏せてから送る**（`FR-PII-01`）。利用者が意識しないうちに
-			// 走るので、ここが抜けると気づかないまま会話の全体が渡る。
+			// 実行されるので、ここが抜けると気づかないまま会話の全体が渡る。
 			maskForRequest: deps.maskForRequest,
+			restoreForHistory: deps.restoreForHistory,
+			reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 		})
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
 			await deps.overwriteApiConversationHistory(truncateResult.messages)

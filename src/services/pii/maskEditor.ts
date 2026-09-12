@@ -3,7 +3,7 @@ import * as vscode from "vscode"
 import { t } from "../../i18n"
 
 import { readDictionaries } from "./dictionary"
-import { planMasking } from "./maskText"
+import { planMasking, type PlaceholderAllocator } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
 /**
@@ -63,23 +63,19 @@ export async function restoreSecretsInActiveEditor(unmask: ((text: string) => st
 	}
 
 	const text = editor.document.getText()
-	const version = editor.document.version
 	const restored = unmask(text)
 	if (restored === text) {
 		await vscode.window.showInformationMessage(t("common:pii.nothingToRestore"))
 		return
 	}
 
-	if (editor.document.version !== version) {
-		// 文書の全体を写しで置き換えるので、間に入った編集ごと巻き戻してしまう。
-		await vscode.window.showWarningMessage(t("common:pii.documentChanged"))
-		return
-	}
-
+	// **いまの文書の終わりまでにする。** 写しの長さで測らない。 写しの長さで測ると、間に入った
+	// 編集の分だけ足りず、末尾が二重になる。全体を置き換えるので、写しを取ったあとの編集は
+	// どのみち巻き戻る。
 	const workspaceEdit = new vscode.WorkspaceEdit()
 	workspaceEdit.replace(
 		editor.document.uri,
-		new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(text.length)),
+		new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(editor.document.getText().length)),
 		restored,
 	)
 
@@ -91,7 +87,17 @@ export async function restoreSecretsInActiveEditor(unmask: ((text: string) => st
 	await vscode.window.showInformationMessage(t("common:pii.restored"))
 }
 
-export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {}): Promise<void> {
+export async function maskSecretsInActiveEditor(
+	settings: MaskEditorSettings = {},
+	/**
+	 * 会話が動いていれば、その対応表から番号を振る。
+	 *
+	 * **番号の場所を分けない。** 分けると、この操作で付けた `{{email-001}}` と、会話で
+	 * 別の値へ割り当てた `{{email-001}}` が同じ形になる。あとでモデルがこのファイルを
+	 * 読んで書き戻すと、別人の値が書き込まれる。
+	 */
+	allocator?: PlaceholderAllocator,
+): Promise<void> {
 	const editor = vscode.window.activeTextEditor
 	if (!editor) {
 		await vscode.window.showInformationMessage(t("common:pii.noEditor"))
@@ -130,6 +136,7 @@ export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {
 			secretLabels: settings.secretLabels,
 		},
 		range,
+		allocator,
 	)
 
 	if (plan.edits.length === 0) {

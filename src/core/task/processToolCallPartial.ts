@@ -95,7 +95,13 @@ export function processToolCallPartial(
 			deps.presentAssistantMessage()
 		} else if (event.type === "tool_call_delta") {
 			// Process chunk using streaming JSON parser
-			const partialToolUse = NativeToolCallParser.processStreamingChunk(event.id, event.delta)
+			// 逐次の内容はそのまま差分の画面へ流れる。戻さないと伏せ字が見えたまま
+			// 書き込まれ得る（`FR-PII-02a`）。
+			const partialToolUse = NativeToolCallParser.processStreamingChunk(
+				event.id,
+				event.delta,
+				host.unmask?.bind(host),
+			)
 
 			if (partialToolUse) {
 				// Get the index for this tool call

@@ -147,7 +147,24 @@ export type SummarizeConversationOptions = {
 	maskForRequest?: (
 		systemPrompt: string,
 		messages: AgentMessage[],
-	) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
+	) => Promise<{
+		systemPrompt: string
+		messages: AgentMessage[]
+		/** 辞書で読めなかったもの（`FR-PII-03d`）。一度だけ渡ってくるので、捨てない。 */
+		troubles?: readonly string[]
+	}>
+
+	/** 辞書で読めなかったことを利用者へ示す。渡さないと、要約が最初の呼び出しのとき黙る。 */
+	reportTroubles?: (troubles: readonly string[]) => Promise<void>
+
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * **要約は履歴へ残る。** 伏せたまま残すと、対応表が消えたあと（タスクが終わったあと）
+	 * 二度と戻せない。保存した履歴は利用者が書いたままにする、という決めごとも破る。
+	 * 送る前に伏せ、返ってきた要約は戻してから残す。
+	 */
+	restoreForHistory?: (text: string) => string
 }
 
 /**
@@ -181,6 +198,8 @@ export async function summarizeConversation(options: SummarizeConversationOption
 		cwd,
 		rooIgnoreController,
 		maskForRequest,
+		restoreForHistory,
+		reportTroubles,
 	} = options
 
 	const response: SummarizeResponse = { messages, cost: 0, summary: "" }
@@ -245,6 +264,11 @@ export async function summarizeConversation(options: SummarizeConversationOption
 		// 要約も伏せてから送る（`FR-PII-01`）。要約だけが素通りすると、いちばん量の多い
 		// 会話の全体がそのまま渡る。
 		const masked = await maskForRequest?.(promptToUse, requestMessages)
+		// **受け取った警告を捨てない。** 要約が最初の呼び出しになることがあり、そこで
+		// 捨てると、辞書が読めていないことを誰も知らないまま進む（`FR-PII-03d`）。
+		if (masked?.troubles?.length) {
+			await reportTroubles?.(masked.troubles)
+		}
 		const stream = apiHandler.createMessage(
 			masked?.systemPrompt ?? promptToUse,
 			masked?.messages ?? requestMessages,
@@ -365,7 +389,8 @@ ${commandBlocks}
 	const summaryMessage: ApiMessage = {
 		type: "message",
 		role: "user", // Fresh start model: summary is a user message
-		content: summaryParts.join("\n\n"),
+		// **戻してから残す。** 伏せたまま履歴へ入れると、対応表が消えたあと二度と戻せない。
+		content: restoreForHistory ? restoreForHistory(summaryParts.join("\n\n")) : summaryParts.join("\n\n"),
 		ts: lastMsgTs + 1, // Unique timestamp after last message
 		isSummary: true,
 		condenseId, // Unique ID for this summary, used to track which messages it replaces

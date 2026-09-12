@@ -149,6 +149,10 @@ export async function importSettingsFromPath(
 				...previousProviderProfiles.modeApiConfigs,
 				...rawProviderProfiles.modeApiConfigs,
 			},
+			// **移行の記録を引き継ぐ。** 落とすと `initialize()` が
+			// `!providerProfiles.migrations` の枝に入り、3 つの移行を全部やり直す。
+			// 利用者が意図して空にした項目に既定値が入る。
+			migrations: previousProviderProfiles.migrations,
 		}
 
 		// OpenAI Compatible settings are now correctly stored in codebaseIndexConfig

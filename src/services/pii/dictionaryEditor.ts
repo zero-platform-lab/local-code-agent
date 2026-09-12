@@ -51,19 +51,28 @@ export function dictionaryLine(term: PiiTerm): string {
  * 2 つの符号化が混ざって読めなくなる。読むほうは判別できるが、書くほうは壊す。
  */
 export async function canAppend(dictionaryPath: string): Promise<boolean> {
+	return (await readForAppend(dictionaryPath)) !== undefined
+}
+
+/**
+ * 書き足す前に、いまの中身を 1 度だけ読む。
+ *
+ * 符号化の判別と、末尾が改行かどうかの両方に使う。別々に読むと、大きな辞書で読み込みが
+ * 2 回になる。書き足せない（UTF-8 でない）場合は `undefined` を返す。
+ */
+async function readForAppend(dictionaryPath: string): Promise<string | undefined> {
 	let bytes: Uint8Array
 	try {
 		bytes = await fs.readFile(dictionaryPath)
 	} catch {
 		// まだ無いなら、こちらが UTF-8 で作る。
-		return true
+		return ""
 	}
 
 	try {
-		new TextDecoder("utf-8", { fatal: true }).decode(bytes)
-		return true
+		return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
 	} catch {
-		return false
+		return undefined
 	}
 }
 
@@ -98,7 +107,9 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 		return
 	}
 
-	if (!(await canAppend(target))) {
+	// 符号化の判別と、末尾が改行かどうかを 1 度の読み込みで済ませる。
+	const current = await readForAppend(target)
+	if (current === undefined) {
 		// 壊さないために止める。手で足すか、UTF-8 で保存し直してもらう。
 		await vscode.window.showWarningMessage(t("common:pii.dictionaryNotUtf8", { path: target }))
 		return
@@ -112,8 +123,7 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 	await fs.mkdir(path.dirname(target), { recursive: true })
 	// **改行を足してから書く。** 前の行が改行で終わっていない場合である。 足さないと、前の語と
 	// 繋がって 1 つの語になり、どちらも二度と一致しなくなる。
-	const head = await headFor(target)
-	await fs.appendFile(target, head + dictionaryLine({ value, kind }), "utf8")
+	await fs.appendFile(target, headFor(current) + dictionaryLine({ value, kind }), "utf8")
 
 	await vscode.window.showInformationMessage(t("common:pii.termAdded", { value, path: target }))
 }
@@ -165,16 +175,11 @@ export async function exportDictionary(options: { terms?: readonly PiiTerm[]; di
 }
 
 /** 書き足す前に置くもの。新しく作るなら説明、続きなら足りない改行。 */
-async function headFor(target: string): Promise<string> {
-	let current: string
-	try {
-		current = await fs.readFile(target, "utf8")
-	} catch {
-		// まだ無い。書き方が分からないまま空のファイルを渡さない。
-		return DICTIONARY_HEADER
-	}
+function headFor(current: string): string {
+	// まだ無いか空である。書き方が分からないまま空のファイルを渡さない。
+	if (current.length === 0) return DICTIONARY_HEADER
 
-	return current.length === 0 || current.endsWith("\n") ? "" : "\n"
+	return current.endsWith("\n") ? "" : "\n"
 }
 
 /** 足す先を選ぶ（`FR-PII-15a`）。設定が無ければ既定の場所に作る（`FR-PII-15b`）。 */

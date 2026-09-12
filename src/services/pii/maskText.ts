@@ -118,16 +118,19 @@ export function createAllocator(): PlaceholderAllocator {
  * 電話番号の形が含まれることがあるが、長いほうを採れば分断されない。
  */
 export function resolveOverlaps(matches: readonly PiiMatch[]): PiiMatch[] {
-	const sorted = [...matches].sort((a, b) => a.start - b.start || b.end - a.end)
+	// 長いものから採る。始まりが早いだけの短いものを先に採ると、後ろへはみ出した分が
+	// 素のまま残る（`Contact taro@corp.example` の `@corp.example` など）。
+	const sorted = [...matches].sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start)
 
 	const kept: PiiMatch[] = []
-	let reach = -1
 	for (const match of sorted) {
-		if (match.start < reach) continue
+		// 既に採ったものと少しでも重なるなら飛ばす。伏せ字の中へ別の伏せ字は置けない。
+		if (kept.some((one) => match.start < one.end && one.start < match.end)) continue
 		kept.push(match)
-		reach = match.end
 	}
-	return kept
+
+	// 置き換えは前から順に当てるので、位置で並べ直す。
+	return kept.sort((a, b) => a.start - b.start)
 }
 
 /** 本文から伏せる対象を見つける。重なりは解いてある。 */

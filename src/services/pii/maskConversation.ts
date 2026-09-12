@@ -104,15 +104,18 @@ export type MaskConversationResult = {
  * 同じ割り当て係と同じ設定なら、同じ文字列は必ず同じ結果になる（割り当ては一度決めたら
  * 変わらない）。だから覚えてよい。設定が変わったら呼び出し側が捨てる。
  */
-export type MaskMemo = Map<string, { text: string; counts: Partial<Record<PiiKind, number>> }>
+export type MaskMemo = Map<string, { text: string; counts: Partial<Record<PiiKind, number>> }> & {
+	/** 覚えている文字数。上限を測るために持つ。 */
+	bytes?: number
+}
 
 /**
- * 覚える件数の上限。越えたら捨てる。長い会話で際限なく増やさない。
+ * 覚える量の上限（文字数）。越えたら捨てる。長い会話で際限なく増やさない。
  *
- * **件数で数える。** 文字数は呼び出しをまたいで数え続ける必要があり、入れ物の外に
- * 数える場所が要る。件数なら入れ物そのものが持っている。
+ * **文字数で数える。** 件数だけで抑えると、数十 KB のツールの出力が 5,000 件残り得る。
+ * 数える場所は `MaskMemo` 自身が持つ。
  */
-const MEMO_LIMIT = 5000
+const MEMO_LIMIT = 4_000_000
 
 export function maskConversation(
 	systemPrompt: string,
@@ -146,8 +149,13 @@ export function maskConversation(
 		const masked = applyPlan(text, plan.edits)
 
 		if (memo) {
-			if (memo.size >= MEMO_LIMIT) memo.clear()
+			const held = (memo.bytes ?? 0) + text.length + masked.length
+			if (held > MEMO_LIMIT) {
+				memo.clear()
+				memo.bytes = 0
+			}
 			memo.set(text, { text: masked, counts: plan.counts })
+			memo.bytes = (memo.bytes ?? 0) + text.length + masked.length
 		}
 		return masked
 	}
@@ -166,10 +174,15 @@ export function maskConversation(
 				continue
 			}
 
-			const parts = item.content.map((part) =>
+			const parts = item.content.map((part) => {
 				// 画像には文字列が無い。触らない。
-				part.type === "input_image" ? part : { ...part, text: mask(part.text) },
-			)
+				if (part.type === "input_image") return part
+
+				// **変わらなければ元の部品を返す。** 常に新しく作ると、下の比較がいつでも
+				// 真になり、写しを避ける意味が無くなる。
+				const masked = mask(part.text)
+				return masked === part.text ? part : { ...part, text: masked }
+			})
 			if (parts.some((part, at) => part !== item.content[at])) {
 				copies[index] = { ...item, content: parts }
 			}

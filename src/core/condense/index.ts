@@ -141,7 +141,7 @@ export type SummarizeConversationOptions = {
 	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
 	 *
 	 * **要約もここを実行する。** 要約は `attemptApiRequest` を経ずに直接 LLM を呼ぶので、
-	 * 渡さないと、会話の全体が伏せられないまま送られる。伏せる口が 1 つだという前提が
+	 * 渡さないと、会話の全体が伏せられないまま送られる。伏せる箇所が数えられるという前提が
 	 * 成り立たなくなる。
 	 */
 	maskForRequest?: (
@@ -437,7 +437,15 @@ ${commandBlocks}
 	}
 
 	const newContextTokens = messageTokens + toolTokens
-	return { messages: newMessages, summary, cost, newContextTokens, condenseId }
+	// **返す要約も戻す。** これは画面と `ui_messages.json` へ入る。伏せたまま残すと、
+	// 対応表が消えたあと読めない文字列だけが残る。
+	return {
+		messages: newMessages,
+		summary: restoreForHistory ? restoreForHistory(summary) : summary,
+		cost,
+		newContextTokens,
+		condenseId,
+	}
 }
 
 /**

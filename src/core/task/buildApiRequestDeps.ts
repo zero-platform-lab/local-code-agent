@@ -44,10 +44,21 @@ export type BuildApiRequestDepsHost = ApiRequestOrchestratorStateHost &
 		getCurrentProfileId: (state: ApiRequestProviderState | undefined) => string
 		/** タスク 1 つ分の伏せ字（`FR-PII-01`）。シークレットモードが切なら何もしない。 */
 		piiMasker?: {
+			/**
+			 * **返す形を省かない。** `enabled` と `troubles` は要求の側が読む。省くと、
+			 * 型に合う別の実装へ差し替えたときに件数の記録も辞書の警告も黙って止まり、
+			 * 型の誤りも出ない。件数の記録は、伏せ字が効いているか知る唯一の手がかりである。
+			 */
 			maskForRequest: (
 				systemPrompt: string,
 				messages: AgentMessage[],
-			) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
+			) => Promise<{
+				systemPrompt: string
+				messages: AgentMessage[]
+				counts: Record<string, number | undefined>
+				troubles: readonly string[]
+				enabled: boolean
+			}>
 			restoreExplicitly: (text: string) => string
 		}
 		say: (

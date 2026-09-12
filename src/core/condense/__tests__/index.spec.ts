@@ -1335,7 +1335,7 @@ describe("伏せてから送る（FR-PII-01）", () => {
 		yield { type: "text" as const, text: "要約" }
 	}
 
-	it("要約も伏せる口を通す", async () => {
+	it("要約も伏せてから送る", async () => {
 		const apiHandler = { createMessage: vi.fn(() => stream()), countTokens: vi.fn(async () => 10) } as never
 		const maskForRequest = vi.fn(async (systemPrompt: string, messages: unknown[]) => ({
 			systemPrompt: `${systemPrompt}（伏せた）`,
@@ -1385,9 +1385,12 @@ describe("伏せてから送る（FR-PII-01）", () => {
 		const summary = result.messages.at(-1) as { content: string }
 		expect(summary.content).toContain("taro@corp.example")
 		expect(summary.content).not.toContain("{{email-001}}")
+		// 返す文字列は画面と ui_messages.json へ入る。こちらも戻す。
+		expect(result.summary).toContain("taro@corp.example")
+		expect(result.summary).not.toContain("{{email-001}}")
 	})
 
-	it("伏せる口が無ければ、そのまま送る", async () => {
+	it("伏せる処理が無ければ、そのまま送る", async () => {
 		const apiHandler = { createMessage: vi.fn(() => stream()), countTokens: vi.fn(async () => 10) } as never
 
 		await summarizeConversation({

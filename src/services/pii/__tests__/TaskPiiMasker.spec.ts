@@ -199,20 +199,23 @@ describe("TaskPiiMasker", () => {
 		await fs.rm(dir, { recursive: true, force: true })
 	})
 
-	it("辞書の語も使い、指す先が同じなら読み直さない", async () => {
+	it("辞書へ語を足したら、次の要求から効く", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-masker-"))
 		const dictionary = path.join(dir, "dict.txt")
 		await fs.writeFile(dictionary, "アクメ\torg\n", "utf8")
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["org"], dictionaryPaths: [dictionary] })
 
-		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
-			content: "{{org-001}}の件",
+		expect((await masker.maskForRequest("", [message("アクメと葵")])).messages[0]).toMatchObject({
+			content: "{{org-001}}と葵",
 		})
 
-		// 2 回目は読み直さない。要求のたびにファイルの入出力を増やさない。
-		await fs.rm(dictionary)
-		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
-			content: "{{org-001}}の件",
+		// 右クリックで語を足しても設定は変わらない。設定だけを見ていると、足した語が
+		// その会話では二度と効かない。
+		await new Promise((resolve) => setTimeout(resolve, 10))
+		await fs.appendFile(dictionary, "葵\torg\n", "utf8")
+
+		expect((await masker.maskForRequest("", [message("アクメと葵")])).messages[0]).toMatchObject({
+			content: "{{org-001}}と{{org-002}}",
 		})
 
 		await fs.rm(dir, { recursive: true, force: true })

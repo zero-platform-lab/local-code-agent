@@ -1,6 +1,8 @@
 import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 
-import { readDictionaries } from "./dictionary"
+import { promises as fs } from "fs"
+
+import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
 import { maskConversation, PiiVault, type MaskMemo } from "./maskConversation"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
@@ -21,6 +23,21 @@ import type { PiiKind, PiiTerm } from "./types"
  * **戻さない選び方もある**（`FR-PII-19`）。文書を清書させるときは、モデルが書いた伏せ字を
  * そのまま残したい。その場合 `unmask` は素通しする。
  */
+/** 辞書のファイルの更新時刻。読めないものは空にする（読めないこと自体は別に知らせる）。 */
+async function stamps(paths: readonly string[]): Promise<string[]> {
+	return Promise.all(
+		paths.map(async (one) => {
+			const resolved = resolveDictionaryPath(one)
+			if (!resolved) return ""
+			try {
+				return String((await fs.stat(resolved)).mtimeMs)
+			} catch {
+				return ""
+			}
+		}),
+	)
+}
+
 export class TaskPiiMasker {
 	private readonly vault = new PiiVault()
 	private terms: PiiTerm[] | undefined
@@ -74,11 +91,16 @@ export class TaskPiiMasker {
 		//
 		// **鍵は伏せ方に効く設定を全部含める。** 辞書だけを見ていると、種類を足しても
 		// 覚えていた結果を返し、増やした種類が効かない。
+		// **辞書のファイルの更新時刻も鍵に含める。** 右クリックで語を足しても設定は変わらない
+		// ので、設定だけを見ていると、足した語がその会話では二度と効かない。利用者には
+		// 「足しました」と出ているのに伏せられない。
 		const key = JSON.stringify([
 			settings.dictionaryPaths ?? [],
 			settings.terms ?? [],
 			settings.kinds ?? [],
 			settings.secretLabels ?? [],
+			// 既定の辞書も見る。右クリックで足す先がここになることがある。
+			await stamps([...(settings.dictionaryPaths ?? []), defaultDictionaryPath()]),
 		])
 		if (this.terms === undefined || this.loadedFrom !== key) {
 			this.loadedFrom = key

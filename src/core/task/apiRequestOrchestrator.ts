@@ -724,10 +724,8 @@ export async function* attemptApiRequest(
 		// 読めていない。気づく手がかりはこれしかない。
 		deps.log?.(`[PII] 伏せた箇所: ${totalCount(masked.counts ?? {})}`)
 
-		for (const trouble of masked.troubles ?? []) {
-			// 黙って進めると、伏せたつもりで素通りする。
-			await deps.say("error", t("common:pii.dictionaryFailed", { paths: trouble }))
-		}
+		// 黙って進めると、伏せたつもりで素通りする。出し方は 1 か所に置く。
+		await reportDictionaryTroubles(deps, masked.troubles ?? [])
 	}
 
 	// Check auto-approval limits

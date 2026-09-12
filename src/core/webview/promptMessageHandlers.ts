@@ -85,9 +85,17 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
 				includeTaskHistoryInEnhance,
 				currentClineMessages: currentCline?.messageStore.clineMessages,
 				providerSettingsManager: provider.providerSettingsManager,
-				// **文の手直しも伏せる口を実行する**（`FR-PII-01`）。会話が動いていれば
+				// **文の手直しでも伏せる**（`FR-PII-01`）。会話が動いていれば
 				// その対応表を使い、番号が食い違わないようにする。
-				maskForPrompt: (text) => piiMaskerFor(provider).maskPrompt(text),
+				maskForPrompt: async (text) => {
+					const masker = piiMaskerFor(provider)
+					const masked = await masker.maskPrompt(text)
+					// 辞書が読めなかったことを黙らない（`FR-PII-03d`）。
+					for (const trouble of masker.takeDictionaryTroubles()) {
+						await vscode.window.showWarningMessage(t("common:pii.dictionaryFailed", { paths: trouble }))
+					}
+					return masked
+				},
 			})
 
 			if (result.success && result.enhancedText) {
@@ -138,9 +146,17 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
  * 会話が動いていればその対応表を使う。番号が食い違うと、会話の中の伏せ字と手直しの中の
  * 伏せ字が別の値を指す。会話が無ければ、その場限りの対応表で伏せる。
  */
+/**
+ * 会話が無いときに使う伏せ字。1 つだけ作って使い回す。
+ *
+ * 作り直すと、押すたびに辞書のファイルを全部読み直すことになる。
+ */
+let standalone: TaskPiiMasker | undefined
+
 function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
-	return (
-		provider.getCurrentTask()?.piiMasker ??
-		new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking") ?? {})
-	)
+	const current = provider.getCurrentTask()?.piiMasker
+	if (current) return current
+
+	standalone ??= new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking") ?? {})
+	return standalone
 }

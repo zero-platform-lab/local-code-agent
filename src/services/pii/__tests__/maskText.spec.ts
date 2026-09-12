@@ -426,6 +426,13 @@ describe("挙げた語（FR-PII-03）", () => {
 		expect(result.text).toBe("担当は {{term-001}} と {{term-002}}")
 	})
 
+	it("正規表現も大文字小文字を区別しない（FR-PII-03a）", () => {
+		// 語をそのまま書く場合と揃えないと、書いた本人が気づけない。
+		const result = maskText("担当は EMP-12345", { terms: [{ value: "emp-\\d{5}", regex: true }], kinds: ["term"] })
+
+		expect(result.text).toBe("担当は {{term-001}}")
+	})
+
 	it("壊れた正規表現は 1 件も伏せない。本文は変わらない", () => {
 		const text = "EMP-12345"
 
@@ -480,6 +487,26 @@ describe("重なりの解き方", () => {
 
 		expect(kept).toHaveLength(1)
 		expect(kept[0].kind).toBe("card")
+	})
+
+	it("あとから始まる長いほうを採る", () => {
+		// 早く始まる短いほうを採ると、はみ出した分が素のまま残る。
+		const kept = resolveOverlaps([
+			{ kind: "term", start: 0, end: 14, value: "Contact tanaka" },
+			{ kind: "email", start: 8, end: 25, value: "tanaka@acme.co.jp" },
+		])
+
+		expect(kept).toHaveLength(1)
+		expect(kept[0].kind).toBe("email")
+	})
+
+	it("採った順ではなく、位置の順に並べて返す", () => {
+		const kept = resolveOverlaps([
+			{ kind: "email", start: 20, end: 40, value: "長いほう" },
+			{ kind: "phone", start: 0, end: 12, value: "短いほう" },
+		])
+
+		expect(kept.map((one) => one.start)).toEqual([0, 20])
 	})
 
 	it("重ならないものは全部残す", () => {

@@ -187,15 +187,19 @@ describe("PiiVault", () => {
 		expect(memo.size).toBeGreaterThan(0)
 	})
 
-	it("覚える件数が上限を越えたら捨てる", () => {
+	it("覚える量が上限を越えたら捨てる", () => {
 		const memo: MaskMemo = new Map()
 		const vault = new PiiVault()
-		const messages = Array.from({ length: 5001 }, (_, i) => message("user", `taro${i}@corp.example`))
+		// 上限は 400 万文字。数十 KB の出力を並べて越えさせる。
+		const messages = Array.from({ length: 60 }, (_, i) =>
+			message("user", `taro${i}@corp.example ${"あ".repeat(50_000)}`),
+		)
 
 		maskConversation("", messages, { kinds: ["email"] }, vault, memo)
 
-		// 長い会話で際限なく増やさない。
-		expect(memo.size).toBeLessThanOrEqual(5000)
+		// 件数だけで抑えると、大きな出力が 5,000 件残り得る。
+		expect(memo.size).toBeLessThan(60)
+		expect(memo.bytes ?? 0).toBeLessThanOrEqual(4_000_000 + 200_000)
 	})
 
 	it("覚えていても、新しい item は伏せる", () => {

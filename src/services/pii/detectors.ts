@@ -413,7 +413,9 @@ const BANCHI_MARK = String.raw`[0-9０-９]+[丁目番地号][0-9０-９丁目�
  * 区切る番地（`銀座1-2`）を認める。
  */
 const ADDRESS_TAIL = new RegExp(
-	String.raw`^(?:${CHO}(?<b1>${BANCHI_MULTI}|${BANCHI_TWO}|${BANCHI_MARK})|${CHO}[ \u3000](?<b2>${BANCHI_MULTI}|${BANCHI_MARK}))`,
+	String.raw`(?:${CHO}(?<b1>${BANCHI_MULTI}|${BANCHI_TWO}|${BANCHI_MARK})|${CHO}[ \u3000](?<b2>${BANCHI_MULTI}|${BANCHI_MARK}))`,
+	// `y` は `lastIndex` の位置から始まることを要求する。`^` と写しの代わりに使う。
+	"y",
 )
 
 /**
@@ -445,7 +447,10 @@ export function detectAddresses(text: string): PiiMatch[] {
 		}
 
 		const start = head.index
-		const tail = ADDRESS_TAIL.exec(text.slice(start + name.length))
+		// **写しを作らずに、その位置から当てる。** 長い文書では、候補ごとに残り全部を
+		// 写すと桁違いの無駄になる（`y` は指定した位置から始まることを要求する）。
+		ADDRESS_TAIL.lastIndex = start + name.length
+		const tail = ADDRESS_TAIL.exec(text)
 		// 番地へ届かなければ住所ではない（`FR-PII-13c`）。
 		if (!tail) {
 			PLACE_HEAD.lastIndex = start + name.length
@@ -518,12 +523,17 @@ function escapeForRegExp(value: string): string {
 function matchByRegex(text: string, term: PiiTerm): PiiMatch[] {
 	let pattern: RegExp
 	try {
-		pattern = new RegExp(term.value, "g")
+		// **大文字小文字を区別しない。** 語をそのまま書く場合と揃える（`FR-PII-03a`）。
+		// 揃えないと `/emp-\d{5}/` が `EMP-12345` に一致せず、書いた本人は気づけない。
+		pattern = cachedRegExp(`regex\u0000${term.value}`, () => new RegExp(term.value, "gi"))
 	} catch {
 		return []
 	}
-	if (pattern.test("")) return []
+	// 覚えた正規表現を共有するので、`test` で汚れた `lastIndex` を戻す。
 	pattern.lastIndex = 0
+	const matchesEmpty = pattern.test("")
+	pattern.lastIndex = 0
+	if (matchesEmpty) return []
 
 	const matches: PiiMatch[] = []
 	for (const found of text.matchAll(pattern)) {

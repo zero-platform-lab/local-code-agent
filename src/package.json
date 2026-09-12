@@ -186,6 +186,11 @@
 				"icon": "$(shield)"
 			},
 			{
+				"command": "openai-agent.restoreSecretsInFile",
+				"title": "%command.restoreSecretsInFile.title%",
+				"icon": "$(discard)"
+			},
+			{
 				"command": "openai-agent.addToDictionary",
 				"title": "%command.addToDictionary.title%",
 				"icon": "$(add)"
@@ -221,8 +226,12 @@
 					"group": "2_pii@1"
 				},
 				{
-					"command": "openai-agent.addToDictionary",
+					"command": "openai-agent.restoreSecretsInFile",
 					"group": "2_pii@2"
+				},
+				{
+					"command": "openai-agent.addToDictionary",
+					"group": "2_pii@3"
 				}
 			],
 			"terminal/context": [

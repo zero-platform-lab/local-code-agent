@@ -127,14 +127,14 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 
 ## C. VS Code UI 面
 
-### C1. コマンド（contributes.commands、26）
+### C1. コマンド（contributes.commands、27）
 
 - タスク / 画面: plusButtonClicked, historyButtonClicked, popoutButtonClicked, settingsButtonClicked,
   openInNewTab, newTask, focusInput, acceptInput
 - コードアクション: explainCode, fixCode, improveCode, addToContext
 - ターミナル: terminalAddToContext, terminalFixCommand, terminalExplainCommand
 - 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
-- 機密情報の伏せ字: maskSecretsInFile, addToDictionary, exportDictionary（3コマンド）
+- 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
 - 設定: setCustomStoragePath, importSettings
 

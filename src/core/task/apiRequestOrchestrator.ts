@@ -3,6 +3,7 @@ import OpenAI from "openai"
 import { serializeError } from "serialize-error"
 
 import {
+	type AgentMessage,
 	type ClineAsk,
 	type ClineMessage,
 	type ClineSay,
@@ -109,6 +110,19 @@ export interface ApiRequestOrchestratorDeps {
 
 	/** 拡張の Output チャンネルへ 1 行ログ（段階表示用）。未配線でも安全なよう optional。 */
 	log?: (message: string) => void
+
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
+	 *
+	 * **ここを唯一の口にする。** 読み取り・言及・探索・端末の出力のどれから入ってきた
+	 * 文字列でも、送信はここを通る。経路ごとに当てるとどれかを取りこぼす。
+	 *
+	 * 対応表は Task が持つ。未配線なら伏せない（`FR-PII-01a`）。
+	 */
+	maskForRequest?: (
+		systemPrompt: string,
+		messages: AgentMessage[],
+	) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
 
 	// provider 経由の副作用
 	getProviderState: () => Promise<ApiRequestProviderState | undefined>
@@ -656,7 +670,12 @@ export async function* attemptApiRequest(
 	}
 
 	// 保存済み履歴 → 送信する item 列。段の順序に意味があるので関数に寄せてある。
-	const cleanConversationHistory = buildRequestHistory(deps.host.messageStore.apiConversationHistory, api)
+	const builtHistory = buildRequestHistory(deps.host.messageStore.apiConversationHistory, api)
+
+	// 伏せるのは送る写しだけ。保存した履歴は利用者が書いたままにする（`FR-PII-01`）。
+	const masked = await deps.maskForRequest?.(systemPrompt, builtHistory)
+	const cleanConversationHistory = masked?.messages ?? builtHistory
+	const requestSystemPrompt = masked?.systemPrompt ?? systemPrompt
 
 	// Check auto-approval limits
 	const approvalResult = await deps.host.autoApprovalHandler.checkAutoApprovalLimits(
@@ -708,7 +727,7 @@ export async function* attemptApiRequest(
 	deps.log?.(
 		`[API] リクエスト送信 (model=${api.getModel().id}, tools=${allTools.length}, stream=${apiConfiguration?.openAiStreamingEnabled ?? true})`,
 	)
-	const stream = api.createMessage(systemPrompt, cleanConversationHistory, metadata)
+	const stream = api.createMessage(requestSystemPrompt, cleanConversationHistory, metadata)
 	const iterator = stream[Symbol.asyncIterator]()
 
 	// Set up abort handling - when the signal is aborted, clean up the controller reference

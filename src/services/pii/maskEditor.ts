@@ -42,6 +42,48 @@ export function describeCounts(counts: Partial<Record<PiiKind, number>>): string
 		.join("、")
 }
 
+/**
+ * 開いているファイルの伏せ字を元の値へ戻す（`FR-PII-20`）。
+ *
+ * 戻さないまま進めて、最後にまとめて戻す使い方のためにある。**戻せるのはそのタスクで
+ * 割り当てた伏せ字だけ**で（`FR-PII-20a`）、タスクが終われば対応表は消える
+ * （`FR-PII-20b`）。対応表をディスクへ書かない以上、そこは避けられない。
+ */
+export async function restoreSecretsInActiveEditor(unmask: ((text: string) => string) | undefined): Promise<void> {
+	const editor = vscode.window.activeTextEditor
+	if (!editor) {
+		await vscode.window.showInformationMessage(t("common:pii.noEditor"))
+		return
+	}
+
+	if (!unmask) {
+		// 会話が始まっていないか、終わっている。対応表が無いので戻しようがない。
+		await vscode.window.showWarningMessage(t("common:pii.noVault"))
+		return
+	}
+
+	const text = editor.document.getText()
+	const restored = unmask(text)
+	if (restored === text) {
+		await vscode.window.showInformationMessage(t("common:pii.nothingToRestore"))
+		return
+	}
+
+	const workspaceEdit = new vscode.WorkspaceEdit()
+	workspaceEdit.replace(
+		editor.document.uri,
+		new vscode.Range(editor.document.positionAt(0), editor.document.positionAt(text.length)),
+		restored,
+	)
+
+	if (!(await vscode.workspace.applyEdit(workspaceEdit))) {
+		await vscode.window.showErrorMessage(t("common:pii.replaceFailed"))
+		return
+	}
+
+	await vscode.window.showInformationMessage(t("common:pii.restored"))
+}
+
 export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {}): Promise<void> {
 	const editor = vscode.window.activeTextEditor
 	if (!editor) {

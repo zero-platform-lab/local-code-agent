@@ -1,7 +1,11 @@
 import * as vscode from "vscode"
 
 import { getPiiCommand } from "../utils/commands"
-import { maskSecretsInActiveEditor, type MaskEditorSettings } from "../services/pii/maskEditor"
+import {
+	maskSecretsInActiveEditor,
+	restoreSecretsInActiveEditor,
+	type MaskEditorSettings,
+} from "../services/pii/maskEditor"
 import { addSelectionToDictionary, exportDictionary } from "../services/pii/dictionaryEditor"
 
 /**
@@ -17,10 +21,18 @@ import { addSelectionToDictionary, exportDictionary } from "../services/pii/dict
  * 無ければ何もしない」で揃えてあるが、こちらは編集中のファイルだけを見るので provider を
  * 必要としない。同じ規則へ混ぜると、その揃え方の意味が失われる。
  */
-export const registerPiiCommands = (context: vscode.ExtensionContext, readSettings: () => MaskEditorSettings) => {
+export const registerPiiCommands = (
+	context: vscode.ExtensionContext,
+	readSettings: () => MaskEditorSettings,
+	/** いま動いているタスクの戻し方。会話が無ければ `undefined`（`FR-PII-20b`）。 */
+	getUnmask: () => ((text: string) => string) | undefined = () => undefined,
+) => {
 	context.subscriptions.push(
 		vscode.commands.registerCommand(getPiiCommand("maskSecretsInFile"), () =>
 			maskSecretsInActiveEditor(readSettings()),
+		),
+		vscode.commands.registerCommand(getPiiCommand("restoreSecretsInFile"), () =>
+			restoreSecretsInActiveEditor(getUnmask()),
 		),
 		vscode.commands.registerCommand(getPiiCommand("addToDictionary"), () =>
 			addSelectionToDictionary(readSettings()),

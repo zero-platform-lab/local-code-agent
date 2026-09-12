@@ -1,4 +1,5 @@
 import type {
+	AgentMessage,
 	ClineAsk,
 	ClineMessage,
 	ClineSay,
@@ -41,6 +42,13 @@ export type BuildApiRequestDepsHost = ApiRequestOrchestratorStateHost &
 		flushPendingToolResultsToHistory: () => Promise<boolean>
 		getSystemPrompt: () => Promise<string>
 		getCurrentProfileId: (state: ApiRequestProviderState | undefined) => string
+		/** タスク 1 つ分の伏せ字（`FR-PII-01`）。シークレットモードが切なら何もしない。 */
+		piiMasker?: {
+			maskForRequest: (
+				systemPrompt: string,
+				messages: AgentMessage[],
+			) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
+		}
 		say: (
 			type: ClineSay,
 			text?: string,
@@ -90,6 +98,8 @@ export function buildApiRequestDeps(
 		getFilesReadByAgentSafely: host.getFilesReadByAgentSafely.bind(host),
 		flushPendingToolResultsToHistory: host.flushPendingToolResultsToHistory.bind(host),
 		getSystemPrompt: host.getSystemPrompt.bind(host),
+		// 伏せるのは送る写しだけ。保存した履歴は利用者が書いたままにする。
+		maskForRequest: host.piiMasker ? host.piiMasker.maskForRequest.bind(host.piiMasker) : undefined,
 		say: host.say.bind(host),
 		ask: host.ask.bind(host),
 		processQueuedMessages: host.processQueuedMessages.bind(host),

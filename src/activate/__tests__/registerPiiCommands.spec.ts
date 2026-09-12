@@ -12,13 +12,17 @@ import type * as vscode from "vscode"
 const mocks = vi.hoisted(() => ({
 	registerCommand: vi.fn((_id: string, _callback: unknown) => ({ dispose: vi.fn() })),
 	maskSecretsInActiveEditor: vi.fn(async (..._args: unknown[]) => undefined),
+	restoreSecretsInActiveEditor: vi.fn(async (..._args: unknown[]) => undefined),
 	addSelectionToDictionary: vi.fn(async (..._args: unknown[]) => undefined),
 	exportDictionary: vi.fn(async (..._args: unknown[]) => undefined),
 }))
 
 vi.mock("vscode", () => ({ commands: { registerCommand: mocks.registerCommand } }))
 
-vi.mock("../../services/pii/maskEditor", () => ({ maskSecretsInActiveEditor: mocks.maskSecretsInActiveEditor }))
+vi.mock("../../services/pii/maskEditor", () => ({
+	maskSecretsInActiveEditor: mocks.maskSecretsInActiveEditor,
+	restoreSecretsInActiveEditor: mocks.restoreSecretsInActiveEditor,
+}))
 
 vi.mock("../../services/pii/dictionaryEditor", () => ({
 	addSelectionToDictionary: mocks.addSelectionToDictionary,
@@ -44,21 +48,48 @@ const setup = (settings: Record<string, unknown> = {}) => {
 beforeEach(() => vi.clearAllMocks())
 
 describe("registerPiiCommands", () => {
-	it("3 つのコマンドを 1 度ずつ登録する", () => {
+	it("4 つのコマンドを 1 度ずつ登録する", () => {
 		setup()
 
 		expect(mocks.registerCommand.mock.calls.map(([id]) => id)).toEqual([
 			`${Package.name}.maskSecretsInFile`,
+			`${Package.name}.restoreSecretsInFile`,
 			`${Package.name}.addToDictionary`,
 			`${Package.name}.exportDictionary`,
 		])
+	})
+
+	it("戻すコマンドは、いま動いているタスクの戻し方を使う（FR-PII-20a）", () => {
+		const unmask = vi.fn((text: string) => text)
+		const subscriptions: { dispose: () => void }[] = []
+		registerPiiCommands(
+			{ subscriptions } as unknown as vscode.ExtensionContext,
+			() => ({}),
+			() => unmask,
+		)
+
+		const handler = mocks.registerCommand.mock.calls.find(
+			([name]) => name === `${Package.name}.restoreSecretsInFile`,
+		)?.[1] as () => unknown
+		handler()
+
+		expect(mocks.restoreSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(unmask)
+	})
+
+	it("会話が無ければ、戻し方を渡さない（FR-PII-20b）", () => {
+		const { handlerFor } = setup()
+
+		handlerFor("restoreSecretsInFile")()
+
+		// 対応表が無いことは、戻す側が利用者へ伝える。
+		expect(mocks.restoreSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(undefined)
 	})
 
 	it("Disposable を全部 subscriptions へ載せる", () => {
 		const { subscriptions } = setup()
 
 		// deactivate で確実に解除されるようにする。
-		expect(subscriptions).toHaveLength(3)
+		expect(subscriptions).toHaveLength(4)
 	})
 
 	it.each([

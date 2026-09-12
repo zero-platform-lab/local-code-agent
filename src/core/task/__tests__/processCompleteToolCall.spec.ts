@@ -15,7 +15,11 @@ const parser = NativeToolCallParser as unknown as {
 }
 
 function makeDeps() {
-	const host = {
+	const host: {
+		taskId: string
+		stream: { assistantMessageContent: unknown[]; userMessageContentReady: boolean }
+		unmask?: (text: string) => string
+	} = {
 		taskId: "task-1",
 		stream: {
 			assistantMessageContent: [] as unknown[],
@@ -39,11 +43,26 @@ describe("processCompleteToolCall", () => {
 
 		processCompleteToolCall(deps, chunk)
 
-		expect(parser.parseToolCall).toHaveBeenCalledWith({
-			id: "call_1",
-			name: "read_file",
-			arguments: '{"path":"a.ts"}',
-		})
+		expect(parser.parseToolCall).toHaveBeenCalledWith(
+			{
+				id: "call_1",
+				name: "read_file",
+				arguments: '{"path":"a.ts"}',
+			},
+			undefined,
+		)
+	})
+
+	it("host の戻し方を parser へ渡す（FR-PII-02a）", () => {
+		const { deps, host } = makeDeps()
+		const unmask = vi.fn((text: string) => text)
+		host.unmask = unmask
+		parser.parseToolCall.mockReturnValue({ type: "tool_use" })
+
+		processCompleteToolCall(deps as never, chunk)
+
+		// 戻さずにファイルへ書くと、伏せ字がそのまま書かれる。
+		expect(parser.parseToolCall).toHaveBeenCalledWith(expect.anything(), unmask)
 	})
 
 	it("成功時：toolUse.id を chunk.id で上書きし、assistantMessageContent へ push、userMessageContentReady=false、present を呼ぶ", () => {

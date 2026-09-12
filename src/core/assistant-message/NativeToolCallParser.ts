@@ -276,7 +276,10 @@ export class NativeToolCallParser {
 	 * Finalize a streaming tool call.
 	 * Parses the complete JSON and returns the final ToolUse or McpToolUse.
 	 */
-	public static finalizeStreamingToolCall(id: string): ToolUse | McpToolUse | null {
+	public static finalizeStreamingToolCall(
+		id: string,
+		unmask?: (text: string) => string,
+	): ToolUse | McpToolUse | null {
 		const toolCall = this.streamingToolCalls.get(id)
 		if (!toolCall) {
 			return null
@@ -284,11 +287,14 @@ export class NativeToolCallParser {
 
 		// Parse the complete accumulated JSON
 		// Cast to any for the name since parseToolCall handles both ToolName and dynamic MCP tools
-		const finalToolUse = this.parseToolCall({
-			id: toolCall.id,
-			name: toolCall.name as ToolName,
-			arguments: toolCall.argumentsAccumulator,
-		})
+		const finalToolUse = this.parseToolCall(
+			{
+				id: toolCall.id,
+				name: toolCall.name as ToolName,
+				arguments: toolCall.argumentsAccumulator,
+			},
+			unmask,
+		)
 
 		// Clean up streaming state
 		this.streamingToolCalls.delete(id)
@@ -351,11 +357,22 @@ export class NativeToolCallParser {
 	 * @param toolCall - The native tool call from the API stream
 	 * @returns A properly typed ToolUse object
 	 */
-	public static parseToolCall<TName extends ToolName>(toolCall: {
-		id: string
-		name: TName
-		arguments: string
-	}): ToolUse<TName> | McpToolUse | null {
+	public static parseToolCall<TName extends ToolName>(
+		toolCall: {
+			id: string
+			name: TName
+			arguments: string
+		},
+		/**
+		 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+		 *
+		 * **解釈の前に戻す。** モデルは伏せ字のまま応答するので、戻さずにファイルへ書くと
+		 * `{{email-001}}` という文字列がそのまま書かれる。引数を 1 つの文字列として戻せば、
+		 * どの道具のどの欄でも一度に戻る。完成の経路も逐次の経路もここを通る。
+		 */
+		unmask?: (text: string) => string,
+	): ToolUse<TName> | McpToolUse | null {
+		const rawArguments = unmask?.(toolCall.arguments) ?? toolCall.arguments
 		// Check if this is a dynamic MCP tool (mcp--serverName--toolName)
 		// Also handle models that output underscores instead of hyphens (mcp__serverName__toolName)
 		const mcpPrefix = MCP_TOOL_PREFIX + MCP_TOOL_SEPARATOR
@@ -365,7 +382,8 @@ export class NativeToolCallParser {
 			const normalizedName = normalizeMcpToolName(toolCall.name)
 			if (normalizedName.startsWith(mcpPrefix)) {
 				// Pass the original tool call but with normalized name for parsing
-				return this.parseDynamicMcpTool({ ...toolCall, name: normalizedName })
+				// MCP の道具でも、引数は同じように戻してから解釈する。
+				return this.parseDynamicMcpTool({ ...toolCall, name: normalizedName, arguments: rawArguments })
 			}
 		}
 
@@ -381,7 +399,7 @@ export class NativeToolCallParser {
 
 		try {
 			// Parse the arguments JSON string
-			const args = toolCall.arguments === "" ? {} : JSON.parse(toolCall.arguments)
+			const args = rawArguments === "" ? {} : JSON.parse(rawArguments)
 
 			// Build stringified params for display/logging.
 			// Tool execution MUST use nativeArgs (typed) and does not support legacy fallbacks.

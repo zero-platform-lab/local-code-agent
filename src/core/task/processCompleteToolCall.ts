@@ -17,6 +17,16 @@ export interface ProcessCompleteToolCallStateHost {
 		assistantMessageContent: AssistantMessageContent[]
 		userMessageContentReady: boolean
 	}
+
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * **解釈の前に戻す。** モデルは伏せ字のまま応答するので、戻さずにファイルへ書くと
+	 * `{{email-001}}` という文字列がそのまま書かれる。引数を 1 つの文字列として戻せば、
+	 * どの道具のどの欄でも一度に戻る。host に置くのは、完成の経路と逐次の経路が同じ
+	 * host を持ち回るためである。
+	 */
+	unmask?: (text: string) => string
 }
 
 export interface ProcessCompleteToolCallDeps {
@@ -34,11 +44,14 @@ export function processCompleteToolCall(deps: ProcessCompleteToolCallDeps, chunk
 	const { host } = deps
 
 	// Convert native tool call to ToolUse format
-	const toolUse = NativeToolCallParser.parseToolCall({
-		id: chunk.id,
-		name: chunk.name as ToolName,
-		arguments: chunk.arguments,
-	})
+	const toolUse = NativeToolCallParser.parseToolCall(
+		{
+			id: chunk.id,
+			name: chunk.name as ToolName,
+			arguments: chunk.arguments,
+		},
+		deps.host.unmask,
+	)
 
 	if (!toolUse) {
 		console.error(`Failed to parse tool call for task ${host.taskId}:`, chunk)

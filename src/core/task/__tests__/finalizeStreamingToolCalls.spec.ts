@@ -21,7 +21,14 @@ function makeDeps(
 		ready?: boolean
 	} = {},
 ) {
-	const host = {
+	const host: {
+		stream: {
+			streamingToolCallIndices: Map<string, number>
+			assistantMessageContent: unknown[]
+			userMessageContentReady: boolean
+		}
+		unmask?: (text: string) => string
+	} = {
 		stream: {
 			streamingToolCallIndices: new Map<string, number>(opts.indices ?? []),
 			assistantMessageContent: (opts.content ?? []) as unknown[],
@@ -61,7 +68,7 @@ describe("finalizeStreamingToolCalls", () => {
 
 		finalizeStreamingToolCalls([endEvent("call_1")] as never, deps as never)
 
-		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1")
+		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1", undefined)
 		expect(host.stream.assistantMessageContent[0]).toBe(finalToolUse)
 		expect(finalToolUse.id).toBe("call_1")
 		expect(host.stream.streamingToolCallIndices.has("call_1")).toBe(false)
@@ -165,5 +172,17 @@ describe("finalizeStreamingToolCalls", () => {
 
 		expect(presentAssistantMessage).toHaveBeenCalledTimes(2)
 		expect(host.stream.streamingToolCallIndices.size).toBe(0)
+	})
+
+	it("host の戻し方を parser へ渡す（FR-PII-02a）", () => {
+		const { deps, host } = makeDeps()
+		const unmask = vi.fn((text: string) => text)
+		host.unmask = unmask
+		parser.finalizeStreamingToolCall.mockReturnValue({ type: "tool_use", name: "read_file" })
+
+		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を通す。
+		finalizeStreamingToolCalls([{ type: "tool_call_end", id: "call_1" }] as never, deps as never)
+
+		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1", unmask)
 	})
 })

@@ -154,6 +154,13 @@ export const DEFAULT_CHECKPOINT_TIMEOUT_SECONDS = 15
 export const piiMaskingSchema = z.object({
 	/** シークレットモード。送信の直前に置き換えるかどうか（`FR-PII-01b`）。 */
 	enabled: z.boolean().optional(),
+	/**
+	 * 応答の伏せ字を元の値へ戻すか（`FR-PII-19`）。既定は戻す。
+	 *
+	 * 戻さないと、モデルが書いた `{{person-001}}` がそのままファイルへ残る。文書を
+	 * 清書させるときに使う。
+	 */
+	restore: z.boolean().optional(),
 	/** 伏せる種類。省略すると全部を伏せる（`FR-PII-07`）。 */
 	kinds: z.array(z.enum(piiKinds)).optional(),
 	/** 利用者が挙げた語（`FR-PII-03`）。 */

@@ -29,7 +29,12 @@ export type TerminalActionPromptType = `TERMINAL_${TerminalActionName}`
  * webview の provider を必要としない。`commandIds` とは別に持つ。
  */
 
-export const piiActionIds = ["maskSecretsInFile", "addToDictionary", "exportDictionary"] as const
+export const piiActionIds = [
+	"maskSecretsInFile",
+	"restoreSecretsInFile",
+	"addToDictionary",
+	"exportDictionary",
+] as const
 
 export type PiiActionId = (typeof piiActionIds)[number]
 

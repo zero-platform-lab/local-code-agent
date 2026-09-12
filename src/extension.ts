@@ -224,7 +224,15 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerCodeActions(context)
 	registerTerminalActions(context)
 	// 機密情報の伏せ字は編集中のファイルだけを見る。provider を必要としない。
-	registerPiiCommands(context, () => contextProxy.getValue("piiMasking") ?? {})
+	registerPiiCommands(
+		context,
+		() => contextProxy.getValue("piiMasking") ?? {},
+		// 戻せるのは、いま動いているタスクで割り当てた伏せ字だけ（`FR-PII-20a`）。
+		() => {
+			const task = provider.getCurrentTask()
+			return task ? (text: string) => task.unmask(text) : undefined
+		},
+	)
 
 	// Allows other extensions to activate once Agent is ready.
 	vscode.commands.executeCommand(`${Package.name}.activationCompleted`)

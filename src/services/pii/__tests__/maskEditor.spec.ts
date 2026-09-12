@@ -51,7 +51,7 @@ vi.mock("../../../i18n", () => ({
 	t: (key: string, args?: Record<string, unknown>) => (args ? `${key}:${JSON.stringify(args)}` : key),
 }))
 
-import { describeCounts, maskSecretsInActiveEditor } from "../maskEditor"
+import { describeCounts, maskSecretsInActiveEditor, restoreSecretsInActiveEditor } from "../maskEditor"
 
 const editorWith = (text: string, selection?: { start: number; end: number }) => ({
 	document: {
@@ -177,5 +177,53 @@ describe("maskSecretsInActiveEditor", () => {
 		expect(mocks.showWarningMessage.mock.calls[0][0]).toContain("common:pii.dictionaryFailed")
 		// 辞書が無いことを理由に、メールアドレスの伏せ字まで止めない。
 		expect(mocks.applyEdit).toHaveBeenCalledOnce()
+	})
+})
+
+describe("restoreSecretsInActiveEditor（FR-PII-20）", () => {
+	const unmask = (text: string) => text.replace("{{email-001}}", "taro@corp.example")
+
+	it("開いているファイルが無ければ何もしない", async () => {
+		await restoreSecretsInActiveEditor(unmask)
+
+		expect(mocks.showInformationMessage).toHaveBeenCalledExactlyOnceWith("common:pii.noEditor")
+	})
+
+	it("対応表が無ければ、戻せない旨を出す（FR-PII-20b）", async () => {
+		mocks.activeTextEditor = editorWith("{{email-001}}")
+
+		await restoreSecretsInActiveEditor(undefined)
+
+		// 会話が終わると対応表は消える。黙って何もしないと、戻ったと思われる。
+		expect(mocks.showWarningMessage).toHaveBeenCalledExactlyOnceWith("common:pii.noVault")
+		expect(mocks.applyEdit).not.toHaveBeenCalled()
+	})
+
+	it("伏せ字が無ければ書き換えない", async () => {
+		mocks.activeTextEditor = editorWith("ふつうの文章")
+
+		await restoreSecretsInActiveEditor(unmask)
+
+		expect(mocks.showInformationMessage).toHaveBeenCalledExactlyOnceWith("common:pii.nothingToRestore")
+		expect(mocks.applyEdit).not.toHaveBeenCalled()
+	})
+
+	it("伏せ字を元の値へ戻す", async () => {
+		mocks.activeTextEditor = editorWith("宛先は {{email-001}} です")
+
+		await restoreSecretsInActiveEditor(unmask)
+
+		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
+		expect(edit.replacements[0].text).toBe("宛先は taro@corp.example です")
+		expect(mocks.showInformationMessage).toHaveBeenCalledWith("common:pii.restored")
+	})
+
+	it("当てられなかったら黙らせない", async () => {
+		mocks.activeTextEditor = editorWith("{{email-001}}")
+		mocks.applyEdit.mockResolvedValue(false)
+
+		await restoreSecretsInActiveEditor(unmask)
+
+		expect(mocks.showErrorMessage).toHaveBeenCalledExactlyOnceWith("common:pii.replaceFailed")
 	})
 })

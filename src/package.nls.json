@@ -48,5 +48,6 @@
 	"settings.debugProxy.tlsInsecure.description": "Accept self-signed certificates from the proxy. **Required for MITM inspection.** ⚠️ Insecure — only use for local debugging.",
 	"command.maskSecretsInFile.title": "Mask Sensitive Information in This File",
 	"command.addToDictionary.title": "Add Selection to the Masking Dictionary",
-	"command.exportDictionary.title": "Export the Masking Dictionary"
+	"command.exportDictionary.title": "Export the Masking Dictionary",
+	"command.restoreSecretsInFile.title": "Restore Masked Values in This File"
 }

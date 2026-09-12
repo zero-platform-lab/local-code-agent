@@ -254,6 +254,9 @@
 		"termAdded": "Added {{value}} to {{path}}.",
 		"dictionaryNotUtf8": "{{path}} is Shift_JIS. Nothing was appended so the file stays readable. Add the term by hand, or save the file as UTF-8.",
 		"nothingToExport": "There are no terms to export.",
-		"exported": "Exported {{count}} term(s) to {{path}}."
+		"exported": "Exported {{count}} term(s) to {{path}}.",
+		"noVault": "There is no mapping to restore from. Once the conversation ends, placeholders cannot be restored.",
+		"nothingToRestore": "No placeholder to restore was found.",
+		"restored": "Restored the original values."
 	}
 }

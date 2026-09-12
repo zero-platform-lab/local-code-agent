@@ -91,6 +91,7 @@ import { pushToolResultToUserContent as runPushToolResultToUserContent } from ".
 import { processQueuedMessages as runProcessQueuedMessages } from "./processQueuedMessages"
 import { saveClineMessages as runSaveClineMessages } from "./saveClineMessages"
 import { runRecursiveClineLoop } from "./runRecursiveClineLoop"
+import { TaskPiiMasker } from "../../services/pii/TaskPiiMasker"
 import { buildApiRequestDeps as runBuildApiRequestDeps } from "./buildApiRequestDeps"
 import { runAskFlow } from "./runAskFlow"
 import { runAbortTask } from "./runAbortTask"
@@ -592,6 +593,28 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				Task.lastGlobalApiRequestTime = performance.now()
 			},
 		})
+	}
+
+	/**
+	 * タスク 1 つ分の伏せ字（`FR-PII-01`）。
+	 *
+	 * **最初に使うときの設定で固定する。** 会話の途中で設定が変わっても、同じ値へ同じ
+	 * 伏せ字を割り当て続ける。途中で割り当て方が変わると、前の応答で使った伏せ字と
+	 * 食い違い、モデルは別人だと読む。
+	 */
+	private piiMaskerInstance?: TaskPiiMasker
+
+	public get piiMasker(): TaskPiiMasker {
+		if (!this.piiMaskerInstance) {
+			const settings = this.providerRef.deref()?.contextProxy?.getValue("piiMasking")
+			this.piiMaskerInstance = new TaskPiiMasker(settings ?? {})
+		}
+		return this.piiMaskerInstance
+	}
+
+	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。道具の引数を解釈する手前で通す。 */
+	public unmask(text: string): string {
+		return this.piiMasker.unmask(text)
 	}
 
 	public dispose(): void {

@@ -4,16 +4,21 @@ import {
 	type AgentSettings,
 	type ExperimentId,
 	type Language,
+	type SkillSource,
 	type WebviewMessage,
 	isGlobalStateKey,
 	isSecretStateKey,
 } from "@openai-agent/types"
 
-import { changeLanguage } from "../../i18n"
+import { changeLanguage, t } from "../../i18n"
 import { Terminal } from "../../integrations/terminal/Terminal"
 import { Package } from "../../shared/package"
 import { experimentDefault } from "../../shared/experiments"
 import { exportSettings, importSettingsWithFeedback } from "../config/importExport"
+import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
+import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../services/skills/skillSourceCredentials"
+import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
+import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
 
@@ -190,6 +195,117 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 
 	resetState: async (provider) => {
 		await provider.resetState()
+	},
+
+	/**
+	 * スキルの取得元を取ってくる（`FR-EXT-05` `FR-EXT-05a`）。
+	 *
+	 * **利用者が押したときだけ通信する。** 起動時にも定期的にも取りに行かない
+	 * （`NFR-PRV-03`）。
+	 */
+	fetchSkillSource: async (provider, message) => {
+		const url = typeof message.values?.url === "string" ? message.values.url : ""
+		const proxyMode = message.values?.proxyMode as SkillSource["proxyMode"]
+		const proxyUrl = typeof message.values?.proxyUrl === "string" ? message.values.proxyUrl : undefined
+		const copyToShared = message.values?.copyToShared === true
+
+		const result = await fetchSkillSource({
+			url,
+			baseDir: skillSourcesBaseDir(),
+			proxy: { mode: proxyMode, url: proxyUrl },
+		})
+
+		if (!result.ok) {
+			await vscode.window.showErrorMessage(t("common:skills.fetchFailed", { error: result.error }))
+			return
+		}
+
+		if (result.proxyIgnored) {
+			// 黙って無視しない。設定したのに効かない状態を切り分けられなくなる
+			// （`FR-EXT-05b3`）。
+			await vscode.window.showWarningMessage(t("common:skills.proxyIgnoredForSsh"))
+		}
+
+		await vscode.window.showInformationMessage(
+			t(result.action === "cloned" ? "common:skills.fetched" : "common:skills.updated", { url }),
+		)
+
+		if (copyToShared) {
+			const { copied, skipped } = await copySkillsToShared({
+				sourceDir: result.directory,
+				sharedDir: sharedSkillsDir(),
+				url,
+			})
+
+			if (skipped.length > 0) {
+				// 同じ名前のものが先にあった。ほかのツールが置いたものには触らない
+				// （`FR-EXT-05f2`）。黙って飛ばすと、複製したつもりで古い中身が使われる。
+				await vscode.window.showWarningMessage(t("common:skills.copySkipped", { names: skipped.join(", ") }))
+			}
+
+			await vscode.window.showInformationMessage(t("common:skills.copied", { count: copied.length }))
+		} else {
+			// 複製をやめたときは、前に置いたものを片づけてから探索先へ戻す。
+			const removed = await removeCopiedSkills({ sharedDir: sharedSkillsDir(), url })
+			await clearCopiedMarker(result.directory)
+
+			if (removed.length > 0) {
+				await vscode.window.showInformationMessage(t("common:skills.copyRemoved", { count: removed.length }))
+			}
+		}
+
+		await provider.getSkillsManager()?.discoverSkills()
+		await provider.postStateToWebview()
+	},
+
+	saveSkillSourceCredentials: async (_provider, message) => {
+		const url = typeof message.values?.url === "string" ? message.values.url : ""
+
+		const target = credentialTargetForUrl(url)
+		if (!target) {
+			await vscode.window.showWarningMessage(t("common:skills.credentialNotHttps"))
+			return
+		}
+
+		// **値は拡張ホスト側で聞く**（`FR-EXT-06b`）。webview を経由すると、渡す経路が
+		// 1 つ増えるだけで、どこにも保存しない利点が薄れる。
+		const username = await vscode.window.showInputBox({
+			prompt: t("common:skills.credentialPrompt", { host: target.host }),
+			ignoreFocusOut: true,
+		})
+		if (!username) {
+			return
+		}
+
+		const password = await vscode.window.showInputBox({
+			prompt: t("common:skills.credentialPasswordPrompt", { host: target.host }),
+			password: true,
+			ignoreFocusOut: true,
+		})
+		if (!password) {
+			return
+		}
+
+		const result = await storeSkillSourceCredentials({ url, username, password })
+
+		if (result.ok) {
+			await vscode.window.showInformationMessage(t("common:skills.credentialSaved", { host: result.host }))
+			return
+		}
+
+		if (result.reason === "no-helper") {
+			// 保管庫が無いと `approve` は黙って何もしない。設定の方法まで示す
+			// （`FR-EXT-06c`）。
+			await vscode.window.showWarningMessage(t("common:skills.credentialNoHelper"))
+			return
+		}
+
+		if (result.reason === "unsafe-value") {
+			await vscode.window.showWarningMessage(t("common:skills.credentialUnsafeValue"))
+			return
+		}
+
+		await vscode.window.showErrorMessage(t("common:skills.credentialFailed", { error: result.error ?? "" }))
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

@@ -248,6 +248,7 @@ export type ExtensionState = Pick<
 	| "requestDelaySeconds"
 	| "showWorktreesInHomeScreen"
 	| "disabledTools"
+	| "skillSources"
 > & {
 	lockApiConfigAcrossModes?: boolean
 	version: string
@@ -355,6 +356,8 @@ export interface WebviewMessage {
 		| "requestRouterModels"
 		| "requestOpenAiModels"
 		| "testApiConnection"
+		| "fetchSkillSource"
+		| "saveSkillSourceCredentials"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

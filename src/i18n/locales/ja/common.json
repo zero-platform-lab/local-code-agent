@@ -210,5 +210,21 @@
 	"docsLink": {
 		"label": "Docs",
 		"url": "https://github.com/example-org/local-agent"
+	},
+	"skills": {
+		"fetched": "{{url}} からスキルを取得しました。",
+		"updated": "{{url}} のスキルを更新しました。",
+		"fetchFailed": "スキルを取得できませんでした: {{error}}",
+		"proxyIgnoredForSsh": "SSH の取得元では proxy の設定が効きません。git が SSH で直接つなぎます。",
+		"credentialPrompt": "{{host}} の利用者名を入力してください。",
+		"credentialPasswordPrompt": "{{host}} のパスワード（またはアクセストークン）を入力してください。",
+		"credentialSaved": "{{host}} の資格情報を git の保管庫へ預けました。",
+		"credentialNotHttps": "SSH の取得元では資格情報を預けません。鍵は git と ssh が扱います。",
+		"credentialUnsafeValue": "利用者名とパスワードに改行は使えません。",
+		"credentialNoHelper": "git の資格情報の保管庫（credential.helper）が設定されていません。`git config --global credential.helper store` などで設定してから、もう一度お試しください。",
+		"credentialFailed": "資格情報を預けられませんでした: {{error}}",
+		"copied": "{{count}} 件のスキルを共有する場所へ複製しました。",
+		"copySkipped": "同じ名前のスキルが既にありました。複製していません: {{names}}",
+		"copyRemoved": "共有する場所から {{count}} 件の複製を取り除きました。"
 	}
 }

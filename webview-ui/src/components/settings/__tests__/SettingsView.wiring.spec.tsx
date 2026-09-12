@@ -70,6 +70,7 @@ vi.mock("../../common/Tab", () => ({
 			<button data-testid="tab-list-select-about" onClick={() => onValueChange("about")} />
 			<button data-testid="tab-list-select-general" onClick={() => onValueChange("general")} />
 			<button data-testid="tab-list-select-modes" onClick={() => onValueChange("modes")} />
+			<button data-testid="tab-list-select-skills" onClick={() => onValueChange("skills")} />
 			{children}
 		</div>
 	),
@@ -129,7 +130,16 @@ vi.mock("../SectionHeader", () => ({ SectionHeader: ({ children }: any) => <div>
 vi.mock("../Section", () => ({ Section: ({ children }: any) => <div>{children}</div> }))
 vi.mock("../CheckpointSettings", () => ({ CheckpointSettings: () => <div data-testid="checkpoints" /> }))
 vi.mock("../SlashCommandsSettings", () => ({ SlashCommandsSettings: () => <div data-testid="slash-commands" /> }))
-vi.mock("../SkillsSettings", () => ({ SkillsSettings: () => <div data-testid="skills" /> }))
+vi.mock("../SkillsSettings", () => ({
+	SkillsSettings: ({ skillSources, setSkillSources }: any) => (
+		<div data-testid="skills" data-source-urls={(skillSources ?? []).map((s: any) => s.url).join(",")}>
+			<button
+				data-testid="skills-add-source"
+				onClick={() => setSkillSources([{ url: "https://gitlab.example.com/platform/skills.git" }])}
+			/>
+		</div>
+	),
+}))
 vi.mock("@src/components/modes/ModesView", () => ({ __esModule: true, default: () => <div data-testid="modes" /> }))
 vi.mock("@src/components/mcp/McpView", () => ({ __esModule: true, default: () => <div data-testid="mcp" /> }))
 vi.mock("@src/components/worktrees/WorktreesView", () => ({ WorktreesView: () => <div data-testid="worktrees" /> }))
@@ -436,6 +446,28 @@ describe("SettingsView wiring", () => {
 			fireEvent.click(screen.getByTestId("experiment-enable"))
 			expect(save().disabled).toBe(false)
 			expect(screen.getByTestId("experimental")).toHaveAttribute("data-enabled", "true")
+		})
+
+		it("スキルの取得元を持ち帰り、保存で送る", () => {
+			// 取得元は設定なので、保存の操作まで反映しない（NFR-USA-06）。
+			// payload に載せ忘れると、画面では編集できるのに保存されない。
+			renderView()
+			fireEvent.click(screen.getByTestId("tab-list-select-skills"))
+			const save = () => screen.getByTestId("save-button") as HTMLButtonElement
+
+			fireEvent.click(screen.getByTestId("skills-add-source"))
+
+			expect(save().disabled).toBe(false)
+			expect(screen.getByTestId("skills")).toHaveAttribute(
+				"data-source-urls",
+				"https://gitlab.example.com/platform/skills.git",
+			)
+
+			fireEvent.click(save())
+
+			expect(lastSettings()).toMatchObject({
+				skillSources: [{ url: "https://gitlab.example.com/platform/skills.git" }],
+			})
 		})
 
 		it("tracks the debug switch", () => {

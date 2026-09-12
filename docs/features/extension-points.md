@@ -114,6 +114,27 @@ git が止まったままになる。
 
 SSH の取得元では、この仕組みを使わない。鍵は git と ssh が扱う。
 
+### 複製したものだけを目印で見分ける
+
+取得したスキルは、ほかの AI コーディングツールと共有する `~/.agents/skills` へ複製できる
+（`FR-EXT-05f`）。複製するかは取得元ごとに選ぶ。
+
+共有する場所には**ほかのツールが置いたものが同居している**。そこで、複製した各スキルの
+中に取得元の URL を書いた目印（`.agent-skill-source`）を置き、取り除くときはその目印が
+あるものだけを見る（`FR-EXT-05f2`）。目印が無いディレクトリには触らない。同じ名前の
+ものが先にあれば、上書きせずに飛ばし、その名前を画面に出す。黙って飛ばすと、複製した
+つもりで古い中身が使われる。
+
+`.git` ごとは複製しない。共有する場所に履歴を置くと、ほかのツールが管理しているものと
+混ざる。
+
+**複製した取得元は探索先へ足さない**（`FR-EXT-05f1`）。足すと、複製した先と取得元の
+両方から同じスキルが見つかり、一覧に二重に並ぶ。取得元の根にも目印
+（`.agent-copied-to-shared`）を置き、`findSkillSourceRoots` がそれを見て外す。設定を
+読まずに済むので、探索の側は引き続きディスクだけを見る。
+
+複製をやめたときは、次の取得で目印のあるものを片づけてから、取得元の目印を外す。
+
 ### proxy は解決だけを共有し、転送は git に任せる
 
 `resolveEffectiveProxy` で URL を決め、`simpleGit({ config: ["http.proxy=..."] })` として
@@ -147,6 +168,14 @@ SOCKS では名前の解決を proxy 側で行う（`FR-NET-12a1`）。git の `
 | 範囲の逸脱とリンクの拒否 | `src/services/command/__tests__/commands.pathTraversal.spec.ts`、`src/services/command/__tests__/symlink-commands.spec.ts` |
 | スキルの探索と名前の検証 | `src/services/skills/__tests__/SkillsManager.spec.ts`                                                                      |
 | 規則の読み込み           | `src/core/prompts/sections/__tests__/custom-instructions.spec.ts`                                                          |
+| 取得元の URL の解釈      | `src/services/skills/__tests__/skillSourcePath.spec.ts`                                                                    |
+| proxy 付きの git の起動  | `src/services/skills/__tests__/skillSourceGit.spec.ts`                                                                     |
+| 取得と 2 回目以降の更新  | `src/services/skills/__tests__/skillSourceFetcher.spec.ts`                                                                 |
+| 取得先を探索先へ足す     | `src/services/skills/__tests__/skillSourceDiscovery.spec.ts`                                                               |
+| 取得元を編集する画面     | `webview-ui/src/components/settings/__tests__/SkillSourcesSettings.spec.tsx`                                               |
+| 資格情報を保管庫へ預ける | `src/services/skills/__tests__/skillSourceCredentials.spec.ts`                                                             |
+| 共有する場所への複製     | `src/services/skills/__tests__/skillSourceCopy.spec.ts`                                                                    |
+| 取得の一連のつなぎ       | `src/core/webview/__tests__/settingsMessageHandlers.spec.ts`                                                               |
 
 ## できていないこと
 

@@ -11,7 +11,7 @@
 #   pnpm ci:local --fast      # unit test と e2e をスキップ
 #   pnpm ci:local --strict    # CI 等価に寄せる: lockfile 検証 + turbo キャッシュ無視
 #
-# 検査内容: i18n / knip / prettier / eslint / tsc / 循環依存 / unit test (+網羅率の床) / e2e(smoke)
+# 検査内容: i18n / knip / prettier / eslint / tsc / 循環依存 / 文書のずれ / unit test (+網羅率の床) / e2e(smoke)
 #
 # e2e(smoke) は apps/vscode-e2e の**全テスト**を回す（鍵が要るものは置かない方針）。
 # 単体テストでは決して捕まえられない層——
@@ -106,6 +106,9 @@ run_step "format" $pnpm_cmd format:check
 run_step "lint" $pnpm_cmd lint
 run_step "check-types" $pnpm_cmd check-types
 run_step "lint:cycles" $pnpm_cmd lint:cycles
+# 文書のずれ。要件の識別子と、文書に書いた件数を一次ソースと突き合わせる。
+# 人が数え直す前提の数値は必ず古くなるので、ここで数え直す。
+run_step "check-docs" node scripts/check-docs.mjs
 # code-qa.yml: unit-test。ゲートでは網羅率も一緒に測る。
 # 各パッケージの vitest.config.ts に「床」を書いてあり、下回ると落ちる。
 # 目標値ではなく後退防止のラチェット（現状値を固定したもの）。

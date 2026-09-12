@@ -12,6 +12,7 @@
 		"lint": "turbo lint --log-order grouped --output-logs new-only",
 		"lint:security": "eslint --no-config-lookup --config eslint.security.config.mjs \"src/**/*.{ts,tsx}\" \"webview-ui/src/**/*.{ts,tsx}\" \"packages/*/src/**/*.ts\"",
 		"lint:cycles": "node scripts/check-circular-deps.mjs",
+		"check-docs": "node scripts/check-docs.mjs",
 		"ci:local": "bash scripts/ci-local.sh",
 		"check-types": "turbo check-types --log-order grouped --output-logs new-only",
 		"test": "turbo test --log-order grouped --output-logs new-only",

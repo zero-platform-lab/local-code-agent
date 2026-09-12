@@ -68,7 +68,7 @@ describe("fetchSkillSource", () => {
 		expect(git.clone).not.toHaveBeenCalled()
 	})
 
-	it("入力を待たせない環境変数を渡す（FR-EXT-06f）", async () => {
+	it("入力を待たせない環境変数を渡す（FR-EXT-06d）", async () => {
 		const { git, deps } = makeDeps()
 
 		await fetchSkillSource({ url: "https://host/a/b", baseDir: BASE }, deps as never)

@@ -46,7 +46,7 @@ describe("buildGitInvocation", () => {
 		resolveEffectiveProxy.mockReturnValue({ url: undefined, source: "none" })
 	})
 
-	it("入力を待たずに失敗させる設定を必ず渡す（FR-EXT-06f）", () => {
+	it("入力を待たずに失敗させる設定を必ず渡す（FR-EXT-06d）", () => {
 		expect(buildGitInvocation("https").env.GIT_TERMINAL_PROMPT).toBe("0")
 	})
 

@@ -55,7 +55,7 @@ export function redactProxyUrl(proxyUrl: string): string {
 
 export function buildGitInvocation(transport: SkillSourceTransport, proxy?: SkillSourceProxy): GitInvocation {
 	const env: Record<string, string> = {
-		// **入力を待たずに失敗させる**（`FR-EXT-06f`）。待つと、画面の無いところで
+		// **入力を待たずに失敗させる**（`FR-EXT-06d`）。待つと、画面の無いところで
 		// git が止まったままになる。
 		GIT_TERMINAL_PROMPT: "0",
 	}

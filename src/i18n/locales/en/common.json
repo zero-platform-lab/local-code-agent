@@ -247,6 +247,13 @@
 			"zip": "postal codes",
 			"address": "addresses",
 			"mynumber": "My Number"
-		}
+		},
+		"noSelection": "No text is selected.",
+		"pickDictionary": "Choose the dictionary to add to",
+		"pickKind": "Choose the kind of term",
+		"termAdded": "Added {{value}} to {{path}}.",
+		"dictionaryNotUtf8": "{{path}} is Shift_JIS. Nothing was appended so the file stays readable. Add the term by hand, or save the file as UTF-8.",
+		"nothingToExport": "There are no terms to export.",
+		"exported": "Exported {{count}} term(s) to {{path}}."
 	}
 }

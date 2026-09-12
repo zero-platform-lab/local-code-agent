@@ -2,6 +2,7 @@ import * as vscode from "vscode"
 
 import { getPiiCommand } from "../utils/commands"
 import { maskSecretsInActiveEditor, type MaskEditorSettings } from "../services/pii/maskEditor"
+import { addSelectionToDictionary, exportDictionary } from "../services/pii/dictionaryEditor"
 
 /**
  * 機密情報を伏せ字へ置き換えるコマンドを登録する（`FR-PII-11`）。
@@ -15,5 +16,9 @@ export const registerPiiCommands = (context: vscode.ExtensionContext, readSettin
 		vscode.commands.registerCommand(getPiiCommand("maskSecretsInFile"), () =>
 			maskSecretsInActiveEditor(readSettings()),
 		),
+		vscode.commands.registerCommand(getPiiCommand("addToDictionary"), () =>
+			addSelectionToDictionary(readSettings()),
+		),
+		vscode.commands.registerCommand(getPiiCommand("exportDictionary"), () => exportDictionary(readSettings())),
 	)
 }

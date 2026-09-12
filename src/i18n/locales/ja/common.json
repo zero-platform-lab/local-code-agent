@@ -248,6 +248,13 @@
 			"zip": "郵便番号",
 			"address": "住所",
 			"mynumber": "マイナンバー"
-		}
+		},
+		"noSelection": "語が選ばれていません。",
+		"pickDictionary": "足す先の辞書を選んでください",
+		"pickKind": "語の種類を選んでください",
+		"termAdded": "{{value}} を {{path}} に足しました。",
+		"dictionaryNotUtf8": "{{path}} は Shift_JIS です。壊さないために書き足しません。手で足すか、UTF-8 で保存し直してください。",
+		"nothingToExport": "書き出す語がありません。",
+		"exported": "{{count}} 件を {{path}} へ書き出しました。"
 	}
 }

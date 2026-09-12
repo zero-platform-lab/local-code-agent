@@ -109,12 +109,15 @@
   承認の要否も Plan の拒否もモデルからは見えないため、このセクションが唯一の伝達経路である。
   文面は `AUTONOMY_PRESETS` の実際の値と一致していなければならない。**Plan は計画モードである。**
   計画の立て方（旧 architect の指示）もこのセクションが持つ。
-- **組み込みの役割モードは `code` の 1 件である。** Architect / Ask / Debug / Orchestrator と
-  `switch_mode` ツールは削除済み（PR #19・#21）。モードを変更できるのはユーザーだけであり、
-  モデルは変更できない。GitHub Copilot（Ask / Edit / Agent が権限の軸のみ）と同じ構成である。
-- **`customModes` は意図的に残している。** Copilot の `.chatmode.md` に相当する代替手段であり、
-  `fileRegex` によるファイル種別の制限もここでしか表現できない（自律モードの拒否はツールグループ
-  単位である）。撤去は本体コードだけで 46 ファイルに及ぶため、必要になるまで着手しない。
+- **組み込みの役割モードは `code` と `research` の 2 件である。** Architect / Ask / Debug /
+  Orchestrator と `switch_mode` ツールは削除済み（PR #19・#21）。`research`（調査・運用）は
+  PR #39 で足した。groups は `code` と同一で、差は役割文だけである。モードを変更できるのは
+  ユーザーだけであり、モデルは変更できない。GitHub Copilot（Ask / Edit / Agent が権限の軸のみ）
+  と同じ構成である。
+- **`customModes` は撤去済みである（PR #41）。** ユーザー定義モードと `.agentmodes` の機構は、
+  未使用のまま構成を複雑にしていた。`fileRegex` によるファイル種別の制限も同時に廃止したので、
+  編集の制限はツールグループ単位だけである。文面の調整は `customModePrompts`（モード設定画面）と
+  この AGENTS.md / `.agent/rules/` で行う。**再導入を提案しない。**
 - **削除済みの mode slug が保存されている場合に注意する。** `isToolAllowedForMode` は解決
   できない mode に対して `return false` を返し、常時利用ツール以外をすべて拒否する。保存済みの
   mode は `buildState` の `resolveMode` で実在するモードへ解決してから使うこと。**型検査もテスト

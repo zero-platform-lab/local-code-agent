@@ -18,7 +18,7 @@
 
 ## A. エージェント能力
 
-### A1. ツール（`toolNames` 全24、実送信は非エイリアスのみ）
+### A1. ツール（`toolNames` 全23、実送信は非エイリアスのみ）
 
 グループ（`src/shared/tools.ts` の `TOOL_GROUPS`）:
 
@@ -35,7 +35,7 @@
 - `custom_tool`: MCP 動的ツールの受け皿。
 - `codebase_search`: コードインデックスが有効なときのみ提示（既定は無効で自動除外）。**要精査**（埋め込みインデックスを使うか）。
 
-### A2. 役割モード（`DEFAULT_MODES` 全1）
+### A2. 役割モード（`DEFAULT_MODES` 全2）
 
 **code / research** の 2 件。
 
@@ -73,14 +73,24 @@
 
 ## B. 設定
 
-### B1. プロバイダ設定（`packages/types/src/provider-settings.ts`、21キー）
+### B1. プロバイダ設定（`provider-settings.ts` の `providerSettingsSchema`、28キー）
 
 - **核**: openAiApiKey, openAiBaseUrl, openAiModelId, openAiUseAzure, azureApiVersion,
-  openAiUseResponsesApi, openAiStreamingEnabled, openAiHeaders, enableReasoningEffort, modelTemperature。
-- **補助**: includeMaxTokens, rateLimitSeconds, consecutiveMistakeLimit, todoListEnabled, webFetchEnabled。
-- **要精査**: apiProvider / apiModelId / modelId（単一プロバイダで形骸化していないか）、fakeAi（テスト用）。
+  openAiUseResponsesApi, openAiStreamingEnabled, openAiHeaders, enableReasoningEffort,
+  reasoningEffort, modelTemperature。
+- **核（フォークで追加）**: openAiReasoningWithTools（ツール併用時に reasoning_effort を送る）、
+  openAiProxyMode / openAiProxyUrl（Model 単位の proxy）。
+- **補助**: includeMaxTokens, rateLimitSeconds, consecutiveMistakeLimit, todoListEnabled,
+  webFetchEnabled, openAiCustomModelInfo。
+- **要精査**: apiProvider / apiModelId（単一プロバイダで形骸化していないか）、verbosity（送っているか）、
+  fakeAi（テスト用）。
+- **コードインデックス（4キー）**: codeIndexQdrantApiKey, codebaseIndexOpenAiCompatibleBaseUrl,
+  codebaseIndexOpenAiCompatibleApiKey, codebaseIndexOpenAiCompatibleModelDimension。
+  **要精査**（コードインデックスを使うか）。
+- プロファイル一覧の項目は別スキーマである（`providerSettingsEntrySchema` の id / name /
+  apiProvider / modelId）。上の 28 キーには含まれない。
 
-### B2. グローバル設定（`packages/types/src/global-settings.ts`、約75キー）
+### B2. グローバル設定（`packages/types/src/global-settings.ts`、75キー）
 
 - **自動承認（~16）**: autoApprovalEnabled, alwaysAllow{ReadOnly, ReadOnlyOutsideWorkspace, Write,
   WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks, FollowupQuestions},
@@ -126,13 +136,15 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
 - 設定: setCustomStoragePath, importSettings
 
-### C2. 設定タブ（`webview-ui/src/components/settings/SettingsView.tsx`、11）
+### C2. 設定タブ（`SettingsView.tsx` の `sectionNames`、11）
 
-providers / autoApprove / checkpoints / contextManagement / terminal / prompts / experimental /
-language / about /（auto）
+providers / autoApprove / slashCommands / skills / contextManagement / terminal / modes /
+mcp / worktrees / general / about
 
 - **済**: notifications タブは PR #422（sound/tts 削除）で撤去。
-- **要精査**: checkpoints, language を畳めるか。
+- **済**（PR #43）: 15 から 11 へ整理した。checkpoints / ui / experimental / language を
+  general へ、prompts を modes へ畳んだ。旧名で来た深いリンクは `legacySectionMap` が
+  統合先のタブへ振り分ける。
 
 ---
 

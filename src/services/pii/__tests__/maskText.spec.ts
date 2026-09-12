@@ -5,7 +5,7 @@
 // **誤って伏せないこと**を、伏せることと同じ重さで確かめる。誤検出はモデルが読む内容を
 // 変えるので、漏れより害が大きい場面がある。
 
-import { passesLuhn } from "../detectors"
+import { myNumberCheckDigit, passesLuhn, passesMyNumberCheck } from "../detectors"
 import { maskText, findPii, resolveOverlaps, totalCount, unmaskText } from "../maskText"
 
 describe("メールアドレス（FR-PII-04）", () => {
@@ -104,6 +104,42 @@ describe("passesLuhn", () => {
 	it("数字以外を含む文字列は通さない", () => {
 		expect(passesLuhn("4111-1111")).toBe(false)
 		expect(passesLuhn("")).toBe(false)
+	})
+})
+
+describe("マイナンバー（FR-PII-14）", () => {
+	// 正しい番号を外から持ち込まず、検査用数字の定義から組み立てる。
+	const withCheckDigit = (first11: string) => `${first11}${myNumberCheckDigit(first11)}`
+
+	it("検算に通る 12 桁を伏せる", () => {
+		const number = withCheckDigit("12345678901")
+
+		expect(maskText(`番号は ${number}`, { kinds: ["mynumber"] }).text).toBe("番号は {{mynumber-001}}")
+	})
+
+	it("区切りが入っていても伏せる", () => {
+		const number = withCheckDigit("12345678901")
+		const spaced = `${number.slice(0, 4)} ${number.slice(4, 8)} ${number.slice(8)}`
+
+		expect(maskText(spaced, { kinds: ["mynumber"] }).text).toBe("{{mynumber-001}}")
+	})
+
+	it("1 桁変えると検算に落ちる（FR-PII-14a）", () => {
+		const number = withCheckDigit("12345678901")
+		const broken = `${number.slice(0, 11)}${(Number(number[11]) + 1) % 10}`
+
+		expect(passesMyNumberCheck(number)).toBe(true)
+		expect(passesMyNumberCheck(broken)).toBe(false)
+		expect(maskText(broken, { kinds: ["mynumber"] }).text).toBe(broken)
+	})
+
+	it("12 桁でない並びは見ない", () => {
+		expect(passesMyNumberCheck("1234567890")).toBe(false)
+	})
+
+	it("余りが 1 以下なら検査用数字は 0 になる", () => {
+		// 全部 0 なら ΣPQ も 0 で、余りは 0 である。
+		expect(myNumberCheckDigit("00000000000")).toBe(0)
 	})
 })
 

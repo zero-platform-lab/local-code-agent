@@ -122,6 +122,43 @@ export function detectCards(text: string): PiiMatch[] {
 }
 
 /**
+ * マイナンバー（個人番号、`FR-PII-14`）。
+ *
+ * 12 桁で、最下位の 1 桁が検査用数字である。**検算に通った並びだけ**を採る
+ * （`FR-PII-14a`）。桁数だけで拾うと、連番や識別子まで伏せる。
+ *
+ * 検査用数字は 11 で割った余りから決まるので、でたらめな 12 桁でも 11 回に 1 回は通る。
+ * クレジットカードの Luhn と同程度の絞り込みである。
+ */
+const MY_NUMBER = /\b\d{4}[ -]?\d{4}[ -]?\d{4}\b/g
+
+/**
+ * 検査用数字を計算する（総務省令の定義）。
+ *
+ * 下位から数えて `n + 1` 桁目を `P`、重みを `Q`（`n` が 1〜6 なら `n + 1`、7〜11 なら
+ * `n - 5`）として、`11 - (ΣPQ mod 11)` を採る。余りが 1 以下なら 0 とする。
+ */
+export function myNumberCheckDigit(first11: string): number {
+	let sum = 0
+	for (let n = 1; n <= 11; n++) {
+		const digit = first11.charCodeAt(11 - n) - 48
+		const weight = n <= 6 ? n + 1 : n - 5
+		sum += digit * weight
+	}
+	const remainder = sum % 11
+	return remainder <= 1 ? 0 : 11 - remainder
+}
+
+export function passesMyNumberCheck(digits: string): boolean {
+	if (!/^\d{12}$/.test(digits)) return false
+	return myNumberCheckDigit(digits.slice(0, 11)) === digits.charCodeAt(11) - 48
+}
+
+export function detectMyNumbers(text: string): PiiMatch[] {
+	return collect(text, MY_NUMBER, "mynumber").filter((match) => passesMyNumberCheck(match.value.replace(/\D/g, "")))
+}
+
+/**
  * よく知られた形の鍵（`FR-PII-10` `FR-PII-10a`）。
  *
  * 接頭辞で照合する。文字の偏りだけで判定すると、git のハッシュ、base64 の資産、

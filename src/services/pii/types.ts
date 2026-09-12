@@ -21,6 +21,7 @@ export type PiiKind =
 	| "secret"
 	| "zip"
 	| "address"
+	| "mynumber"
 
 export const PII_KINDS: readonly PiiKind[] = [
 	"person",
@@ -34,6 +35,7 @@ export const PII_KINDS: readonly PiiKind[] = [
 	"secret",
 	"zip",
 	"address",
+	"mynumber",
 ]
 
 /**

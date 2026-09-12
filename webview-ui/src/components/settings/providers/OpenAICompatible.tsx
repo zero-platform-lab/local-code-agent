@@ -56,6 +56,7 @@ export const OpenAICompatible = ({
 		diagnostics?: { humanReadable?: string }
 	} | null>(null)
 
+	const [revealedHeaderIndexes, setRevealedHeaderIndexes] = useState<ReadonlySet<number>>(() => new Set())
 	const [customHeaders, setCustomHeaders] = useState<[string, string][]>(() => {
 		const headers = apiConfiguration?.openAiHeaders || {}
 		return Object.entries(headers)
@@ -93,6 +94,22 @@ export const OpenAICompatible = ({
 
 	const handleRemoveCustomHeader = useCallback((index: number) => {
 		setCustomHeaders((prev) => prev.filter((_, i) => i !== index))
+		// 行を消すと以降の index がずれる。別の行の値が出たままになるのを避けて、
+		// 出している行をすべて閉じる。
+		setRevealedHeaderIndexes(new Set())
+	}, [])
+
+	// ヘッダーの値は API キーであることがある。既定では伏せ、押した行だけ一時的に出す。
+	// **名前では判定しない。** `Authorization` や `api-key` は拾えても、社内 proxy の
+	// `X-Gateway-Token` のような独自の名前を取り逃がし、漏れる側に倒れる。
+	const handleToggleHeaderReveal = useCallback((index: number) => {
+		setRevealedHeaderIndexes((prev) => {
+			const next = new Set(prev)
+			if (!next.delete(index)) {
+				next.add(index)
+			}
+			return next
+		})
 	}, [])
 
 	// Helper to convert array of tuples to object
@@ -330,27 +347,48 @@ export const OpenAICompatible = ({
 						{t("settings:providers.noCustomHeaders")}
 					</div>
 				) : (
-					customHeaders.map(([key, value], index) => (
-						<div key={index} className="flex items-center mb-2">
-							<VSCodeTextField
-								value={key}
-								className="flex-1 mr-2"
-								placeholder={t("settings:providers.headerName")}
-								onInput={(e: any) => handleUpdateHeaderKey(index, e.target.value)}
-							/>
-							<VSCodeTextField
-								value={value}
-								className="flex-1 mr-2"
-								placeholder={t("settings:providers.headerValue")}
-								onInput={(e: any) => handleUpdateHeaderValue(index, e.target.value)}
-							/>
-							<StandardTooltip content={t("settings:common.remove")}>
-								<VSCodeButton appearance="icon" onClick={() => handleRemoveCustomHeader(index)}>
-									<span className="codicon codicon-trash"></span>
-								</VSCodeButton>
-							</StandardTooltip>
-						</div>
-					))
+					customHeaders.map(([key, value], index) => {
+						const isRevealed = revealedHeaderIndexes.has(index)
+
+						return (
+							<div key={index} className="flex items-center mb-2">
+								<VSCodeTextField
+									value={key}
+									className="flex-1 mr-2"
+									placeholder={t("settings:providers.headerName")}
+									onInput={(e: any) => handleUpdateHeaderKey(index, e.target.value)}
+								/>
+								<VSCodeTextField
+									value={value}
+									type={isRevealed ? "text" : "password"}
+									className="flex-1 mr-2"
+									placeholder={t("settings:providers.headerValue")}
+									onInput={(e: any) => handleUpdateHeaderValue(index, e.target.value)}
+								/>
+								<StandardTooltip
+									content={t(
+										isRevealed
+											? "settings:providers.hideHeaderValue"
+											: "settings:providers.showHeaderValue",
+									)}>
+									<VSCodeButton
+										appearance="icon"
+										onClick={() => handleToggleHeaderReveal(index)}
+										data-testid={`header-reveal-${index}`}>
+										<span className={`codicon codicon-eye${isRevealed ? "-closed" : ""}`}></span>
+									</VSCodeButton>
+								</StandardTooltip>
+								<StandardTooltip content={t("settings:common.remove")}>
+									<VSCodeButton
+										appearance="icon"
+										onClick={() => handleRemoveCustomHeader(index)}
+										data-testid={`header-remove-${index}`}>
+										<span className="codicon codicon-trash"></span>
+									</VSCodeButton>
+								</StandardTooltip>
+							</div>
+						)
+					})
 				)}
 			</div>
 

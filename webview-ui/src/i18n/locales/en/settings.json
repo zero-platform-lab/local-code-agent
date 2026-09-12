@@ -304,6 +304,8 @@
 		"customHeaders": "Custom Headers",
 		"headerName": "Header name",
 		"headerValue": "Header value",
+		"showHeaderValue": "Show value",
+		"hideHeaderValue": "Hide value",
 		"noCustomHeaders": "No custom headers defined. Click the + button to add one.",
 		"apiKey": "API Key",
 		"openAiBaseUrl": "Base URL",

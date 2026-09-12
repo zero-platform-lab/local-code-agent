@@ -47,8 +47,8 @@ vi.mock("@vscode/webview-ui-toolkit/react", () => ({
 			</div>
 		)
 	},
-	VSCodeButton: ({ children, onClick, appearance, title }: any) => (
-		<button onClick={onClick} title={title} data-testid={`vscode-button-${appearance}`}>
+	VSCodeButton: ({ children, onClick, appearance, title, "data-testid": dataTestId }: any) => (
+		<button onClick={onClick} title={title} data-testid={dataTestId ?? `vscode-button-${appearance}`}>
 			{children}
 		</button>
 	),
@@ -310,5 +310,78 @@ describe("OpenAICompatible Component - includeMaxTokens checkbox", () => {
 			const description = screen.getByText("settings:includeMaxOutputTokensDescription")
 			expect(description).toHaveClass("text-sm", "text-vscode-descriptionForeground", "ml-6")
 		})
+	})
+})
+
+describe("OpenAICompatible Component - 追加ヘッダーの値のマスク", () => {
+	const mockSetApiConfigurationField = vi.fn()
+	const mockOrganizationAllowList = { allowAll: true, providers: {} }
+
+	const renderWithHeaders = (headers: Record<string, string>) =>
+		render(
+			<OpenAICompatible
+				apiConfiguration={{ openAiHeaders: headers } as ProviderSettings}
+				setApiConfigurationField={mockSetApiConfigurationField}
+				organizationAllowList={mockOrganizationAllowList}
+			/>,
+		)
+
+	const headerValueInputs = () => screen.getAllByPlaceholderText("settings:providers.headerValue")
+
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
+
+	it("値は既定で伏せる。ヘッダー名では判定しない", () => {
+		// `X-Tenant` のような秘密でない名前でも伏せる。名前で当てると
+		// 社内 proxy の独自の名前を取り逃がすため。
+		renderWithHeaders({ "X-Tenant": "acme", "X-Gateway-Token": "s3cret" })
+
+		const inputs = headerValueInputs()
+		expect(inputs).toHaveLength(2)
+		expect(inputs[0]).toHaveAttribute("type", "password")
+		expect(inputs[1]).toHaveAttribute("type", "password")
+	})
+
+	it("押した行だけ値を出し、ほかの行は伏せたままにする", () => {
+		renderWithHeaders({ "X-A": "aaa", "X-B": "bbb" })
+
+		fireEvent.click(screen.getByTestId("header-reveal-1"))
+
+		const inputs = headerValueInputs()
+		expect(inputs[0]).toHaveAttribute("type", "password")
+		expect(inputs[1]).toHaveAttribute("type", "text")
+	})
+
+	it("もう一度押すと伏せた状態へ戻す", () => {
+		renderWithHeaders({ "X-A": "aaa" })
+
+		fireEvent.click(screen.getByTestId("header-reveal-0"))
+		expect(headerValueInputs()[0]).toHaveAttribute("type", "text")
+
+		fireEvent.click(screen.getByTestId("header-reveal-0"))
+		expect(headerValueInputs()[0]).toHaveAttribute("type", "password")
+	})
+
+	it("行を消したら、出していた行を閉じる", () => {
+		// 行を消すと以降の index がずれる。閉じないと、別の行の値が出たままになる。
+		renderWithHeaders({ "X-A": "aaa", "X-B": "bbb" })
+
+		fireEvent.click(screen.getByTestId("header-reveal-1"))
+		expect(headerValueInputs()[1]).toHaveAttribute("type", "text")
+
+		fireEvent.click(screen.getByTestId("header-remove-0"))
+
+		const inputs = headerValueInputs()
+		expect(inputs).toHaveLength(1)
+		expect(inputs[0]).toHaveAttribute("type", "password")
+	})
+
+	it("値を書き換えても伏せたままにする", () => {
+		renderWithHeaders({ "X-A": "aaa" })
+
+		fireEvent.change(headerValueInputs()[0], { target: { value: "bbb" } })
+
+		expect(headerValueInputs()[0]).toHaveAttribute("type", "password")
 	})
 })

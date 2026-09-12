@@ -107,6 +107,10 @@ const checkbox = (label: string) =>
 
 const field = (placeholder: string) => within(screen.getByTestId(`field-${placeholder}`)).getByRole("textbox")
 
+// 伏せた入力欄は role="textbox" を持たないので、placeholder で引く。
+const maskedField = (placeholder: string) =>
+	within(screen.getByTestId(`field-${placeholder}`)).getByPlaceholderText(placeholder)
+
 const borderColor = (placeholder: string, index = 0) =>
 	screen.getAllByTestId(`field-${placeholder}`)[index].getAttribute("data-border-color")
 
@@ -325,7 +329,7 @@ describe("OpenAICompatible wiring", () => {
 
 			fireEvent.click(screen.getByTestId("icon-button-icon"))
 			fireEvent.change(field("settings:providers.headerName"), { target: { value: "X-Key" } })
-			fireEvent.change(field("settings:providers.headerValue"), { target: { value: "1" } })
+			fireEvent.change(maskedField("settings:providers.headerValue"), { target: { value: "1" } })
 			flush()
 
 			expect(setApiConfigurationField).toHaveBeenLastCalledWith("openAiHeaders", { "X-Key": "1" }, false)

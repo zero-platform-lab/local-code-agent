@@ -42,18 +42,26 @@ import type { PiiKind } from "./types"
  * 同じ番号が別の値へ結び付く。
  */
 export class PiiVault implements PlaceholderAllocator {
+	/**
+	 * 割り当ての本体は `createAllocator` を使う。
+	 *
+	 * **伏せ字の作り方を 2 か所に持たない。** 桁数や鍵の作り方が片方だけ変わると、同じ値へ
+	 * 別の伏せ字が割り当てられ、応答を戻せなくなる。
+	 */
+	private readonly allocator = createAllocator()
+
 	/** 伏せ字 → 元の値。割り当て係としてもこの表を差し出す。 */
-	readonly table = new Map<string, string>()
-	private readonly assigned = new Map<string, string>()
-	private readonly next = new Map<PiiKind, number>()
+	get table(): ReadonlyMap<string, string> {
+		return this.allocator.table
+	}
 
 	/** 伏せ字 → 元の値。戻すときに使う。 */
 	get entries(): ReadonlyMap<string, string> {
-		return this.table
+		return this.allocator.table
 	}
 
 	get size(): number {
-		return this.table.size
+		return this.allocator.table.size
 	}
 
 	/**
@@ -65,21 +73,12 @@ export class PiiVault implements PlaceholderAllocator {
 	 * 書かれる。
 	 */
 	assign(kind: PiiKind, value: string): string {
-		const key = `${kind} ${value}`
-		const existing = this.assigned.get(key)
-		if (existing !== undefined) return existing
-
-		const index = (this.next.get(kind) ?? 0) + 1
-		this.next.set(kind, index)
-		const placeholder = `{{${kind}-${String(index).padStart(3, "0")}}}`
-		this.assigned.set(key, placeholder)
-		this.table.set(placeholder, value)
-		return placeholder
+		return this.allocator.assign(kind, value)
 	}
 
 	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。割り当てたものだけを戻す（`FR-PII-08a`）。 */
 	restore(text: string): string {
-		return unmaskText(text, this.table)
+		return unmaskText(text, this.allocator.table)
 	}
 }
 

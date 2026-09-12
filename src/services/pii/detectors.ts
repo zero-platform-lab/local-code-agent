@@ -73,16 +73,28 @@ export function detectPhones(text: string): PiiMatch[] {
 const INTERNAL_TLDS = ["internal", "local", "lan", "corp", "intra", "intranet", "private", "home", "localdomain"]
 
 /**
- * **内部向けの TLD が最後の label であることを要求する。**
+ * **ホスト名らしい文脈でだけ採る。**
  *
- * そうしないと、`.env.local` や `vite.config.local.ts` のようなファイル名が
- * ホスト名として伏せられる。モデルへ `.{{host-001}}` を編集させることになり、
- * 指示が読めなくなる。`assets.home.example.com` の途中の `home` も同じ理由で採らない。
+ * `a.b.local` のような 2 語の並びは、ホスト名か属性の参照かを見分けられない。実際
+ * `this.config.local` や `state.private` や `opts.home` は普通のコードである。伏せると
+ * モデルが読むコードが壊れる。
  *
- * 前が `.` のもの（`.env.local`）と、後ろに拡張子が続くもの（`...local.ts`）を外す。
+ * そこで 2 つを要求する。
+ *
+ * 1. label が 3 つ以上あること（`git.example.internal`）
+ * 2. 前後がホスト名の文脈であること（行頭・空白・引用符・`//`・`@` で始まり、
+ *    行末・空白・引用符・`/`・`:ポート` で終わる）
+ *
+ * `(` の直後は採らない。`if (this.config.local)` を拾うためである。`server.corp` のような
+ * 2 語の社内ホスト名は取りこぼすが、取りこぼしは利用者が挙げる語で補える。誤って伏せる
+ * ほうは補えない。
  */
 const INTERNAL_HOST = new RegExp(
-	String.raw`(?<!\.)\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:${INTERNAL_TLDS.join("|")})\b(?!\.[A-Za-z0-9])`,
+	String.raw`(?:(?<=^)|(?<=[\s"'` +
+		"`" +
+		String.raw`<])|(?<=//)|(?<=@))(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.){2,}(?:${INTERNAL_TLDS.join("|")})(?=$|[\s"'` +
+		"`" +
+		String.raw`>,;]|/|:\d)`,
 	"gi",
 )
 
@@ -108,6 +120,11 @@ function isPrivateOrClosed(octets: number[]): boolean {
 	if (a === 192 && b === 168) return true
 	// リンクローカル。設定ファイルに出るが、誰のものでもない。
 	if (a === 169 && b === 254) return true
+	// 事業者内の共用（CGNAT）。特定の組織を表さない。
+	if (a === 100 && b >= 64 && b <= 127) return true
+	// マルチキャストと予約。`224.0.0.1` や、サブネットマスクの `255.255.255.0` が入る。
+	// マスクを伏せると設定ファイルが読めなくなる。
+	if (a >= 224) return true
 	return false
 }
 
@@ -263,11 +280,23 @@ function labelPattern(label: string): string {
 }
 
 /**
- * 値は 8 文字以上の英数字と `-` `_` に限る（`FR-PII-10d`）。`.` と `/` を含むものは値と
- * 見なさない。`password = process.env.PASSWORD` のようなコードの参照まで伏せると、
- * モデルが読むコードが壊れる。
+ * 鍵の値。
+ *
+ * **引用符で囲まれているか、数字を含むものだけを採る。** そうしないと、
+ * `const apiKey = defaultApiKey` の `defaultApiKey` のような普通の識別子まで伏せる。
+ * モデルへ渡すコードの識別子が `{{secret-001}}` に変わり、参照の関係が読めなくなる。
+ *
+ * 後ろが `(` なら関数の呼び出しなので採らない（`secret: buildSecret()`）。`.` と `/` を
+ * 含むものも値と見なさない（`password = process.env.PASSWORD`）。
+ *
+ * 数字を含まない合言葉（`changeme`）は取りこぼす。取りこぼしは利用者が挙げる語で補える。
  */
-const SECRET_VALUE = String.raw`["'\`]?(?<value>[A-Za-z0-9_-]{8,})["'\`]?`
+const SECRET_VALUE =
+	String.raw`(?:["'` +
+	"`" +
+	String.raw`](?<quoted>[A-Za-z0-9_-]{8,})["'` +
+	"`" +
+	String.raw`]|(?<bare>[A-Za-z0-9_-]*[0-9][A-Za-z0-9_-]*)(?![\w(]))`
 
 export function detectLabelledSecrets(text: string, labels: readonly string[] = DEFAULT_SECRET_LABELS): PiiMatch[] {
 	const pattern = new RegExp(String.raw`(?:${labels.map(labelPattern).join("|")})\s*[:=]\s*${SECRET_VALUE}`, "gi")
@@ -275,7 +304,12 @@ export function detectLabelledSecrets(text: string, labels: readonly string[] = 
 	const matches: PiiMatch[] = []
 	for (const found of text.matchAll(pattern)) {
 		// 値の位置は、見つかった範囲の中で値を探して求める。ラベルは伏せない。
-		matches.push(valueMatch(found, "secret"))
+		// どちらか一方は必ず一致する。短い値は鍵ではないので採らない。
+		const value = (found.groups?.quoted ?? found.groups?.bare) as string
+		if (value.length < 8) continue
+
+		const start = found.index + found[0].lastIndexOf(value)
+		matches.push({ kind: "secret", start, end: start + value.length, value })
 	}
 	return matches
 }
@@ -368,7 +402,6 @@ export function detectAddresses(text: string): PiiMatch[] {
  */
 export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[] {
 	const matches: PiiMatch[] = []
-	const lower = text.toLowerCase()
 
 	for (const term of terms) {
 		if (term.regex) {
@@ -376,20 +409,21 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 			continue
 		}
 
-		const needle = term.value.trim().toLowerCase()
+		const needle = term.value.trim()
 		if (needle.length === 0) continue
 
-		let from = 0
-		for (;;) {
-			const at = lower.indexOf(needle, from)
-			if (at === -1) break
+		// **小文字に直した文字列の索引を、元の文字列へ当てない。** `İ` のように小文字に
+		// すると長さが変わる文字があり、そこから先の位置が全部ずれる。伏せる範囲が
+		// 1 文字ずれ、伏せ残しが出て、対応表にも切れた値が入る。
+		// 正規表現の `i` を使えば、索引は元の文字列のものになる。
+		const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")
+		for (const found of text.matchAll(pattern)) {
 			matches.push({
 				kind: term.kind ?? "term",
-				start: at,
-				end: at + needle.length,
-				value: text.slice(at, at + needle.length),
+				start: found.index,
+				end: found.index + found[0].length,
+				value: found[0],
 			})
-			from = at + needle.length
 		}
 	}
 	return matches

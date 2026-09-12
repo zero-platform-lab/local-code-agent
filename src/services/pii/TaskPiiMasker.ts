@@ -24,11 +24,22 @@ import type { PiiKind, PiiTerm } from "./types"
 export class TaskPiiMasker {
 	private readonly vault = new PiiVault()
 	private terms: PiiTerm[] | undefined
+	private loadedFrom: string | undefined
 	private troubles: string[] = []
-	private readonly settings: PiiMasking
+	private readonly read: () => PiiMasking
 
-	constructor(settings: PiiMasking) {
-		this.settings = settings
+	/**
+	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上
+	 * （`FR-PII-01b`）、抱え込むと押しても効かない。利用者は伏せたつもりで送ってしまう。
+	 *
+	 * 対応表だけは持ち越す。番号が振り直されると、前の応答の伏せ字が別の値を指す。
+	 */
+	constructor(read: (() => PiiMasking) | PiiMasking) {
+		this.read = typeof read === "function" ? read : () => read
+	}
+
+	private get settings(): PiiMasking {
+		return this.read()
 	}
 
 	/** シークレットモードが入っているか（`FR-PII-01a`）。 */
@@ -42,9 +53,14 @@ export class TaskPiiMasker {
 	}
 
 	private async options(): Promise<MaskOptions> {
-		if (this.terms === undefined) {
-			const fromFiles = await readDictionaries(this.settings.dictionaryPaths ?? [])
-			this.terms = [...(this.settings.terms ?? []), ...fromFiles.terms]
+		const settings = this.settings
+		// 辞書は読み直さない。ただし**指す先が変わったら読み直す**。設定の画面で辞書を
+		// 足しても効かない、という取り違えを避ける。
+		const key = JSON.stringify([settings.dictionaryPaths ?? [], settings.terms ?? []])
+		if (this.terms === undefined || this.loadedFrom !== key) {
+			this.loadedFrom = key
+			const fromFiles = await readDictionaries(settings.dictionaryPaths ?? [])
+			this.terms = [...(settings.terms ?? []), ...fromFiles.terms]
 			// **黙らない。** 辞書が読めないと、社名も顧客名も伏せられないまま送られる。
 			// 伏せているつもりで素通りする、いちばん気づけない失敗である。
 			this.troubles = [
@@ -55,8 +71,8 @@ export class TaskPiiMasker {
 
 		return {
 			terms: this.terms,
-			kinds: this.settings.kinds as readonly PiiKind[] | undefined,
-			secretLabels: this.settings.secretLabels,
+			kinds: settings.kinds as readonly PiiKind[] | undefined,
+			secretLabels: settings.secretLabels,
 		}
 	}
 
@@ -74,13 +90,15 @@ export class TaskPiiMasker {
 		messages: AgentMessage[]
 		counts: Partial<Record<PiiKind, number>>
 		troubles: readonly string[]
+		/** シークレットモードが入っていたか。切のときは呼び出し側も何も出さない。 */
+		enabled: boolean
 	}> {
 		if (!this.enabled) {
-			return { systemPrompt, messages, counts: {}, troubles: [] }
+			return { systemPrompt, messages, counts: {}, troubles: [], enabled: false }
 		}
 
 		const result = maskConversation(systemPrompt, messages, await this.options(), this.vault)
-		return { ...result, troubles: this.takeDictionaryTroubles() }
+		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
 	}
 
 	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。戻さない設定なら素通しする。 */

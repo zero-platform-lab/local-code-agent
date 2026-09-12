@@ -10,7 +10,17 @@ import * as os from "os"
 import * as path from "path"
 import { promises as fs } from "fs"
 
-import { decodeText, parseDictionary, parseDictionaryLines, readDictionaries } from "../dictionary"
+const agentDir = vi.hoisted(() => ({ value: "" }))
+vi.mock("../../agent-config", () => ({ getGlobalAgentDirectory: () => agentDir.value }))
+
+import {
+	decodeText,
+	defaultDictionaryPath,
+	parseDictionary,
+	parseDictionaryLines,
+	readDictionaries,
+	resolveDictionaryPath,
+} from "../dictionary"
 
 /** Shift_JIS の「田中太郎」。`TextDecoder` に頼らず、バイト列として書く。 */
 const SJIS_TANAKA = Uint8Array.from([0x93, 0x63, 0x92, 0x86, 0x91, 0xbe, 0x98, 0x59])
@@ -148,5 +158,59 @@ describe("readDictionaries", () => {
 		expect(result.problems).toHaveLength(1)
 		expect(result.problems[0]).toMatchObject({ line: 2, value: "/EMP-[/" })
 		expect(result.problems[0].path).toContain("a.txt")
+	})
+})
+
+describe("resolveDictionaryPath", () => {
+	it("~ を展開する。設定の画面が例示する書き方が読めないと、伏せたつもりで素通りする", () => {
+		expect(resolveDictionaryPath("~/.agent/dict.txt")).toBe(path.join(os.homedir(), ".agent/dict.txt"))
+		expect(resolveDictionaryPath("~")).toBe(os.homedir())
+	})
+
+	it("空の行は落とす。画面の「辞書を足す」が空のパスを積むため", () => {
+		expect(resolveDictionaryPath("")).toBeUndefined()
+		expect(resolveDictionaryPath("   ")).toBeUndefined()
+	})
+
+	it("絶対パスはそのまま", () => {
+		expect(resolveDictionaryPath("/w/dict.txt")).toBe("/w/dict.txt")
+	})
+})
+
+describe("既定の辞書（FR-PII-15b）", () => {
+	let dir: string
+
+	beforeEach(async () => {
+		dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-default-"))
+		agentDir.value = dir
+	})
+
+	afterEach(async () => {
+		agentDir.value = ""
+		await fs.rm(dir, { recursive: true, force: true })
+	})
+
+	it("設定に無くても、あれば読む", async () => {
+		await fs.writeFile(defaultDictionaryPath(), "アクメ\torg\n", "utf8")
+
+		// 右クリックで足した先を読まなければ、足した語は二度と効かない。
+		const result = await readDictionaries([])
+
+		expect(result.terms).toEqual([{ value: "アクメ", kind: "org" }])
+	})
+
+	it("無いときは足さない。読めない旨も出さない", async () => {
+		const result = await readDictionaries([])
+
+		expect(result.terms).toEqual([])
+		expect(result.failures).toEqual([])
+	})
+
+	it("二重には読まない", async () => {
+		await fs.writeFile(defaultDictionaryPath(), "アクメ\n", "utf8")
+
+		const result = await readDictionaries([defaultDictionaryPath()])
+
+		expect(result.terms).toHaveLength(1)
 	})
 })

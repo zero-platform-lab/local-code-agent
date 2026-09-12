@@ -63,9 +63,16 @@ export async function restoreSecretsInActiveEditor(unmask: ((text: string) => st
 	}
 
 	const text = editor.document.getText()
+	const version = editor.document.version
 	const restored = unmask(text)
 	if (restored === text) {
 		await vscode.window.showInformationMessage(t("common:pii.nothingToRestore"))
+		return
+	}
+
+	if (editor.document.version !== version) {
+		// 文書の全体を写しで置き換えるので、間に入った編集ごと巻き戻してしまう。
+		await vscode.window.showWarningMessage(t("common:pii.documentChanged"))
 		return
 	}
 
@@ -93,6 +100,9 @@ export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {
 
 	const document = editor.document
 	const text = document.getText()
+	// **版を控える。** 待ちの間に文書が変わると、ここで求めた位置は別の場所を指す。
+	// 当てる直前に確かめ、変わっていたらやり直してもらう。
+	const version = document.version
 
 	// 辞書が読めなくても、ほかの種類の置き換えは続ける（`FR-PII-03d`）。
 	const dictionary = await readDictionaries(settings.dictionaryPaths ?? [])
@@ -131,6 +141,13 @@ export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {
 		confirm,
 	)
 	if (answer !== confirm) {
+		return
+	}
+
+	if (document.version !== version) {
+		// 待ちの間に文書が変わった。古い位置へ当てると、無関係な箇所が伏せ字になり、
+		// 機密情報は残る。取り消せない操作なので、やり直してもらう。
+		await vscode.window.showWarningMessage(t("common:pii.documentChanged"))
 		return
 	}
 

@@ -56,6 +56,7 @@ import { describeCounts, maskSecretsInActiveEditor, restoreSecretsInActiveEditor
 const editorWith = (text: string, selection?: { start: number; end: number }) => ({
 	document: {
 		uri: { fsPath: "/w/note.md" },
+		version: 1,
 		getText: () => text,
 		offsetAt: (position: { offset: number }) => position.offset,
 		positionAt: (offset: number) => ({ offset }),
@@ -137,6 +138,22 @@ describe("maskSecretsInActiveEditor", () => {
 		expect(edit.replacements).toHaveLength(1)
 	})
 
+	it("待ちの間にファイルが変わったら当てない", async () => {
+		const editor = editorWith("taro@corp.example")
+		mocks.activeTextEditor = editor
+		// 確認の最中に整形が走った、という状況を作る。
+		mocks.showWarningMessage.mockImplementationOnce(async () => {
+			editor.document.version = 2
+			return "common:pii.confirmReplace"
+		})
+
+		await maskSecretsInActiveEditor({ kinds: ["email"] })
+
+		// 古い位置へ当てると、無関係な箇所が伏せ字になり、機密情報は残る。
+		expect(mocks.applyEdit).not.toHaveBeenCalled()
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.documentChanged")
+	})
+
 	it("当てられなかったら黙らせない", async () => {
 		mocks.activeTextEditor = editorWith("taro@corp.example")
 		answerConfirm()
@@ -216,6 +233,19 @@ describe("restoreSecretsInActiveEditor（FR-PII-20）", () => {
 		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
 		expect(edit.replacements[0].text).toBe("宛先は taro@corp.example です")
 		expect(mocks.showInformationMessage).toHaveBeenCalledWith("common:pii.restored")
+	})
+
+	it("戻す間にファイルが変わったら当てない", async () => {
+		const editor = editorWith("宛先は {{email-001}}")
+		mocks.activeTextEditor = editor
+		// 文書の全体を写しで置き換えるので、間に入った編集ごと巻き戻してしまう。
+		await restoreSecretsInActiveEditor((text: string) => {
+			editor.document.version = 2
+			return text.replace("{{email-001}}", "taro@corp.example")
+		})
+
+		expect(mocks.applyEdit).not.toHaveBeenCalled()
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.documentChanged")
 	})
 
 	it("当てられなかったら黙らせない", async () => {

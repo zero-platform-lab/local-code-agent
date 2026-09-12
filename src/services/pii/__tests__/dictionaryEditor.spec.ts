@@ -39,13 +39,8 @@ vi.mock("../../agent-config", () => ({
 	getGlobalAgentDirectory: () => mocks.globalAgentDirectory,
 }))
 
-import {
-	addSelectionToDictionary,
-	canAppend,
-	defaultDictionaryPath,
-	dictionaryLine,
-	exportDictionary,
-} from "../dictionaryEditor"
+import { defaultDictionaryPath } from "../dictionary"
+import { addSelectionToDictionary, canAppend, dictionaryLine, exportDictionary } from "../dictionaryEditor"
 
 /** Shift_JIS の「田中太郎」。 */
 const SJIS_TANAKA = Uint8Array.from([0x93, 0x63, 0x92, 0x86, 0x91, 0xbe, 0x98, 0x59])
@@ -153,6 +148,33 @@ describe("addSelectionToDictionary", () => {
 		await addSelectionToDictionary({ dictionaryPaths: [target] })
 
 		expect(await read(target)).toBe("既存\nアクメ\torg\n")
+	})
+
+	it("前の行が改行で終わっていなければ、改行を足す", async () => {
+		const target = path.join(dir, "team.txt")
+		// 手で編集した辞書は、末尾に改行が無いことがある。
+		await fs.writeFile(target, "株式会社アクメ", "utf8")
+		mocks.activeTextEditor = editorWith("田中太郎")
+		pickKind("person")
+
+		await addSelectionToDictionary({ dictionaryPaths: [target] })
+
+		// 足さないと 1 つの語に繋がり、どちらも二度と一致しない。
+		expect(await read(target)).toBe("株式会社アクメ\n田中太郎\tperson\n")
+	})
+
+	it.each([
+		["2 行", "株式会社アクメ\n田中太郎"],
+		["タブ入り", "株式会社\tアクメ"],
+	])("%s の選択は受け付けない", async (_label, selected) => {
+		const target = path.join(dir, "team.txt")
+		await fs.writeFile(target, "既存\n", "utf8")
+		mocks.activeTextEditor = editorWith(selected)
+
+		await addSelectionToDictionary({ dictionaryPaths: [target] })
+
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.selectionNotOneTerm")
+		expect(await read(target)).toBe("既存\n")
 	})
 
 	it("辞書が複数なら選ばせる（FR-PII-15a）", async () => {

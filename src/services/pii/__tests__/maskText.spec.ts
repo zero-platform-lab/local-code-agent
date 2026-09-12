@@ -48,10 +48,12 @@ describe("電話番号（FR-PII-05）", () => {
 })
 
 describe("ホスト名（FR-PII-06）", () => {
-	it("内部向けの TLD は伏せる", () => {
-		const result = maskText("git.example.internal へ繋ぐ", { kinds: ["host"] })
-
-		expect(result.text).toBe("{{host-001}} へ繋ぐ")
+	it.each([
+		["git.example.internal へ繋ぐ", "{{host-001}} へ繋ぐ"],
+		["https://git.example.internal/x", "https://{{host-001}}/x"],
+		["srv.example.lan:8443", "{{host-001}}:8443"],
+	])("%s は伏せる", (text, expected) => {
+		expect(maskText(text, { kinds: ["host"] }).text).toBe(expected)
 	})
 
 	it.each(["github.com", "www.example.co.jp", "registry.npmjs.org"])("%s は伏せない（FR-PII-06b）", (host) => {
@@ -60,10 +62,18 @@ describe("ホスト名（FR-PII-06）", () => {
 	})
 
 	it.each([".env.local", "settings.local.json", "vite.config.local.ts", "assets.home.example.com"])(
-		"ファイル名や途中の label は伏せない: %s",
+		"ファイル名は伏せない: %s",
 		(text) => {
 			// モデルへ `.{{host-001}}` を編集させることになり、指示が読めなくなる。
 			expect(maskText(`read ${text} please`, { kinds: ["host"] }).text).toBe(`read ${text} please`)
+		},
+	)
+
+	it.each(["if (this.config.local) {", "state.private = true", "const x = opts.home;"])(
+		"属性の参照は伏せない: %s",
+		(text) => {
+			// 識別子が {{host-001}} に変わると、モデルが読むコードが壊れる。
+			expect(maskText(text, { kinds: ["host"] }).text).toBe(text)
 		},
 	)
 
@@ -80,12 +90,22 @@ describe("IP アドレス（FR-PII-06d）", () => {
 		expect(result.table.get("{{ip-001}}")).toBe("203.0")
 	})
 
-	it.each(["10.0.0.1", "172.16.0.1", "172.31.255.254", "192.168.1.1", "127.0.0.1", "169.254.1.1", "0.0.0.0"])(
-		"%s は伏せない（FR-PII-06c FR-PII-06a）",
-		(ip) => {
-			expect(maskText(ip, { kinds: ["ip"] }).text).toBe(ip)
-		},
-	)
+	it.each([
+		"10.0.0.1",
+		"172.16.0.1",
+		"172.31.255.254",
+		"192.168.1.1",
+		"127.0.0.1",
+		"169.254.1.1",
+		"0.0.0.0",
+		// 事業者内の共用。特定の組織を表さない。
+		"100.64.1.2",
+		// マルチキャストと、サブネットマスク。伏せると設定ファイルが読めなくなる。
+		"224.0.0.1",
+		"255.255.255.0",
+	])("%s は伏せない（FR-PII-06c FR-PII-06a）", (ip) => {
+		expect(maskText(ip, { kinds: ["ip"] }).text).toBe(ip)
+	})
 
 	it("0 で始まる書き方でも、範囲がずれない", () => {
 		// 数に直してから長さを測ると範囲がずれ、戻したときに別の文字列になる。
@@ -203,8 +223,8 @@ describe("鍵（FR-PII-10）", () => {
 		expect(maskText(text, { kinds: ["secret"] }).text).toBe(text)
 	})
 
-	it("8 文字に満たない値は伏せない", () => {
-		expect(maskText("password = short", { kinds: ["secret"] }).text).toBe("password = short")
+	it.each(["password = short", "password = 12345", "token: a1"])("8 文字に満たない値は伏せない: %s", (text) => {
+		expect(maskText(text, { kinds: ["secret"] }).text).toBe(text)
 	})
 
 	it("Authorization の値を伏せる（FR-PII-10f）", () => {
@@ -214,9 +234,21 @@ describe("鍵（FR-PII-10）", () => {
 	})
 
 	it("ラベルを足せる（FR-PII-10g）", () => {
-		const result = maskText("社内トークン = abcdefghij", { kinds: ["secret"], secretLabels: ["社内トークン"] })
+		const result = maskText("社内トークン = abc123defg", { kinds: ["secret"], secretLabels: ["社内トークン"] })
 
 		expect(result.text).toBe("社内トークン = {{secret-001}}")
+	})
+
+	it.each(["const apiKey = defaultApiKey", "let token = requestToken", "secret: buildSecret()"])(
+		"普通の識別子は伏せない: %s",
+		(text) => {
+			// 識別子が {{secret-001}} に変わると、参照の関係が読めなくなる。
+			expect(maskText(text, { kinds: ["secret"] }).text).toBe(text)
+		},
+	)
+
+	it("引用符で囲まれていれば、数字が無くても伏せる", () => {
+		expect(maskText('password = "changemenow"', { kinds: ["secret"] }).text).toBe('password = "{{secret-001}}"')
 	})
 })
 
@@ -294,6 +326,14 @@ describe("挙げた語（FR-PII-03）", () => {
 		const result = maskText("プロジェクト葵", { terms: [{ value: "プロジェクト葵" }], kinds: ["term"] })
 
 		expect(result.text).toBe("{{term-001}}")
+	})
+
+	it("小文字にすると長さが変わる文字があっても、範囲がずれない（FR-PII-03a）", () => {
+		// `İ` は小文字にすると 2 符号単位になる。索引を借りると、そこから先が全部ずれる。
+		const result = maskText("İstanbul ACME の件", { terms: [{ value: "ACME", kind: "org" }], kinds: ["org"] })
+
+		expect(result.text).toBe("İstanbul {{org-001}} の件")
+		expect(unmaskText(result.text, result.table)).toBe("İstanbul ACME の件")
 	})
 
 	it("英字の大文字小文字は区別しない（FR-PII-03a）", () => {

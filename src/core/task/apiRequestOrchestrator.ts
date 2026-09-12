@@ -14,6 +14,8 @@ import {
 	type ToolProgressStatus,
 } from "@openai-agent/types"
 
+import { t } from "../../i18n"
+import { totalCount } from "../../services/pii/maskText"
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
 import { ApiStream } from "../../api/transform/stream"
 import { getModelMaxOutputTokens } from "../../shared/api"
@@ -129,6 +131,8 @@ export interface ApiRequestOrchestratorDeps {
 		counts?: Record<string, number | undefined>
 		/** 辞書で読めなかったもの（`FR-PII-03d`）。一度だけ渡ってくる。 */
 		troubles?: readonly string[]
+		/** シークレットモードが入っていたか。切のときは何も出さない。 */
+		enabled?: boolean
 	}>
 
 	// provider 経由の副作用
@@ -244,6 +248,9 @@ export async function condenseContext(deps: ApiRequestOrchestratorDeps): Promise
 		filesReadByAgent,
 		cwd: deps.host.cwd,
 		rooIgnoreController: deps.host.rooIgnoreController,
+		// 要約も伏せてから送る（`FR-PII-01`）。ここを渡さないと、いちばん量の多い会話の
+		// 全体だけが素通りする。
+		maskForRequest: deps.maskForRequest,
 	})
 	if (error) {
 		await deps.say(
@@ -339,6 +346,8 @@ export async function handleContextWindowExceededError(deps: ApiRequestOrchestra
 			currentProfileId,
 			metadata,
 			environmentDetails,
+			// 自動の要約も伏せてから送る（`FR-PII-01`）。
+			maskForRequest: deps.maskForRequest,
 		})
 
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
@@ -684,15 +693,16 @@ export async function* attemptApiRequest(
 	const cleanConversationHistory = masked?.messages ?? builtHistory
 	const requestSystemPrompt = masked?.systemPrompt ?? systemPrompt
 
-	if (masked) {
+	// **切のときは何も出さない。** 使っていない利用者の記録に、要求のたびに 0 件の行が
+	// 積まれると、`0 のまま` という手がかりの意味が失われる。
+	if (masked?.enabled) {
 		// 件数を出す（`FR-PII-01c`）。0 のまま進んでいれば、種類を全部切っているか辞書が
 		// 読めていない。気づく手がかりはこれしかない。
-		const total = Object.values(masked.counts ?? {}).reduce<number>((sum, one) => sum + (one ?? 0), 0)
-		deps.log?.(`[PII] 伏せた箇所: ${total}`)
+		deps.log?.(`[PII] 伏せた箇所: ${totalCount(masked.counts ?? {})}`)
 
 		for (const trouble of masked.troubles ?? []) {
 			// 黙って進めると、伏せたつもりで素通りする。
-			await deps.say("error", `辞書を読めませんでした: ${trouble}`)
+			await deps.say("error", t("common:pii.dictionaryFailed", { paths: trouble }))
 		}
 	}
 

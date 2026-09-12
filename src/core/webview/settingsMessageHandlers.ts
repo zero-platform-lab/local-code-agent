@@ -19,6 +19,8 @@ import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
 import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../services/skills/skillSourceCredentials"
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
 import { exportDictionary } from "../../services/pii/dictionaryEditor"
+import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
+import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
@@ -314,6 +316,16 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		// 気にせずに済むよう 1 つにまとめる（`FR-PII-17a`）。
 		const masking = provider.contextProxy.getValue("piiMasking")
 		await exportDictionary({ terms: masking?.terms, dictionaryPaths: masking?.dictionaryPaths })
+	},
+
+	openPiiDictionary: async (_provider, message) => {
+		// **`~` を展開してから開く。** 画面の例示が `~/.agent/pii-dictionary.txt` なので、
+		// そのまま渡すと作業ディレクトリの下に `~` というディレクトリを作ってしまう。
+		const raw = typeof message.text === "string" ? message.text : ""
+		const target = resolveDictionaryPath(raw) ?? defaultDictionaryPath()
+
+		// 無ければ作る。書き方はファイルの先頭に入る（`FR-PII-16`）。
+		openFile(target, { create: true })
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

@@ -598,16 +598,19 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	/**
 	 * タスク 1 つ分の伏せ字（`FR-PII-01`）。
 	 *
-	 * **最初に使うときの設定で固定する。** 会話の途中で設定が変わっても、同じ値へ同じ
-	 * 伏せ字を割り当て続ける。途中で割り当て方が変わると、前の応答で使った伏せ字と
-	 * 食い違い、モデルは別人だと読む。
+	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上、
+	 * 抱え込むと押しても効かない。対応表だけを持ち越して、同じ値へ同じ伏せ字を割り当て
+	 * 続ける。
 	 */
 	private piiMaskerInstance?: TaskPiiMasker
 
 	public get piiMasker(): TaskPiiMasker {
 		if (!this.piiMaskerInstance) {
-			const settings = this.providerRef.deref()?.contextProxy?.getValue("piiMasking")
-			this.piiMaskerInstance = new TaskPiiMasker(settings ?? {})
+			// **設定は読み直す関数として渡す。** 抱え込むと、会話の途中で切り替えても
+			// 効かない。対応表だけがタスクの間ずっと残る。
+			this.piiMaskerInstance = new TaskPiiMasker(
+				() => this.providerRef.deref()?.contextProxy?.getValue("piiMasking") ?? {},
+			)
 		}
 		return this.piiMaskerInstance
 	}

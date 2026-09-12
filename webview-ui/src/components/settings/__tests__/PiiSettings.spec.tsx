@@ -134,13 +134,16 @@ describe("辞書のファイル（FR-PII-16）", () => {
 		expect(setPiiMasking).toHaveBeenCalledWith({ dictionaryPaths: ["/b.txt"] })
 	})
 
-	it("無ければ作って開く", () => {
-		renderWith({ dictionaryPaths: ["/a.txt"] })
+	it("無ければ作って開く。~ の展開は拡張ホストへ任せる", () => {
+		renderWith({ dictionaryPaths: ["~/.agent/pii-dictionary.txt"] })
 
 		fireEvent.click(screen.getByTestId("pii-dictionary-open-0"))
 
-		// 書き方はファイルの先頭に書いてあるので、空で作っても迷わない。
-		expect(postMessage).toHaveBeenCalledWith({ type: "openFile", text: "/a.txt", values: { create: true } })
+		// webview は生の文字列しか持たない。ここで解決すると `~` のディレクトリを作る。
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "openPiiDictionary",
+			text: "~/.agent/pii-dictionary.txt",
+		})
 	})
 })
 

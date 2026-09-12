@@ -3,6 +3,7 @@ import crypto from "crypto"
 import { itemText } from "../task-persistence/agentMessageUtils"
 import { t } from "../../i18n"
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
+import type { AgentMessage } from "@openai-agent/types"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { buildCleanConversationHistory } from "../task/buildCleanConversationHistory"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
@@ -135,6 +136,18 @@ export type SummarizeConversationOptions = {
 	filesReadByAgent?: string[]
 	cwd?: string
 	rooIgnoreController?: AgentIgnoreController
+
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
+	 *
+	 * **要約もここを通す。** 要約は `attemptApiRequest` を経ずに直接 LLM を呼ぶので、
+	 * 渡さないと、会話の全体が伏せられないまま送られる。伏せる口が 1 つだという前提が
+	 * 成り立たなくなる。
+	 */
+	maskForRequest?: (
+		systemPrompt: string,
+		messages: AgentMessage[],
+	) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
 }
 
 /**
@@ -167,6 +180,7 @@ export async function summarizeConversation(options: SummarizeConversationOption
 		filesReadByAgent,
 		cwd,
 		rooIgnoreController,
+		maskForRequest,
 	} = options
 
 	const response: SummarizeResponse = { messages, cost: 0, summary: "" }
@@ -228,7 +242,14 @@ export async function summarizeConversation(options: SummarizeConversationOption
 	let summary = ""
 	let cost = 0
 	try {
-		const stream = apiHandler.createMessage(promptToUse, requestMessages, metadata)
+		// 要約も伏せてから送る（`FR-PII-01`）。要約だけが素通りすると、いちばん量の多い
+		// 会話の全体がそのまま渡る。
+		const masked = await maskForRequest?.(promptToUse, requestMessages)
+		const stream = apiHandler.createMessage(
+			masked?.systemPrompt ?? promptToUse,
+			masked?.messages ?? requestMessages,
+			metadata,
+		)
 
 		for await (const chunk of stream) {
 			if (chunk.type === "text") {

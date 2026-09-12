@@ -146,13 +146,9 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 										variant="secondary"
 										className="py-1"
 										// 無ければ作って開く。書き方はファイルの先頭に書いてある。
-										onClick={() =>
-											vscode.postMessage({
-												type: "openFile",
-												text: one,
-												values: { create: true },
-											})
-										}
+										// `~` は拡張ホスト側で展開する。webview は生の文字列しか
+										// 持たないので、ここでは解決しない。
+										onClick={() => vscode.postMessage({ type: "openPiiDictionary", text: one })}
 										data-testid={`pii-dictionary-open-${index}`}>
 										<FileText />
 									</Button>

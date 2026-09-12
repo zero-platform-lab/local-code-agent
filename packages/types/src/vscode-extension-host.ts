@@ -360,6 +360,7 @@ export interface WebviewMessage {
 		| "fetchSkillSource"
 		| "saveSkillSourceCredentials"
 		| "exportPiiDictionary"
+		| "openPiiDictionary"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

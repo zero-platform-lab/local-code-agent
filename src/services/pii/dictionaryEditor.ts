@@ -4,9 +4,8 @@ import { promises as fs } from "fs"
 import * as vscode from "vscode"
 
 import { t } from "../../i18n"
-import { getGlobalAgentDirectory } from "../agent-config"
 
-import { readDictionaries } from "./dictionary"
+import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
 import type { PiiTerm } from "./types"
 
 /**
@@ -30,11 +29,6 @@ import type { PiiTerm } from "./types"
  * **書き出しは右クリックに出さない。** ここの 2 つはエディタの中身を対象にするが、
  * 書き出しは何も対象にしない。設定の画面から呼ぶ。
  */
-
-/** 辞書が 1 つも設定されていないときに作る場所（`FR-PII-15b`）。 */
-export function defaultDictionaryPath(): string {
-	return path.join(getGlobalAgentDirectory(), "pii-dictionary.txt")
-}
 
 /** 新しく作る辞書の先頭に置く説明。書き方が分からないまま空のファイルを渡さない。 */
 const HEADER = [
@@ -91,6 +85,14 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 		return
 	}
 
+	// **改行とタブを含む選択は受け付けない。** 辞書は 1 行 1 語で、タブの後ろが種類である。
+	// そのまま書き足すと、2 行目が種類の無い語として読まれ、タブの後ろは種類として
+	// 読まれる。どちらも利用者の意図と違う語が辞書に入る。
+	if (/[\t\r\n]/.test(value)) {
+		await vscode.window.showWarningMessage(t("common:pii.selectionNotOneTerm"))
+		return
+	}
+
 	const target = await pickDictionary(options.dictionaryPaths ?? [])
 	if (!target) {
 		return
@@ -107,9 +109,11 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 		return
 	}
 
-	const exists = await fileExists(target)
 	await fs.mkdir(path.dirname(target), { recursive: true })
-	await fs.appendFile(target, (exists ? "" : HEADER) + dictionaryLine({ value, kind }), "utf8")
+	// **前の行が改行で終わっていなければ、改行を足してから書く。** 足さないと、前の語と
+	// 繋がって 1 つの語になり、どちらも二度と一致しなくなる。
+	const head = await headFor(target)
+	await fs.appendFile(target, head + dictionaryLine({ value, kind }), "utf8")
 
 	await vscode.window.showInformationMessage(t("common:pii.termAdded", { value, path: target }))
 }
@@ -133,7 +137,7 @@ export async function exportDictionary(options: { terms?: readonly PiiTerm[]; di
 
 	const uri = await vscode.window.showSaveDialog({
 		filters: { テキスト: ["txt"] },
-		defaultUri: vscode.Uri.file(path.join(getGlobalAgentDirectory(), "pii-dictionary.txt")),
+		defaultUri: vscode.Uri.file(defaultDictionaryPath()),
 	})
 	if (!uri) {
 		return
@@ -150,17 +154,22 @@ export async function exportDictionary(options: { terms?: readonly PiiTerm[]; di
 	await vscode.window.showInformationMessage(t("common:pii.exported", { count: seen.size, path: uri.fsPath }))
 }
 
-async function fileExists(target: string): Promise<boolean> {
+/** 書き足す前に置くもの。新しく作るなら説明、続きなら足りない改行。 */
+async function headFor(target: string): Promise<string> {
+	let current: string
 	try {
-		await fs.access(target)
-		return true
+		current = await fs.readFile(target, "utf8")
 	} catch {
-		return false
+		// まだ無い。書き方が分からないまま空のファイルを渡さない。
+		return HEADER
 	}
+
+	return current.length === 0 || current.endsWith("\n") ? "" : "\n"
 }
 
 /** 足す先を選ぶ（`FR-PII-15a`）。設定が無ければ既定の場所に作る（`FR-PII-15b`）。 */
-async function pickDictionary(paths: readonly string[]): Promise<string | undefined> {
+async function pickDictionary(rawPaths: readonly string[]): Promise<string | undefined> {
+	const paths = rawPaths.map(resolveDictionaryPath).filter((one): one is string => one !== undefined)
 	if (paths.length === 0) {
 		return defaultDictionaryPath()
 	}

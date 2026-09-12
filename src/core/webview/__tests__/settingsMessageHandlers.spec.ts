@@ -32,6 +32,8 @@ const {
 	showInformationMessageMock,
 	showInputBoxMock,
 	fetchSkillSourceMock,
+	openFileMock,
+	exportDictionaryMock,
 	copySkillsToSharedMock,
 	removeCopiedSkillsMock,
 	clearCopiedMarkerMock,
@@ -64,6 +66,8 @@ const {
 	showInformationMessageMock: vi.fn(),
 	showInputBoxMock: vi.fn(async (..._args: unknown[]): Promise<string | undefined> => undefined),
 	fetchSkillSourceMock: vi.fn(),
+	openFileMock: vi.fn(),
+	exportDictionaryMock: vi.fn(async () => undefined),
 	copySkillsToSharedMock: vi.fn(
 		async (): Promise<{ copied: string[]; skipped: string[] }> => ({ copied: [], skipped: [] }),
 	),
@@ -92,6 +96,10 @@ vi.mock("../../../i18n", () => ({
 }))
 
 vi.mock("../../../services/skills/skillSourceFetcher", () => ({ fetchSkillSource: fetchSkillSourceMock }))
+
+vi.mock("../../../integrations/misc/open-file", () => ({ openFile: openFileMock }))
+
+vi.mock("../../../services/pii/dictionaryEditor", () => ({ exportDictionary: exportDictionaryMock }))
 
 vi.mock("../../../services/skills/skillSourcePaths", () => ({
 	skillSourcesBaseDir: () => "/base/skill-sources",
@@ -1156,6 +1164,44 @@ describe("スキルの取得元", () => {
 			await call("saveSkillSourceCredentials", h.provider, { values: { url: "https://gitlab.example.com/a" } })
 
 			expect(showErrorMessageMock).toHaveBeenCalledExactlyOnceWith('common:skills.credentialFailed:{"error":""}')
+		})
+	})
+})
+
+describe("伏せ字の辞書", () => {
+	it("`~` を展開してから開く（FR-PII-16）", async () => {
+		const h = setup()
+
+		await call("openPiiDictionary", h.provider, { text: "~/.agent/pii-dictionary.txt" })
+
+		// そのまま渡すと、作業ディレクトリの下に `~` というディレクトリを作ってしまう。
+		const [target, options] = openFileMock.mock.calls[0]
+		expect(target).not.toContain("~")
+		expect(target).toContain(".agent/pii-dictionary.txt")
+		expect(options).toEqual({ create: true })
+	})
+
+	it.each([
+		["空文字", ""],
+		["文字列でない", 42],
+	])("パスが %s なら既定の場所を開く", async (_label, text) => {
+		const h = setup()
+
+		await call("openPiiDictionary", h.provider, { text } as never)
+
+		expect(openFileMock.mock.calls[0][0]).toContain("pii-dictionary.txt")
+	})
+
+	it("書き出しは設定の語と辞書をまとめて渡す（FR-PII-17a）", async () => {
+		const h = setup({
+			storedValues: { piiMasking: { terms: [{ value: "アクメ" }], dictionaryPaths: ["/w/d.txt"] } },
+		})
+
+		await call("exportPiiDictionary", h.provider, {})
+
+		expect(exportDictionaryMock).toHaveBeenCalledExactlyOnceWith({
+			terms: [{ value: "アクメ" }],
+			dictionaryPaths: ["/w/d.txt"],
 		})
 	})
 })

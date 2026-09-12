@@ -1,4 +1,8 @@
+import * as os from "os"
+import * as path from "path"
 import { promises as fs } from "fs"
+
+import { getGlobalAgentDirectory } from "../agent-config"
 
 import type { PiiTerm } from "./types"
 
@@ -123,7 +127,54 @@ export type DictionaryResult = {
  * 無いことを理由に、メールアドレスの伏せ字まで止めない。読めなかったことは呼び出し側へ
  * 返して、利用者へ示す。
  */
-export async function readDictionaries(paths: readonly string[]): Promise<DictionaryResult> {
+/**
+ * 設定に書かれたパスを、実際に読める形へ直す。
+ *
+ * **`~` を展開する。** 設定の画面が `~/.agent/pii-dictionary.txt` を例示するので、その
+ * とおりに書いた利用者の辞書が読めないと、伏せているつもりで素通りする。
+ *
+ * **空の行は落とす。** 画面の「辞書を足す」は空のパスを積むので、そのまま読むと毎回
+ * 失敗の警告が出る。
+ */
+export function resolveDictionaryPath(raw: string): string | undefined {
+	const trimmed = raw.trim()
+	if (trimmed.length === 0) return undefined
+	if (trimmed === "~") return os.homedir()
+	if (trimmed.startsWith("~/") || trimmed.startsWith("~\\")) {
+		return path.join(os.homedir(), trimmed.slice(2))
+	}
+	return trimmed
+}
+
+/**
+ * 辞書が 1 つも設定されていないときに足す先（`FR-PII-15b`）。
+ *
+ * **読むほうでも必ず見る。** 右クリックで語を足した先をここが返すのに、読む側が見なければ、
+ * 足した語は二度と効かない。利用者は足したつもりのまま送信する。
+ */
+export function defaultDictionaryPath(): string {
+	return path.join(getGlobalAgentDirectory(), "pii-dictionary.txt")
+}
+
+async function exists(target: string): Promise<boolean> {
+	try {
+		await fs.access(target)
+		return true
+	} catch {
+		return false
+	}
+}
+
+export async function readDictionaries(rawPaths: readonly string[]): Promise<DictionaryResult> {
+	const paths = rawPaths.map(resolveDictionaryPath).filter((one): one is string => one !== undefined)
+
+	// 既定の辞書は、あるときだけ足す。無いときに足すと、使っていない利用者へ毎回
+	// 「読めません」と出る。
+	const fallback = defaultDictionaryPath()
+	if (!paths.includes(fallback) && (await exists(fallback))) {
+		paths.push(fallback)
+	}
+
 	const terms: PiiTerm[] = []
 	const failures: DictionaryResult["failures"] = []
 	const problems: DictionaryResult["problems"] = []

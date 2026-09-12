@@ -68,7 +68,47 @@ describe("TaskPiiMasker", () => {
 		expect(new TaskPiiMasker({}).unmask("{{email-001}}")).toBe("{{email-001}}")
 	})
 
-	it("辞書の語も使い、読むのは 1 度だけにする", async () => {
+	it("会話の途中の切り替えが効く（FR-PII-01b）", async () => {
+		const settings: { enabled?: boolean; kinds?: string[] } = { enabled: false, kinds: ["email"] }
+		const masker = new TaskPiiMasker(() => settings as never)
+
+		expect((await masker.maskForRequest("", [message("taro@corp.example")])).messages[0]).toMatchObject({
+			content: "taro@corp.example",
+		})
+
+		// 画面のボタンで入れる。抱え込んでいると、押しても効かない。
+		settings.enabled = true
+
+		expect((await masker.maskForRequest("", [message("taro@corp.example")])).messages[0]).toMatchObject({
+			content: "{{email-001}}",
+		})
+	})
+
+	it("辞書の指す先が変わったら読み直す", async () => {
+		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-masker-"))
+		const dictionary = path.join(dir, "dict.txt")
+		await fs.writeFile(dictionary, "アクメ\torg\n", "utf8")
+		const settings: { enabled: boolean; kinds: string[]; dictionaryPaths: string[] } = {
+			enabled: true,
+			kinds: ["org"],
+			dictionaryPaths: [],
+		}
+		const masker = new TaskPiiMasker(() => settings as never)
+
+		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
+			content: "アクメの件",
+		})
+
+		settings.dictionaryPaths = [dictionary]
+
+		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
+			content: "{{org-001}}の件",
+		})
+
+		await fs.rm(dir, { recursive: true, force: true })
+	})
+
+	it("辞書の語も使い、指す先が同じなら読み直さない", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-masker-"))
 		const dictionary = path.join(dir, "dict.txt")
 		await fs.writeFile(dictionary, "アクメ\torg\n", "utf8")

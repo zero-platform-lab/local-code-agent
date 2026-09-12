@@ -39,10 +39,11 @@ export function detectEmails(text: string): PiiMatch[] {
  * 版番号や日付の並びまで拾う。
  */
 /**
- * **数字の境界を要求する。** 無いと長い数字列の途中に当たる。時刻の値
- * `1700000000000` の中の 11 桁が電話番号として伏せられ、記録が読めなくなる。
+ * **前後に英数字が続かないことを要求する。** 無いと長い並びの先頭に一致する。時刻の値
+ * `1700000000000` や、`commit 0123456789ab` のような識別子の先頭 10 桁が電話番号として
+ * 伏せられ、記録が読めなくなる。
  */
-const PHONE = /(?<![0-9])(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}(?![0-9])/g
+const PHONE = /(?<![0-9])(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}(?![0-9A-Za-z_])/g
 
 export function detectPhones(text: string): PiiMatch[] {
 	return collect(text, PHONE, "phone").filter((match) => {
@@ -73,28 +74,27 @@ export function detectPhones(text: string): PiiMatch[] {
 const INTERNAL_TLDS = ["internal", "local", "lan", "corp", "intra", "intranet", "private", "home", "localdomain"]
 
 /**
- * **ホスト名らしい文脈でだけ採る。**
+ * **URL の目印がある場合だけ採る。**
  *
- * `a.b.local` のような 2 語の並びは、ホスト名か属性の参照かを見分けられない。実際
- * `this.config.local` や `state.private` や `opts.home` は普通のコードである。伏せると
+ * `a.b.local` のような並びは、ホスト名か属性の参照かを見分けられない。label の数を数えても
+ * 足りず、`this.config.local` も `obj.props.settings.local` も 3 つ以上ある。伏せると
  * モデルが読むコードが壊れる。
  *
- * そこで 2 つを要求する。
+ * そこで、ホスト名としてしか現れない目印を要求する。
  *
- * 1. label が 3 つ以上あること（`git.example.internal`）
- * 2. 前後がホスト名の文脈であること（行頭・空白・引用符・`//`・`@` で始まり、
- *    行末・空白・引用符・`/`・`:ポート` で終わる）
+ * - `//` の直後（`https://git.example.internal/x`）
+ * - `@` の直後（`user@host.example.corp`）
+ * - 直後がポート番号（`srv.example.lan:8443`）
  *
- * `(` の直後は採らない。`if (this.config.local)` を拾うためである。`server.corp` のような
- * 2 語の社内ホスト名は取りこぼすが、取りこぼしは利用者が挙げる語で補える。誤って伏せる
- * ほうは補えない。
+ * 文章に裸で書かれたホスト名（`git.example.internal へ繋ぐ`）は取りこぼす。取りこぼしは
+ * 利用者が挙げる語で補えるが、コードを壊すほうは補えない。
  */
 const INTERNAL_HOST = new RegExp(
-	String.raw`(?:(?<=^)|(?<=[\s"'` +
+	String.raw`(?:(?<=//)|(?<=@))(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:${INTERNAL_TLDS.join("|")})(?=$|[\s"'` +
 		"`" +
-		String.raw`<])|(?<=//)|(?<=@))(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.){2,}(?:${INTERNAL_TLDS.join("|")})(?=$|[\s"'` +
+		String.raw`>,;)]|/|:)|(?:(?<=^)|(?<=[\s"'` +
 		"`" +
-		String.raw`>,;]|/|:\d)`,
+		String.raw`<]))(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:${INTERNAL_TLDS.join("|")})(?=:\d)`,
 	"gi",
 )
 
@@ -299,7 +299,12 @@ const SECRET_VALUE =
 	String.raw`]|(?<bare>[A-Za-z0-9_-]*[0-9][A-Za-z0-9_-]*)(?![\w(]))`
 
 export function detectLabelledSecrets(text: string, labels: readonly string[] = DEFAULT_SECRET_LABELS): PiiMatch[] {
-	const pattern = new RegExp(String.raw`(?:${labels.map(labelPattern).join("|")})\s*[:=]\s*${SECRET_VALUE}`, "gi")
+	// **空のラベルを外す。** 1 つでも混じると選択肢が空になり、ラベルを省略できる形へ
+	// 変わって、あらゆる `名前 = 値` に一致する。設定の 1 行を消し忘れただけで起きる。
+	const usable = labels.map((one) => one.trim()).filter((one) => one.length > 0)
+	if (usable.length === 0) return []
+
+	const pattern = new RegExp(String.raw`(?:${usable.map(labelPattern).join("|")})\s*[:=]\s*${SECRET_VALUE}`, "gi")
 
 	const matches: PiiMatch[] = []
 	for (const found of text.matchAll(pattern)) {
@@ -373,7 +378,14 @@ const PLACE_HEAD = /[぀-ヿ一-鿿ー々ヶケ]{1,8}?[都道府県市区町村]
  * 空白は `\u3000` で書く。ソースへ直接置くと読む人に見えない。
  */
 const ADDRESS_TAIL =
-	/^[぀-ヿ一-鿿ー々ヶケA-Za-z0-9０-９の]{0,12}[ \u3000]?(?:[0-9０-９]+(?:[-‐−ー－][0-9０-９]+)+|[0-9０-９]+[丁目番地号][0-9０-９丁目番地号ー－‐−-]*)/
+	/^[぀-ヿ一-鿿ー々ヶケA-Za-z0-9０-９の]{0,12}[ \u3000]?(?<banchi>(?:[0-9０-９]+(?:[-‐−ー－][0-9０-９]+)+|[0-9０-９]+[丁目番地号][0-9０-９丁目番地号ー－‐−-]*))/
+
+/**
+ * 日付や年度の範囲。番地と同じ `N-N-N` の形になるので、番地として採らない。
+ *
+ * 「南区のテスト 2024-01-02 に実施」が丸ごと住所になると、モデルは日付を読めなくなる。
+ */
+const DATE_LIKE = /^(?:\d{4}[-‐−ー－]\d{1,2}[-‐−ー－]\d{1,2}|\d{4}[-‐−ー－]\d{4})$/
 
 export function detectAddresses(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []
@@ -387,6 +399,9 @@ export function detectAddresses(text: string): PiiMatch[] {
 		// しているので、一致しなければその並びは住所ではない。
 		const tail = ADDRESS_TAIL.exec(rest)
 		if (!tail) continue
+
+		// 日付は番地ではない。
+		if (DATE_LIKE.test(tail.groups?.banchi ?? "")) continue
 
 		const body = tail[0].replace(/\s+$/, "")
 		matches.push({ kind: "address", start, end: start + name.length + body.length, value: name + body })

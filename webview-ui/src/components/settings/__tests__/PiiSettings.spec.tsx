@@ -55,18 +55,18 @@ const renderWith = (piiMasking?: PiiMasking) => {
 beforeEach(() => vi.clearAllMocks())
 
 describe("シークレットモード（FR-PII-01）", () => {
-	it("未設定では無効（FR-PII-01a）", () => {
+	it("いまの状態を出すだけで、ここでは切り替えない（FR-PII-01b）", () => {
 		renderWith()
 
-		expect(screen.getByTestId("pii-enabled-checkbox")).not.toBeChecked()
+		// 2 か所から同じ値を書くと、保存が会話の画面での切り替えを巻き戻す。
+		expect(screen.queryByTestId("pii-enabled-checkbox")).not.toBeInTheDocument()
+		expect(screen.getByTestId("pii-enabled-state")).toHaveTextContent("settings:pii.stateOff")
 	})
 
-	it("切り替えられる", () => {
-		const setPiiMasking = renderWith()
+	it("入っていればそう出す", () => {
+		renderWith({ enabled: true })
 
-		fireEvent.click(screen.getByTestId("pii-enabled-checkbox"))
-
-		expect(setPiiMasking).toHaveBeenCalledWith({ enabled: true })
+		expect(screen.getByTestId("pii-enabled-state")).toHaveTextContent("settings:pii.stateOn")
 	})
 })
 

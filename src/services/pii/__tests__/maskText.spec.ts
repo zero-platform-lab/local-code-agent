@@ -34,10 +34,8 @@ describe("電話番号（FR-PII-05）", () => {
 		},
 	)
 
-	it("長い数字列の途中は伏せない", () => {
-		// 時刻の値の中の 11 桁を拾うと、記録が読めなくなる。
-		const text = "timestamp 1700000000000 end"
-
+	it.each(["timestamp 1700000000000 end", "commit 0123456789ab"])("長い並びの一部は伏せない: %s", (text) => {
+		// 時刻の値や識別子の先頭 10 桁を拾うと、記録が読めなくなる。
 		expect(maskText(text, { kinds: ["phone"] }).text).toBe(text)
 	})
 
@@ -49,11 +47,18 @@ describe("電話番号（FR-PII-05）", () => {
 
 describe("ホスト名（FR-PII-06）", () => {
 	it.each([
-		["git.example.internal へ繋ぐ", "{{host-001}} へ繋ぐ"],
 		["https://git.example.internal/x", "https://{{host-001}}/x"],
+		["user@host.example.corp", "user@{{host-001}}"],
 		["srv.example.lan:8443", "{{host-001}}:8443"],
-	])("%s は伏せる", (text, expected) => {
+	])("URL の目印があれば伏せる: %s", (text, expected) => {
 		expect(maskText(text, { kinds: ["host"] }).text).toBe(expected)
+	})
+
+	it("文章に裸で書かれたホスト名は取りこぼす", () => {
+		// 属性の参照と見分けられない。挙げる語で補う。
+		const text = "git.example.internal へ繋ぐ"
+
+		expect(maskText(text, { kinds: ["host"] }).text).toBe(text)
 	})
 
 	it.each(["github.com", "www.example.co.jp", "registry.npmjs.org"])("%s は伏せない（FR-PII-06b）", (host) => {
@@ -69,13 +74,17 @@ describe("ホスト名（FR-PII-06）", () => {
 		},
 	)
 
-	it.each(["if (this.config.local) {", "state.private = true", "const x = opts.home;"])(
-		"属性の参照は伏せない: %s",
-		(text) => {
-			// 識別子が {{host-001}} に変わると、モデルが読むコードが壊れる。
-			expect(maskText(text, { kinds: ["host"] }).text).toBe(text)
-		},
-	)
+	it.each([
+		"if (this.config.local) {",
+		"state.private = true",
+		"const x = opts.home;",
+		"this.config.local is fine",
+		"obj.props.settings.local = 1",
+		"import a from 'x.y.local'",
+	])("属性の参照は伏せない: %s", (text) => {
+		// 識別子が {{host-001}} に変わると、モデルが読むコードが壊れる。
+		expect(maskText(text, { kinds: ["host"] }).text).toBe(text)
+	})
 
 	it("localhost.localdomain は伏せない（FR-PII-06a）", () => {
 		expect(maskText("localhost.localdomain", { kinds: ["host"] }).text).toBe("localhost.localdomain")
@@ -233,6 +242,14 @@ describe("鍵（FR-PII-10）", () => {
 		expect(result.text).toBe("Authorization: Bearer {{secret-001}}")
 	})
 
+	it("空のラベルが混じっても、あらゆる代入に当たらない", () => {
+		// 選択肢が空になると、ラベルを省略できる形へ変わる。設定の 1 行を消し忘れただけで
+		// 起きる。
+		const text = 'const timeout = 12345678\n"id": "abcd1234"'
+
+		expect(maskText(text, { kinds: ["secret"], secretLabels: ["", "  "] }).text).toBe(text)
+	})
+
 	it("ラベルを足せる（FR-PII-10g）", () => {
 		const result = maskText("社内トークン = abc123defg", { kinds: ["secret"], secretLabels: ["社内トークン"] })
 
@@ -303,6 +320,14 @@ describe("住所（FR-PII-13）", () => {
 	it("番地との間の空白は 1 つまで許す", () => {
 		expect(maskText("東京都渋谷区神南 1-2-3", { kinds: ["address"] }).text).toBe("{{address-001}}")
 	})
+
+	it.each(["南区のテスト 2024-01-02 に実施", "北区役所へ 2024-2025 年度"])(
+		"日付や年度の範囲は番地と見なさない: %s",
+		(text) => {
+			// 丸ごと住所にすると、モデルは日付を読めなくなる。
+			expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
+		},
+	)
 
 	it("一覧に無い語は住所と見なさない", () => {
 		expect(maskText("架空市1-2-3", { kinds: ["address"] }).text).toBe("架空市1-2-3")

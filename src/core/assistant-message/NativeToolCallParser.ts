@@ -55,7 +55,7 @@ export type ToolCallStreamEvent = ApiStreamToolCallStartChunk | ApiStreamToolCal
  * 解釈した引数の中の文字列を、欄ごとに元の値へ戻す（`FR-PII-02a`）。
  *
  * **JSON の文字列へ直接当てない。** 元の値は引用符も改行も含み得るので、戻した結果が
- * JSON として壊れる。壊れると `JSON.parse` が投げ、道具の呼び出しが黙って消える。
+ * JSON として壊れる。壊れると `JSON.parse` が投げ、ツールの呼び出しが黙って消える。
  * 解釈したあとなら、値がどんな文字を含んでいても安全である。
  */
 function restoreDeep(value: unknown, unmask?: (text: string) => string): unknown {
@@ -402,7 +402,7 @@ export class NativeToolCallParser {
 			const normalizedName = normalizeMcpToolName(toolCall.name)
 			if (normalizedName.startsWith(mcpPrefix)) {
 				// Pass the original tool call but with normalized name for parsing
-				// MCP の道具でも、引数は同じように戻してから解釈する。
+				// MCP のツールでも、引数は同じように戻してから解釈する。
 				return this.parseDynamicMcpTool({ ...toolCall, name: normalizedName }, unmask)
 			}
 		}

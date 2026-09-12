@@ -133,7 +133,7 @@ vi.mock("../SlashCommandsSettings", () => ({ SlashCommandsSettings: () => <div d
 vi.mock("../PiiSettings", () => ({
 	PiiSettings: ({ piiMasking, setPiiMasking }: any) => (
 		<div data-testid="pii" data-enabled={String(piiMasking?.enabled)}>
-			<button data-testid="pii-enable" onClick={() => setPiiMasking({ enabled: true })} />
+			<button data-testid="pii-enable" onClick={() => setPiiMasking({ kinds: ["email"] })} />
 		</div>
 	),
 }))
@@ -478,8 +478,8 @@ describe("SettingsView wiring", () => {
 			})
 		})
 
-		it("シークレットモードを持ち帰り、保存で送る（FR-PII-01）", () => {
-			// payload に載せ忘れると、画面では切り替えられるのに保存されない。
+		it("伏せる設定を持ち帰り、保存で送る（FR-PII-01）", () => {
+			// payload に載せ忘れると、画面では編集できるのに保存されない。
 			renderView()
 			fireEvent.click(screen.getByTestId("tab-list-select-general"))
 			const save = () => screen.getByTestId("save-button") as HTMLButtonElement
@@ -487,9 +487,20 @@ describe("SettingsView wiring", () => {
 			fireEvent.click(screen.getByTestId("pii-enable"))
 
 			expect(save().disabled).toBe(false)
-			expect(screen.getByTestId("pii")).toHaveAttribute("data-enabled", "true")
 
 			fireEvent.click(save())
+
+			expect(lastSettings()).toMatchObject({ piiMasking: { kinds: ["email"] } })
+		})
+
+		it("入切は保存の写しで上書きしない（FR-PII-01b）", () => {
+			// 会話の画面で入れてから設定を保存すると、古い写しで切に戻っていた。
+			setState({ ...fullState(), piiMasking: { enabled: true } })
+			renderView()
+			fireEvent.click(screen.getByTestId("tab-list-select-general"))
+
+			fireEvent.click(screen.getByTestId("pii-enable"))
+			fireEvent.click(screen.getByTestId("save-button"))
 
 			expect(lastSettings()).toMatchObject({ piiMasking: { enabled: true } })
 		})

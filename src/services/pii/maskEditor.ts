@@ -106,10 +106,14 @@ export async function maskSecretsInActiveEditor(settings: MaskEditorSettings = {
 
 	// 辞書が読めなくても、ほかの種類の置き換えは続ける（`FR-PII-03d`）。
 	const dictionary = await readDictionaries(settings.dictionaryPaths ?? [])
-	if (dictionary.failures.length > 0) {
-		await vscode.window.showWarningMessage(
-			t("common:pii.dictionaryFailed", { paths: dictionary.failures.map((one) => one.path).join(", ") }),
-		)
+	// **読めなかった行も出す**（`FR-PII-03g`）。書き間違えた正規表現を黙って飛ばすと、
+	// その語は 1 件も一致しないのに、利用者は伏せたつもりになる。
+	const troubles = [
+		...dictionary.failures.map((one) => one.path),
+		...dictionary.problems.map((one) => `${one.path}:${one.line} ${one.value}`),
+	]
+	if (troubles.length > 0) {
+		await vscode.window.showWarningMessage(t("common:pii.dictionaryFailed", { paths: troubles.join(", ") }))
 	}
 
 	// 選択している範囲があるときは、その中だけを対象にする（`FR-PII-11a`）。

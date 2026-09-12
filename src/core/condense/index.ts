@@ -140,7 +140,7 @@ export type SummarizeConversationOptions = {
 	/**
 	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
 	 *
-	 * **要約もここを通す。** 要約は `attemptApiRequest` を経ずに直接 LLM を呼ぶので、
+	 * **要約もここを実行する。** 要約は `attemptApiRequest` を経ずに直接 LLM を呼ぶので、
 	 * 渡さないと、会話の全体が伏せられないまま送られる。伏せる口が 1 つだという前提が
 	 * 成り立たなくなる。
 	 */

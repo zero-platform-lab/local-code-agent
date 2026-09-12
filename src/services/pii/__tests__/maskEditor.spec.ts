@@ -47,6 +47,10 @@ vi.mock("vscode", () => ({
 }))
 
 // 文言ではなく「どの鍵を出したか」を見る。
+// 実行する人の `~/.agent/pii-dictionary.txt` を読まないようにする。読むと、その人が
+// 実際に足した語で結果が変わる。
+vi.mock("../../agent-config", () => ({ getGlobalAgentDirectory: () => "/w/存在しない" }))
+
 vi.mock("../../../i18n", () => ({
 	t: (key: string, args?: Record<string, unknown>) => (args ? `${key}:${JSON.stringify(args)}` : key),
 }))

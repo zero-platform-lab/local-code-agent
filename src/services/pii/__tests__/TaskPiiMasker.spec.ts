@@ -13,6 +13,8 @@ import { promises as fs } from "fs"
 
 import type { AgentMessage } from "@openai-agent/types"
 
+vi.mock("../../agent-config", () => ({ getGlobalAgentDirectory: () => "/w/存在しない" }))
+
 import { TaskPiiMasker } from "../TaskPiiMasker"
 
 const message = (content: string): AgentMessage => ({ type: "message", role: "user", content }) as AgentMessage
@@ -62,6 +64,38 @@ describe("TaskPiiMasker", () => {
 		// 文書を清書させるときは、モデルが書いた伏せ字をそのまま残したい。
 		expect(masker.restores).toBe(false)
 		expect(masker.unmask("{{email-001}}")).toBe("{{email-001}}")
+	})
+
+	it("戻さない設定でも、明示的な操作なら戻す（FR-PII-20）", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, restore: false, kinds: ["email"] })
+		await masker.maskForRequest("", [message("taro@corp.example")])
+
+		// 戻さないまま進めて最後にまとめて戻すのが、この操作の使い道である。
+		expect(masker.unmask("{{email-001}}")).toBe("{{email-001}}")
+		expect(masker.restoreExplicitly("{{email-001}}")).toBe("taro@corp.example")
+	})
+
+	it("切り替えを切ったあとでも、割り当て済みなら戻せる", async () => {
+		const settings: { enabled: boolean; restore?: boolean; kinds: string[] } = { enabled: true, kinds: ["email"] }
+		const masker = new TaskPiiMasker(() => settings as never)
+		await masker.maskForRequest("", [message("taro@corp.example")])
+
+		settings.enabled = false
+
+		expect(masker.restoreExplicitly("{{email-001}}")).toBe("taro@corp.example")
+	})
+
+	it("設定が読めなくなっても、伏せる側は切れない", async () => {
+		let readable = true
+		const masker = new TaskPiiMasker(() => (readable ? ({ enabled: true, kinds: ["email"] } as never) : undefined))
+		await masker.maskForRequest("", [message("taro@corp.example")])
+
+		// 画面を閉じたなどで参照先が消えた状態。空を返すと黙って伏せなくなる。
+		readable = false
+
+		expect((await masker.maskForRequest("", [message("hanako@corp.example")])).messages[0]).toMatchObject({
+			content: "{{email-002}}",
+		})
 	})
 
 	it("伏せていなければ、戻す側も素通しする", () => {

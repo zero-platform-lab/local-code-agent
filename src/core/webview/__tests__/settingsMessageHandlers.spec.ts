@@ -99,7 +99,10 @@ vi.mock("../../../services/skills/skillSourceFetcher", () => ({ fetchSkillSource
 
 vi.mock("../../../integrations/misc/open-file", () => ({ openFile: openFileMock }))
 
-vi.mock("../../../services/pii/dictionaryEditor", () => ({ exportDictionary: exportDictionaryMock }))
+vi.mock("../../../services/pii/dictionaryEditor", () => ({
+	exportDictionary: exportDictionaryMock,
+	DICTIONARY_HEADER: "# 見出し\n",
+}))
 
 vi.mock("../../../services/skills/skillSourcePaths", () => ({
 	skillSourcesBaseDir: () => "/base/skill-sources",
@@ -1178,7 +1181,8 @@ describe("伏せ字の辞書", () => {
 		const [target, options] = openFileMock.mock.calls[0]
 		expect(target).not.toContain("~")
 		expect(target).toContain(".agent/pii-dictionary.txt")
-		expect(options).toEqual({ create: true })
+		// 空のファイルを渡されても、タブが種類を表すことが分からない。
+		expect(options).toEqual({ create: true, content: "# 見出し\n" })
 	})
 
 	it.each([

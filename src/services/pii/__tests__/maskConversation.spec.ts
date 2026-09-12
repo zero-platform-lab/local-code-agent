@@ -15,7 +15,7 @@ const message = (role: "user" | "assistant", content: string): AgentMessage =>
 	({ type: "message", role, content }) as AgentMessage
 
 describe("maskConversation", () => {
-	it("指示と応答と道具の出力をまとめて伏せる", () => {
+	it("指示と応答とツールの出力をまとめて伏せる", () => {
 		const messages: AgentMessage[] = [
 			message("user", "taro@corp.example へ送って"),
 			{ type: "function_call", call_id: "1", name: "read_file", arguments: '{"path":"note.md"}' } as AgentMessage,

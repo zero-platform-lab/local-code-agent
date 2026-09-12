@@ -7,6 +7,7 @@ import { t } from "../../i18n"
 
 import { generateSystemPrompt } from "./generateSystemPrompt"
 import { MessageEnhancer } from "./messageEnhancer"
+import { TaskPiiMasker } from "../../services/pii/TaskPiiMasker"
 import type { WebviewMessageHost } from "./webviewMessageHost"
 
 /**
@@ -84,6 +85,9 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
 				includeTaskHistoryInEnhance,
 				currentClineMessages: currentCline?.messageStore.clineMessages,
 				providerSettingsManager: provider.providerSettingsManager,
+				// **文の手直しも伏せる口を実行する**（`FR-PII-01`）。会話が動いていれば
+				// その対応表を使い、番号が食い違わないようにする。
+				maskForPrompt: (text) => piiMaskerFor(provider).maskPrompt(text),
 			})
 
 			if (result.success && result.enhancedText) {
@@ -126,4 +130,17 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
 			vscode.window.showErrorMessage(t("common:errors.get_system_prompt"))
 		}
 	},
+}
+
+/**
+ * 文の手直しで実行する伏せ字。
+ *
+ * 会話が動いていればその対応表を使う。番号が食い違うと、会話の中の伏せ字と手直しの中の
+ * 伏せ字が別の値を指す。会話が無ければ、その場限りの対応表で伏せる。
+ */
+function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
+	return (
+		provider.getCurrentTask()?.piiMasker ??
+		new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking") ?? {})
+	)
 }

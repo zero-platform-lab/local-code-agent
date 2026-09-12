@@ -2,7 +2,7 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 
 import { readDictionaries } from "./dictionary"
 import { maskConversation, PiiVault } from "./maskConversation"
-import type { MaskOptions } from "./maskText"
+import { applyPlan, planMasking, type MaskOptions } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
 /**
@@ -26,7 +26,9 @@ export class TaskPiiMasker {
 	private terms: PiiTerm[] | undefined
 	private loadedFrom: string | undefined
 	private troubles: string[] = []
-	private readonly read: () => PiiMasking
+	private readonly read: () => PiiMasking | undefined
+	/** 最後に読めた設定。読めなくなっても、伏せる側を黙って切らないために持つ。 */
+	private lastKnown: PiiMasking = {}
 
 	/**
 	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上
@@ -34,12 +36,23 @@ export class TaskPiiMasker {
 	 *
 	 * 対応表だけは持ち越す。番号が振り直されると、前の応答の伏せ字が別の値を指す。
 	 */
-	constructor(read: (() => PiiMasking) | PiiMasking) {
+	constructor(read: (() => PiiMasking | undefined) | PiiMasking) {
 		this.read = typeof read === "function" ? read : () => read
 	}
 
+	/**
+	 * **読めなくなったら、最後に読めた設定を使う。**
+	 *
+	 * 参照先が消えている（画面を閉じた、provider を作り直した）ときに空を返すと、伏せる
+	 * 側が黙って切れる。利用者には何も出ないまま、伏せていない要求が送られる。守る側の
+	 * 機能が、読めなくなったことを理由に外れてはいけない。
+	 */
 	private get settings(): PiiMasking {
-		return this.read()
+		const current = this.read()
+		if (current) {
+			this.lastKnown = current
+		}
+		return this.lastKnown
 	}
 
 	/** シークレットモードが入っているか（`FR-PII-01a`）。 */
@@ -101,9 +114,43 @@ export class TaskPiiMasker {
 		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
 	}
 
-	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。戻さない設定なら素通しする。 */
+	/**
+	 * 1 つの文を伏せて、返ってきた文を元へ戻す道筋を添えて返す（`FR-PII-01`）。
+	 *
+	 * 文の手直しのように、会話とは別に 1 往復するときに実行する。対応表は同じものを使うので、
+	 * 会話で割り当てた伏せ字と食い違わない。
+	 *
+	 * **戻す側は `restore` の設定に従わない。** 返ってきた文は利用者の入力欄へ戻るので、
+	 * 伏せ字のままでは読めない。
+	 */
+	async maskPrompt(text: string): Promise<{ text: string; restore: (text: string) => string }> {
+		if (!this.enabled) {
+			return { text, restore: (one) => one }
+		}
+
+		const plan = planMasking(text, await this.options(), undefined, this.vault)
+		return { text: applyPlan(text, plan.edits), restore: (one) => this.vault.restore(one) }
+	}
+
+	/**
+	 * ツールの引数の伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * 戻さない設定なら素通しする（`FR-PII-19`）。文書を清書させるときは、モデルが書いた
+	 * 伏せ字をそのまま残したい。
+	 */
 	unmask(text: string): string {
 		return this.enabled && this.restores ? this.vault.restore(text) : text
+	}
+
+	/**
+	 * 利用者が明示的に戻す（`FR-PII-20`）。
+	 *
+	 * **設定に従わない。** 戻さない設定で進めて、最後にまとめて戻すのがこの操作の使い道
+	 * である。設定に従うと、その使い道でだけ動かないことになる。切り替えを切ったあとでも、
+	 * 割り当て済みの伏せ字は戻せる。
+	 */
+	restoreExplicitly(text: string): string {
+		return this.vault.restore(text)
 	}
 
 	/**

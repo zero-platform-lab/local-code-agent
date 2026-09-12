@@ -229,8 +229,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		() => contextProxy.getValue("piiMasking") ?? {},
 		// 戻せるのは、いま動いているタスクで割り当てた伏せ字だけ（`FR-PII-20a`）。
 		() => {
+			// 明示的に戻す操作は、戻さない設定でも動かす（`FR-PII-20`）。戻さないまま
+			// 進めて最後にまとめて戻すのが、この操作の使い道である。
 			const task = provider.getCurrentTask()
-			return task ? (text: string) => task.unmask(text) : undefined
+			return task ? (text: string) => task.restoreExplicitly(text) : undefined
 		},
 	)
 

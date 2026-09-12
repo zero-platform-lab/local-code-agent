@@ -353,7 +353,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					experiments,
 					customSupportPrompts,
 					skillSources,
-					piiMasking,
+					// **入切は会話の画面が持つ。** 保存の写しで上書きすると、会話の画面での
+					// 切り替えを巻き戻し、伏せたつもりで送ってしまう。
+					piiMasking: { ...piiMasking, enabled: extensionState.piiMasking?.enabled },
 				},
 			})
 

@@ -31,7 +31,7 @@ import type { PiiTerm } from "./types"
  */
 
 /** 新しく作る辞書の先頭に置く説明。書き方が分からないまま空のファイルを渡さない。 */
-const HEADER = [
+export const DICTIONARY_HEADER = [
 	"# マスクの辞書。1 行 1 語。",
 	"# タブの後ろに種類（person / org）を書ける。省略すると term になる。",
 	"# `/EMP-\\d{5}/` のようにスラッシュで囲むと正規表現として扱う。",
@@ -149,7 +149,7 @@ export async function exportDictionary(options: { terms?: readonly PiiTerm[]; di
 
 	// 書き出しは UTF-8 で行う（`FR-PII-17b`）。読むほうは Shift_JIS も読めるが、
 	// こちらから作るものは 1 つに揃える。
-	await fs.writeFile(uri.fsPath, HEADER + body, "utf8")
+	await fs.writeFile(uri.fsPath, DICTIONARY_HEADER + body, "utf8")
 
 	await vscode.window.showInformationMessage(t("common:pii.exported", { count: seen.size, path: uri.fsPath }))
 }
@@ -161,7 +161,7 @@ async function headFor(target: string): Promise<string> {
 		current = await fs.readFile(target, "utf8")
 	} catch {
 		// まだ無い。書き方が分からないまま空のファイルを渡さない。
-		return HEADER
+		return DICTIONARY_HEADER
 	}
 
 	return current.length === 0 || current.endsWith("\n") ? "" : "\n"

@@ -608,16 +608,21 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		if (!this.piiMaskerInstance) {
 			// **設定は読み直す関数として渡す。** 抱え込むと、会話の途中で切り替えても
 			// 効かない。対応表だけがタスクの間ずっと残る。
-			this.piiMaskerInstance = new TaskPiiMasker(
-				() => this.providerRef.deref()?.contextProxy?.getValue("piiMasking") ?? {},
+			this.piiMaskerInstance = new TaskPiiMasker(() =>
+				this.providerRef.deref()?.contextProxy?.getValue("piiMasking"),
 			)
 		}
 		return this.piiMaskerInstance
 	}
 
-	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。道具の引数を解釈する手前で通す。 */
+	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。ツールの引数を解釈する手前で実行する。 */
 	public unmask(text: string): string {
 		return this.piiMasker.unmask(text)
+	}
+
+	/** 利用者が明示的に戻す（`FR-PII-20`）。設定に従わない。 */
+	public restoreExplicitly(text: string): string {
+		return this.piiMasker.restoreExplicitly(text)
 	}
 
 	public dispose(): void {

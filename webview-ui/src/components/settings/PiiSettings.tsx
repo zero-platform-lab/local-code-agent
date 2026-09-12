@@ -64,14 +64,14 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 
 			<Section>
 				<div className="flex flex-col gap-3">
-					<Checkbox
-						checked={masking.enabled === true}
-						onChange={(checked: boolean) => update({ enabled: checked })}
-						data-testid="pii-enabled-checkbox">
-						{t("settings:pii.enable")}
-					</Checkbox>
-					<div className="text-sm text-vscode-descriptionForeground ml-6">
-						{t("settings:pii.description")}
+					<div className="text-sm text-vscode-descriptionForeground">{t("settings:pii.description")}</div>
+					{/*
+					 * **入切はここに置かない。** 会話の画面のボタンが持つ（`FR-PII-01b`）。
+					 * 2 か所から同じ値を書くと、保存の操作が会話の画面での切り替えを
+					 * 巻き戻し、伏せたつもりで送ってしまう。
+					 */}
+					<div className="text-sm text-vscode-descriptionForeground" data-testid="pii-enabled-state">
+						{masking.enabled === true ? t("settings:pii.stateOn") : t("settings:pii.stateOff")}
 					</div>
 
 					<label className="block font-medium mt-2">{t("settings:pii.kinds")}</label>

@@ -713,6 +713,8 @@
 			"zip": "Postal codes",
 			"address": "Addresses",
 			"mynumber": "My Number"
-		}
+		},
+		"stateOn": "Currently on. Toggle it with the button at the bottom right of the chat view.",
+		"stateOff": "Currently off. Toggle it with the button at the bottom right of the chat view."
 	}
 }

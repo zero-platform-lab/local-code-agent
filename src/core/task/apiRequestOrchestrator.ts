@@ -494,6 +494,9 @@ export async function applyInRequestContextManagement(
 			filesReadByAgent: contextMgmtFilesReadByAgent,
 			cwd: deps.host.cwd,
 			rooIgnoreController: deps.host.rooIgnoreController,
+			// **自動の要約も伏せてから送る**（`FR-PII-01`）。利用者が意識しないうちに
+			// 走るので、ここが抜けると気づかないまま会話の全体が渡る。
+			maskForRequest: deps.maskForRequest,
 		})
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
 			await deps.overwriteApiConversationHistory(truncateResult.messages)

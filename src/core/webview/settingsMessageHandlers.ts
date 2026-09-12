@@ -18,7 +18,7 @@ import { exportSettings, importSettingsWithFeedback } from "../config/importExpo
 import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
 import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../services/skills/skillSourceCredentials"
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
-import { exportDictionary } from "../../services/pii/dictionaryEditor"
+import { DICTIONARY_HEADER, exportDictionary } from "../../services/pii/dictionaryEditor"
 import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
 import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
@@ -324,8 +324,9 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		const raw = typeof message.text === "string" ? message.text : ""
 		const target = resolveDictionaryPath(raw) ?? defaultDictionaryPath()
 
-		// 無ければ作る。書き方はファイルの先頭に入る（`FR-PII-16`）。
-		openFile(target, { create: true })
+		// 無ければ作る。**書き方も一緒に入れる**（`FR-PII-16`）。空のファイルを渡されても、
+		// タブが種類を表すことも `/.../` が正規表現になることも分からない。
+		await openFile(target, { create: true, content: DICTIONARY_HEADER })
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

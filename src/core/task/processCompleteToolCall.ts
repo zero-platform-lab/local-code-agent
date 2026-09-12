@@ -23,7 +23,7 @@ export interface ProcessCompleteToolCallStateHost {
 	 *
 	 * **解釈の前に戻す。** モデルは伏せ字のまま応答するので、戻さずにファイルへ書くと
 	 * `{{email-001}}` という文字列がそのまま書かれる。引数を 1 つの文字列として戻せば、
-	 * どの道具のどの欄でも一度に戻る。host に置くのは、完成の経路と逐次の経路が同じ
+	 * どのツールのどの欄でも一度に戻る。host に置くのは、完成の経路と逐次の経路が同じ
 	 * host を持ち回るためである。
 	 */
 	unmask?: (text: string) => string
@@ -51,7 +51,7 @@ export function processCompleteToolCall(deps: ProcessCompleteToolCallDeps, chunk
 			arguments: chunk.arguments,
 		},
 		// **束縛して渡す。** host はクラスのインスタンスで、`unmask` は `this` を辿る。
-		// 外して渡すと `this` が undefined になり、道具を呼ぶたびに落ちる。
+		// 外して渡すと `this` が undefined になり、ツールを呼ぶたびに例外になる。
 		deps.host.unmask?.bind(deps.host),
 	)
 

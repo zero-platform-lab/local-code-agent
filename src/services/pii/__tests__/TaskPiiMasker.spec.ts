@@ -94,4 +94,30 @@ describe("TaskPiiMasker", () => {
 
 		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
 	})
+
+	it("辞書が読めなかったことを黙らない（FR-PII-03d）", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"], dictionaryPaths: ["/無い/辞書.txt"] })
+
+		const first = await masker.maskForRequest("", [message("taro@corp.example")])
+
+		// 黙って進めると、社名も顧客名も伏せられないまま送られる。
+		expect(first.troubles).toHaveLength(1)
+		expect(first.troubles[0]).toContain("無い/辞書.txt")
+
+		// 2 回目は出さない。要求のたびに同じ警告を出さない。
+		const second = await masker.maskForRequest("", [message("taro@corp.example")])
+		expect(second.troubles).toEqual([])
+	})
+
+	it("設定に直接書いた正規表現も効く（FR-PII-03f）", async () => {
+		const masker = new TaskPiiMasker({
+			enabled: true,
+			kinds: ["term"],
+			terms: [{ value: "EMP-\\d{5}", regex: true }],
+		})
+
+		const result = await masker.maskForRequest("", [message("担当は EMP-12345")])
+
+		expect(result.messages[0]).toMatchObject({ content: "担当は {{term-001}}" })
+	})
 })

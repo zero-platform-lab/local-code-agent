@@ -122,7 +122,14 @@ export interface ApiRequestOrchestratorDeps {
 	maskForRequest?: (
 		systemPrompt: string,
 		messages: AgentMessage[],
-	) => Promise<{ systemPrompt: string; messages: AgentMessage[] }>
+	) => Promise<{
+		systemPrompt: string
+		messages: AgentMessage[]
+		/** 種類ごとの件数（`FR-PII-01c`）。0 のまま進んでいれば設定が効いていない。 */
+		counts?: Record<string, number | undefined>
+		/** 辞書で読めなかったもの（`FR-PII-03d`）。一度だけ渡ってくる。 */
+		troubles?: readonly string[]
+	}>
 
 	// provider 経由の副作用
 	getProviderState: () => Promise<ApiRequestProviderState | undefined>
@@ -676,6 +683,18 @@ export async function* attemptApiRequest(
 	const masked = await deps.maskForRequest?.(systemPrompt, builtHistory)
 	const cleanConversationHistory = masked?.messages ?? builtHistory
 	const requestSystemPrompt = masked?.systemPrompt ?? systemPrompt
+
+	if (masked) {
+		// 件数を出す（`FR-PII-01c`）。0 のまま進んでいれば、種類を全部切っているか辞書が
+		// 読めていない。気づく手がかりはこれしかない。
+		const total = Object.values(masked.counts ?? {}).reduce<number>((sum, one) => sum + (one ?? 0), 0)
+		deps.log?.(`[PII] 伏せた箇所: ${total}`)
+
+		for (const trouble of masked.troubles ?? []) {
+			// 黙って進めると、伏せたつもりで素通りする。
+			await deps.say("error", `辞書を読めませんでした: ${trouble}`)
+		}
+	}
 
 	// Check auto-approval limits
 	const approvalResult = await deps.host.autoApprovalHandler.checkAutoApprovalLimits(

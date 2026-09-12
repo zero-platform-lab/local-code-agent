@@ -93,6 +93,15 @@ describe("maskConversation", () => {
 		expect(result.messages[0]).toMatchObject({ encrypted_content: "taro@corp.example に見える文字列" })
 	})
 
+	it("件数を合算する", () => {
+		const result = maskConversation("taro@corp.example", [message("user", "hanako@corp.example")], {
+			kinds: ["email"],
+		})
+
+		// 部分ごとに置き換えるので、足し合わせないと 1 件しか数えない。
+		expect(result.counts).toEqual({ email: 2 })
+	})
+
 	it("伏せるものが無ければそのまま返す", () => {
 		const messages: AgentMessage[] = [message("user", "ふつうの文章")]
 

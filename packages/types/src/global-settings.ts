@@ -164,7 +164,21 @@ export const piiMaskingSchema = z.object({
 	/** 伏せる種類。省略すると全部を伏せる（`FR-PII-07`）。 */
 	kinds: z.array(z.enum(piiKinds)).optional(),
 	/** 利用者が挙げた語（`FR-PII-03`）。 */
-	terms: z.array(z.object({ value: z.string(), kind: z.enum(["person", "org", "term"]).optional() })).optional(),
+	terms: z
+		.array(
+			z.object({
+				value: z.string(),
+				kind: z.enum(["person", "org", "term"]).optional(),
+				/**
+				 * 真なら `value` を正規表現として扱う（`FR-PII-03f`）。
+				 *
+				 * **落とさない。** zod は知らない欄を捨てるので、書き忘れると設定に書いた
+				 * 正規表現が普通の語として照合され、黙って 1 件も一致しなくなる。
+				 */
+				regex: z.boolean().optional(),
+			}),
+		)
+		.optional(),
 	/** 辞書のファイル（`FR-PII-03b`）。チームで 1 つの辞書を共有できる。 */
 	dictionaryPaths: z.array(z.string()).optional(),
 	/** 鍵のラベルに足す語（`FR-PII-10g`）。社内で使う語まで先に並べておくことはできない。 */

@@ -24,6 +24,7 @@ import type { PiiKind, PiiTerm } from "./types"
 export class TaskPiiMasker {
 	private readonly vault = new PiiVault()
 	private terms: PiiTerm[] | undefined
+	private troubles: string[] = []
 	private readonly settings: PiiMasking
 
 	constructor(settings: PiiMasking) {
@@ -44,6 +45,12 @@ export class TaskPiiMasker {
 		if (this.terms === undefined) {
 			const fromFiles = await readDictionaries(this.settings.dictionaryPaths ?? [])
 			this.terms = [...(this.settings.terms ?? []), ...fromFiles.terms]
+			// **黙らない。** 辞書が読めないと、社名も顧客名も伏せられないまま送られる。
+			// 伏せているつもりで素通りする、いちばん気づけない失敗である。
+			this.troubles = [
+				...fromFiles.failures.map((one) => `${one.path}: ${one.error}`),
+				...fromFiles.problems.map((one) => `${one.path}:${one.line} ${one.value} — ${one.reason}`),
+			]
 		}
 
 		return {
@@ -62,17 +69,35 @@ export class TaskPiiMasker {
 	async maskForRequest(
 		systemPrompt: string,
 		messages: AgentMessage[],
-	): Promise<{ systemPrompt: string; messages: AgentMessage[]; counts: Partial<Record<PiiKind, number>> }> {
+	): Promise<{
+		systemPrompt: string
+		messages: AgentMessage[]
+		counts: Partial<Record<PiiKind, number>>
+		troubles: readonly string[]
+	}> {
 		if (!this.enabled) {
-			return { systemPrompt, messages, counts: {} }
+			return { systemPrompt, messages, counts: {}, troubles: [] }
 		}
 
-		return maskConversation(systemPrompt, messages, await this.options(), this.vault)
+		const result = maskConversation(systemPrompt, messages, await this.options(), this.vault)
+		return { ...result, troubles: this.takeDictionaryTroubles() }
 	}
 
 	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。戻さない設定なら素通しする。 */
 	unmask(text: string): string {
 		return this.enabled && this.restores ? this.vault.restore(text) : text
+	}
+
+	/**
+	 * 辞書で読めなかったもの（`FR-PII-03d` `FR-PII-03g`）。
+	 *
+	 * 最初の要求のあとに読める。呼び出し側が利用者へ示す。黙って進めると、伏せたつもりで
+	 * 素通りする。**一度渡したら空にする。** 要求のたびに同じ警告を出さない。
+	 */
+	takeDictionaryTroubles(): string[] {
+		const taken = this.troubles
+		this.troubles = []
+		return taken
 	}
 
 	/** これまでに伏せた値の数。0 のまま進んでいれば、設定が効いていない。 */

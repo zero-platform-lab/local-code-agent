@@ -110,8 +110,9 @@ export function maskConversation(
 
 	const mask = (text: string): string => {
 		const plan = planMasking(text, options, undefined, allocator)
-		for (const [kind, count] of Object.entries(plan.counts)) {
-			counts[kind as PiiKind] = (counts[kind as PiiKind] ?? 0) + (count ?? 0)
+		// 値を入れるのは `planMasking` だけで、未定義は入らない。分けて扱わない。
+		for (const [kind, count] of Object.entries(plan.counts as Record<string, number>)) {
+			counts[kind as PiiKind] = (counts[kind as PiiKind] ?? 0) + count
 		}
 		return applyPlan(text, plan.edits)
 	}

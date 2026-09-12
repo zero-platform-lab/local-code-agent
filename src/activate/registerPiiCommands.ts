@@ -5,11 +5,17 @@ import { maskSecretsInActiveEditor, type MaskEditorSettings } from "../services/
 import { addSelectionToDictionary, exportDictionary } from "../services/pii/dictionaryEditor"
 
 /**
- * 機密情報を伏せ字へ置き換えるコマンドを登録する（`FR-PII-11`）。
+ * 機密情報の伏せ字のコマンドを登録する。
  *
- * 編集中のファイルだけを見るので、webview の provider を必要としない。`registerCommands`
- * とは別に置く。あちらのコマンドはどれも「見えている provider が無ければ何もしない」で
- * 揃えてあり、その規則へ混ぜると意味が合わなくなる。
+ * **目的。** 3 つのコマンドを VS Code へ差し出す。ファイルの置き換え（`FR-PII-11`）、
+ * 辞書への追加（`FR-PII-15`）、辞書の書き出し（`FR-PII-17`）である。
+ *
+ * **仕組み。** 設定は登録の時点ではなく、呼ばれた時点で読む。登録時に読むと、設定を
+ * 変えても効かない。
+ *
+ * `registerCommands` とは別に置く。あちらのコマンドはどれも「見えている provider が
+ * 無ければ何もしない」で揃えてあるが、こちらは編集中のファイルだけを見るので provider を
+ * 必要としない。同じ規則へ混ぜると、その揃え方の意味が失われる。
  */
 export const registerPiiCommands = (context: vscode.ExtensionContext, readSettings: () => MaskEditorSettings) => {
 	context.subscriptions.push(

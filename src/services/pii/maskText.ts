@@ -16,13 +16,28 @@ import {
 import { PII_KINDS, type PiiKind, type PiiMatch, type PiiTerm } from "./types"
 
 /**
- * 見つけた情報を伏せ字へ置き換える。
+ * 伏せ字の割り当てと、元の値への復元。
  *
- * 伏せ字は `{{種類-番号}}` で、番号は種類ごとに 1 から振る（`FR-PII-08`）。区切りが無いと、
- * 戻すときに `person-1` が `person-10` の一部に一致する。
+ * **目的。** `detectors` が見つけた位置を、`{{種類-番号}}` の形へ置き換える
+ * （`FR-PII-08`）。置き換えは可逆とし、応答をファイルへ書き戻す前に元へ戻せるようにする
+ * （`FR-PII-02` `FR-PII-02a`）。
+ *
+ * **仕組み。** 3 段に分かれている。
+ *
+ * 1. `findPii` — 種類ごとの検出を集め、重なりを解く
+ * 2. `planMasking` — どこを何へ置き換えるかを決める。本文は書き換えない
+ * 3. `applyPlan` / `maskText` — 計画を本文へ適用する
+ *
+ * 計画と適用を分けてあるのは、右クリックからの置き換えが本文ではなく編集の一覧を要る
+ * ためである（`FR-PII-11c`）。1 つの `WorkspaceEdit` にまとめれば、取り消しの操作 1 回で
+ * 元へ戻る。
  *
  * **同じ値には同じ伏せ字を割り当てる**（`FR-PII-02`）。別の番号を割り当てると、モデルは
- * 別人だと読む。
+ * 別人だと読む。**書き方が違えば別の番号にする。** `ACME` と `acme` を 1 つにまとめると、
+ * 戻すときにどちらの書き方だったか分からない。復元の確かさを優先する。
+ *
+ * **戻すのは、その回に割り当てた伏せ字だけ**にする（`FR-PII-08a`）。元から
+ * `{{person-001}}` と書かれていたファイルを読むと、対応表に無い伏せ字が本文に現れる。
  */
 
 export type MaskOptions = {
@@ -47,7 +62,12 @@ export type MaskResult = {
 	table: Map<string, string>
 }
 
-/** 伏せ字の形。戻すときの照合にも使う。 */
+/**
+ * 伏せ字の形。戻すときの照合にも使う。
+ *
+ * 番号は 3 桁で埋めるが、1,000 件を超えると 4 桁になるので下限だけを決める。種類は
+ * 英字だけなので、`{{` と `}}` の間にそれ以外が入っていれば伏せ字ではない。
+ */
 const PLACEHOLDER = /\{\{([a-z]+)-(\d{3,})\}\}/g
 
 function placeholderFor(kind: PiiKind, index: number): string {
@@ -148,7 +168,7 @@ export function planMasking(text: string, options: MaskOptions = {}, range?: { s
 	return { edits, counts, table }
 }
 
-/** 計画を本文へ当てる。`edits` は前から順に並んでいて重ならない。 */
+/** 計画を本文へ適用する。`edits` は前から順に並んでいて重ならない。 */
 export function applyPlan(text: string, edits: readonly MaskEdit[]): string {
 	let out = ""
 	let cursor = 0

@@ -286,6 +286,7 @@ API キーは書き出しから除いてある（`NFR-SEC-06`）。伏せる語�
 | 設定の画面                         | `webview-ui/src/components/settings/__tests__/PiiSettings.spec.tsx`  |
 | 会話の画面の切り替え               | `webview-ui/src/components/chat/__tests__/SecretModeToggle.spec.tsx` |
 | 送信の直前の置き換え               | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`                   |
+| 実際の HTTP の本文に載ること       | `src/services/pii/__tests__/maskOnTheWire.integration.spec.ts`       |
 | 会話全体の置き換え                 | `src/services/pii/__tests__/maskConversation.spec.ts`                |
 | ツールの引数を戻すこと             | `src/core/task/__tests__/processCompleteToolCall.spec.ts`            |
 | 逐次で届く引数を戻すこと           | `src/core/task/__tests__/processToolCallPartial.spec.ts`             |

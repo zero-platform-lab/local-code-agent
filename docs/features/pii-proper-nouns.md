@@ -199,6 +199,7 @@ int8 を既定とする。**速いうえに、確度の低い誤りがより低�
 | 判定できなかったときの件数の提示     | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`                  |
 | 集める本文と伏せる本文が一致すること | `src/services/pii/__tests__/maskConversation.spec.ts`               |
 | 文の手直しの経路も通ること           | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`                  |
+| VS Code の中でモデルが動くこと       | `apps/vscode-e2e/src/suite/pii-masking.test.ts`                     |
 | 本文を外部へ送らないこと             | `src/services/pii/__tests__/maskingSeams.invariants.spec.ts`        |
 | モデルの取得と、取得先の決め方       | `src/services/pii/__tests__/nerFetch.spec.ts`                       |
 | 取得の操作と、揃わなかったときの扱い | `src/core/webview/__tests__/settingsMessageHandlers.spec.ts`        |

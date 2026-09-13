@@ -314,6 +314,7 @@ API キーは書き出しから除いてある（`NFR-SEC-06`）。伏せる語�
 | ツールの引数を戻すこと             | `src/core/task/__tests__/processCompleteToolCall.spec.ts`            |
 | 逐次で届く引数を戻すこと           | `src/core/task/__tests__/processToolCallPartial.spec.ts`             |
 | 伏せる箇所と戻す箇所の数           | `src/services/pii/__tests__/maskingSeams.invariants.spec.ts`         |
+| VS Code の中で生の値が出ないこと   | `apps/vscode-e2e/src/suite/pii-masking.test.ts`                      |
 | 書き出しに語が残ること             | `src/core/config/__tests__/ContextProxy.spec.ts`                     |
 
 ### 手で確かめること

@@ -1,4 +1,5 @@
 import type {
+	AgentMessage,
 	ClineAsk,
 	ClineMessage,
 	ClineSay,
@@ -41,6 +42,25 @@ export type BuildApiRequestDepsHost = ApiRequestOrchestratorStateHost &
 		flushPendingToolResultsToHistory: () => Promise<boolean>
 		getSystemPrompt: () => Promise<string>
 		getCurrentProfileId: (state: ApiRequestProviderState | undefined) => string
+		/** タスク 1 つ分の伏せ字（`FR-PII-01`）。シークレットモードが切なら何もしない。 */
+		piiMasker?: {
+			/**
+			 * **返す形を省かない。** `enabled` と `troubles` は要求の側が読む。省くと、
+			 * 型に合う別の実装へ差し替えたときに件数の記録も辞書の警告も黙って止まり、
+			 * 型の誤りも出ない。件数の記録は、伏せ字が効いているか知る唯一の手がかりである。
+			 */
+			maskForRequest: (
+				systemPrompt: string,
+				messages: AgentMessage[],
+			) => Promise<{
+				systemPrompt: string
+				messages: AgentMessage[]
+				counts: Record<string, number | undefined>
+				troubles: readonly string[]
+				enabled: boolean
+			}>
+			restoreExplicitly: (text: string) => string
+		}
 		say: (
 			type: ClineSay,
 			text?: string,
@@ -90,6 +110,10 @@ export function buildApiRequestDeps(
 		getFilesReadByAgentSafely: host.getFilesReadByAgentSafely.bind(host),
 		flushPendingToolResultsToHistory: host.flushPendingToolResultsToHistory.bind(host),
 		getSystemPrompt: host.getSystemPrompt.bind(host),
+		// 伏せるのは送る写しだけ。保存した履歴は利用者が書いたままにする。
+		maskForRequest: host.piiMasker ? host.piiMasker.maskForRequest.bind(host.piiMasker) : undefined,
+		// 要約は履歴へ残るので、残す前に戻す（`FR-PII-02a`）。
+		restoreForHistory: host.piiMasker ? host.piiMasker.restoreExplicitly.bind(host.piiMasker) : undefined,
 		say: host.say.bind(host),
 		ask: host.ask.bind(host),
 		processQueuedMessages: host.processQueuedMessages.bind(host),

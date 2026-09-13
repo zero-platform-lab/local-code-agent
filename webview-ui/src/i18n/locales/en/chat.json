@@ -450,5 +450,9 @@
 	},
 	"readCommandOutput": {
 		"title": "Agent read command output"
+	},
+	"secretMode": {
+		"on": "Secret mode: on (sensitive information is masked before sending)",
+		"off": "Secret mode: off (nothing is masked)"
 	}
 }

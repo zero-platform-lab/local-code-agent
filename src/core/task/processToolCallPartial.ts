@@ -21,6 +21,14 @@ export interface ProcessToolCallPartialStateHost {
 		assistantMessageContent: AssistantMessageContent[]
 		userMessageContentReady: boolean
 	}
+
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * **逐次で届く経路もここで完成する。** 渡さないと、モデルが書いた `{{email-001}}` が
+	 * そのままファイルへ書かれる。完成の経路と同じ戻し方を実行する。
+	 */
+	unmask?: (text: string) => string
 }
 
 export interface ProcessToolCallPartialDeps {
@@ -87,7 +95,13 @@ export function processToolCallPartial(
 			deps.presentAssistantMessage()
 		} else if (event.type === "tool_call_delta") {
 			// Process chunk using streaming JSON parser
-			const partialToolUse = NativeToolCallParser.processStreamingChunk(event.id, event.delta)
+			// 逐次の内容はそのまま差分の画面へ流れる。戻さないと伏せ字が見えたまま
+			// 書き込まれ得る（`FR-PII-02a`）。
+			const partialToolUse = NativeToolCallParser.processStreamingChunk(
+				event.id,
+				event.delta,
+				host.unmask?.bind(host),
+			)
 
 			if (partialToolUse) {
 				// Get the index for this tool call
@@ -105,7 +119,8 @@ export function processToolCallPartial(
 			}
 		} else if (event.type === "tool_call_end") {
 			// Finalize the streaming tool call
-			const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id)
+			// 束縛して渡す。外すと `this` が undefined になり、ツールを呼ぶたびに例外になる。
+			const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id, host.unmask?.bind(host))
 
 			// Get the index for this tool call
 			const toolUseIndex = host.stream.streamingToolCallIndices.get(event.id)

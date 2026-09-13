@@ -72,10 +72,10 @@
 
 | 対象                   | 件数 | 一次ソース                                                            |
 | ---------------------- | ---- | --------------------------------------------------------------------- |
-| 要件                   | 344  | `docs/requirements.md` の 3 章                                        |
-| 機能要件               | 290  | 同上                                                                  |
+| 要件                   | 424  | `docs/requirements.md` の 3 章                                        |
+| 機能要件               | 370  | 同上                                                                  |
 | 非機能要件             | 54   | 同上                                                                  |
-| 機能仕様               | 17   | `docs/features/`                                                      |
+| 機能仕様               | 19   | `docs/features/`                                                      |
 | 品質ゲートの段         | 9    | `scripts/ci-local.sh` の `run_step`（`--strict` の install を除く）   |
 | ツール                 | 23   | `packages/types/src/tool.ts` の `toolNames`                           |
 | ツールグループ         | 5    | `src/shared/tools.ts` の `TOOL_GROUPS`                                |
@@ -84,9 +84,9 @@
 | 自律モード             | 4    | `packages/types/src/autonomy.ts` の `autonomyModes`                   |
 | 既定で拒否するコマンド | 18   | `packages/types/src/autonomy.ts` の `DEFAULT_DENIED_COMMANDS`         |
 | プロバイダ設定のキー   | 28   | `packages/types/src/provider-settings.ts` の `providerSettingsSchema` |
-| グローバル設定のキー   | 74   | `packages/types/src/global-settings.ts`                               |
+| グローバル設定のキー   | 75   | `packages/types/src/global-settings.ts`                               |
 | VS Code の設定のキー   | 17   | `src/package.json` の `contributes.configuration`                     |
-| コマンド               | 23   | `src/package.json` の `contributes.commands`                          |
+| コマンド               | 27   | `src/package.json` の `contributes.commands`                          |
 | キーバインド           | 3    | `src/package.json` の `contributes.keybindings`                       |
 | 設定のタブ             | 11   | `webview-ui/src/components/settings/SettingsView.tsx`                 |
 | 実験的な機能           | 2    | `packages/types/src/experiment.ts`                                    |

@@ -110,3 +110,51 @@ describe("processToolCallPartial", () => {
 		expect(host.stream.streamingToolCallIndices.has("a1")).toBe(false)
 	})
 })
+
+describe("伏せ字を元の値へ戻す（FR-PII-02a）", () => {
+	/**
+	 * **本物の host はクラスである。** `vi.fn()` を挿すと `this` を辿らないので、束縛の
+	 * 抜けを見逃す。`this` を使う実装で確かめる。
+	 */
+	class Restorer {
+		readonly table = new Map([["{{email-001}}", "taro@corp.example"]])
+		taskId = "t1"
+		stream = {
+			streamingToolCallIndices: new Map<string, number>(),
+			assistantMessageContent: [] as unknown[],
+			userMessageContentReady: true,
+		}
+		unmask(text: string): string {
+			return text.replace("{{email-001}}", this.table.get("{{email-001}}")!)
+		}
+	}
+
+	/** 生の chunk を渡すと、parser が事象へ変える。事象は parser のモックが決める。 */
+	const call = (host: Restorer, events: Record<string, unknown>[]) => {
+		parser.processRawChunk.mockReturnValue(events)
+		processToolCallPartial({ host, presentAssistantMessage: () => {} } as never, { index: 0 } as never)
+	}
+
+	it("途中の形にも戻し方を渡す。逐次の内容はそのまま差分の画面へ流れる", () => {
+		const host = new Restorer()
+		parser.processStreamingChunk.mockReturnValue({ type: "tool_use", name: "write_to_file", params: {} })
+
+		call(host, [{ type: "tool_call_delta", id: "call_1", delta: '{"content":"' }])
+
+		const passed = parser.processStreamingChunk.mock.calls.at(-1)?.[2] as (text: string) => string
+		// 外して渡すと、ここで TypeError になる。
+		expect(passed('{"content":"{{email-001}}"}')).toBe('{"content":"taro@corp.example"}')
+	})
+
+	it("完成のときも戻し方を渡す", () => {
+		const host = new Restorer()
+		host.stream.streamingToolCallIndices.set("call_1", 0)
+		host.stream.assistantMessageContent.push({ type: "tool_use", name: "write_to_file", partial: true })
+		parser.finalizeStreamingToolCall.mockReturnValue({ type: "tool_use", name: "write_to_file" })
+
+		call(host, [{ type: "tool_call_end", id: "call_1" }])
+
+		const passed = parser.finalizeStreamingToolCall.mock.calls.at(-1)?.[1] as (text: string) => string
+		expect(passed("{{email-001}}")).toBe("taro@corp.example")
+	})
+})

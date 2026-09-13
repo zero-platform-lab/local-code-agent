@@ -14,6 +14,8 @@ import type { AssistantMessageContent } from "../assistant-message/types"
  */
 
 export interface FinalizeStreamingToolCallsStateHost {
+	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。未配線なら素通しする。 */
+	unmask?: (text: string) => string
 	stream: {
 		/**
 		 * `streamingToolCallIndices[event.id] === assistantMessageContent の index`。
@@ -44,7 +46,9 @@ export function finalizeStreamingToolCalls(
 		}
 
 		// Finalize the streaming tool call
-		const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id)
+		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を実行する（`FR-PII-02a`）。
+		// 束縛して渡す。外すと `this` が undefined になり、ツールを呼ぶたびに例外になる。
+		const finalToolUse = NativeToolCallParser.finalizeStreamingToolCall(event.id, host.unmask?.bind(host))
 
 		// Get the index for this tool call
 		const toolUseIndex = host.stream.streamingToolCallIndices.get(event.id)

@@ -23,6 +23,22 @@ export type TerminalActionName = "ADD_TO_CONTEXT" | "FIX" | "EXPLAIN"
 export type TerminalActionPromptType = `TERMINAL_${TerminalActionName}`
 
 /**
+ * PiiAction
+ *
+ * 機密情報を伏せ字へ置き換える操作（`FR-PII-11`）。編集中のファイルを対象にするので、
+ * webview の provider を必要としない。`commandIds` とは別に持つ。
+ */
+
+export const piiActionIds = [
+	"maskSecretsInFile",
+	"restoreSecretsInFile",
+	"addToDictionary",
+	"exportDictionary",
+] as const
+
+export type PiiActionId = (typeof piiActionIds)[number]
+
+/**
  * Command
  */
 

@@ -10,26 +10,35 @@ const sentinels = vi.hoisted(() => ({
 	registerCodeActions: function registerCodeActions() {},
 	registerTerminalActions: function registerTerminalActions() {},
 	CodeActionProvider: class CodeActionProvider {},
+	registerPiiCommands: function registerPiiCommands() {},
 }))
 
 vi.mock("../registerCommands", () => ({ registerCommands: sentinels.registerCommands }))
 vi.mock("../registerCodeActions", () => ({ registerCodeActions: sentinels.registerCodeActions }))
 vi.mock("../registerTerminalActions", () => ({ registerTerminalActions: sentinels.registerTerminalActions }))
 vi.mock("../CodeActionProvider", () => ({ CodeActionProvider: sentinels.CodeActionProvider }))
+vi.mock("../registerPiiCommands", () => ({ registerPiiCommands: sentinels.registerPiiCommands }))
 
 import * as barrel from "../index"
 
 describe("activate/index バレル", () => {
-	it("4 つのシンボルを元実装のまま再エクスポートする", () => {
+	it("5 つのシンボルを元実装のまま再エクスポートする", () => {
 		expect(barrel.registerCommands).toBe(sentinels.registerCommands)
 		expect(barrel.registerCodeActions).toBe(sentinels.registerCodeActions)
 		expect(barrel.registerTerminalActions).toBe(sentinels.registerTerminalActions)
 		expect(barrel.CodeActionProvider).toBe(sentinels.CodeActionProvider)
+		expect(barrel.registerPiiCommands).toBe(sentinels.registerPiiCommands)
 	})
 
 	it("余計なシンボルを増やしていない", () => {
 		expect(Object.keys(barrel).sort()).toEqual(
-			["CodeActionProvider", "registerCodeActions", "registerCommands", "registerTerminalActions"].sort(),
+			[
+				"CodeActionProvider",
+				"registerCodeActions",
+				"registerCommands",
+				"registerPiiCommands",
+				"registerTerminalActions",
+			].sort(),
 		)
 	})
 })

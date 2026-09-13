@@ -1,5 +1,6 @@
 import { z } from "zod"
 
+import { nerEntities, piiKinds } from "./pii.js"
 import { type Keys } from "./type-fu.js"
 import { autonomyModeSchema } from "./autonomy.js"
 import {
@@ -144,6 +145,71 @@ export const DEFAULT_CHECKPOINT_TIMEOUT_SECONDS = 15
  *
  * **資格情報はここに持たない。** git の保管庫へ預ける（`FR-EXT-06a`）。
  */
+/**
+ * 機密情報の伏せ字（`FR-PII-01`）。
+ *
+ * **既定では置き換えない**（`FR-PII-01a`）。置き換えはモデルが読む内容を変えるので、
+ * 気づかないうちに挙動が変わる状態を避ける。
+ */
+export const piiMaskingSchema = z.object({
+	/** シークレットモード。送信の直前に置き換えるかどうか（`FR-PII-01b`）。 */
+	enabled: z.boolean().optional(),
+	/**
+	 * 応答の伏せ字を元の値へ戻すか（`FR-PII-19`）。既定は戻す。
+	 *
+	 * 戻さないと、モデルが書いた `{{person-001}}` がそのままファイルへ残る。文書を
+	 * 清書させるときに使う。
+	 */
+	restore: z.boolean().optional(),
+	/** 伏せる種類。省略すると全部を伏せる（`FR-PII-07`）。 */
+	kinds: z.array(z.enum(piiKinds)).optional(),
+	/** 利用者が挙げた語（`FR-PII-03`）。 */
+	terms: z
+		.array(
+			z.object({
+				value: z.string(),
+				kind: z.enum(["person", "org", "term"]).optional(),
+				/**
+				 * 真なら `value` を正規表現として扱う（`FR-PII-03f`）。
+				 *
+				 * **書き漏らさない。** zod は知らない欄を捨てるので、書き忘れると設定に書いた
+				 * 正規表現が普通の語として照合され、黙って 1 件も一致しなくなる。
+				 */
+				regex: z.boolean().optional(),
+			}),
+		)
+		.optional(),
+	/** 辞書のファイル（`FR-PII-03b`）。チームで 1 つの辞書を共有できる。 */
+	dictionaryPaths: z.array(z.string()).optional(),
+	/** 鍵のラベルに足す語（`FR-PII-10g`）。社内で使う語まで先に並べておくことはできない。 */
+	secretLabels: z.array(z.string()).optional(),
+	/**
+	 * 固有名詞の検出（第 2 層）（`FR-PII-21`〜`FR-PII-23e`）。
+	 *
+	 * 辞書に無い氏名や社名を、前後の文から判定して伏せる。モデルのファイルを別に置く
+	 * 必要があるため、第 1 層とは別の切り替えを持つ。
+	 */
+	properNouns: z
+		.object({
+			/** 第 2 層を実行するか（`FR-PII-21c`）。既定は切。 */
+			enabled: z.boolean().optional(),
+			/** モデルの置き場所（`FR-PII-23a`）。省略すると既定の場所を見る。 */
+			modelPath: z.string().optional(),
+			/**
+			 * 確度の下限（`FR-PII-21d`）。省略すると 0.9。
+			 *
+			 * **下げると誤検出が入る。** 誤検出はモデルが読む内容を変えるので、取りこぼし
+			 * より害が大きい。
+			 */
+			minScore: z.number().min(0).max(1).optional(),
+			/** 伏せる区分（`FR-PII-21a`）。省略すると製品名とイベント名だけを外す。 */
+			entities: z.array(z.enum(nerEntities)).optional(),
+		})
+		.optional(),
+})
+
+export type PiiMasking = z.infer<typeof piiMaskingSchema>
+
 export const skillSourceSchema = z.object({
 	url: z.string(),
 	proxyMode: openAiProxyModeSchema.optional(),
@@ -289,6 +355,7 @@ export const globalSettingsSchema = z.object({
 	 */
 	disabledTools: z.array(toolNamesSchema).optional(),
 	skillSources: z.array(skillSourceSchema).optional(),
+	piiMasking: piiMaskingSchema.optional(),
 })
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>

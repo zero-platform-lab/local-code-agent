@@ -1329,3 +1329,83 @@ describe("transformMessagesForCondensing", () => {
 function asMsg(item: unknown): { role: string; content: any; [k: string]: any } {
 	return item as { role: string; content: any; [k: string]: any }
 }
+
+describe("伏せてから送る（FR-PII-01）", () => {
+	const stream = async function* () {
+		yield { type: "text" as const, text: "要約" }
+	}
+
+	it("要約も伏せてから送る", async () => {
+		const apiHandler = { createMessage: vi.fn(() => stream()), countTokens: vi.fn(async () => 10) } as never
+		const maskForRequest = vi.fn(async (systemPrompt: string, messages: unknown[]) => ({
+			systemPrompt: `${systemPrompt}（伏せた）`,
+			messages: messages as never,
+		}))
+
+		await summarizeConversation({
+			messages: [
+				{ type: "message", role: "user", content: "taro@corp.example", ts: 1 },
+				{ type: "message", role: "assistant", content: "はい", ts: 2 },
+				{ type: "message", role: "user", content: "続き", ts: 3 },
+			] as never,
+			apiHandler,
+			systemPrompt: "指示",
+			taskId: "t",
+			maskForRequest,
+		})
+
+		// 要約だけが素通りすると、いちばん量の多い会話の全体がそのまま渡る。
+		expect(maskForRequest).toHaveBeenCalledOnce()
+		const [promptSent] = (apiHandler as unknown as { createMessage: { mock: { calls: unknown[][] } } })
+			.createMessage.mock.calls[0]
+		expect(promptSent).toContain("（伏せた）")
+	})
+
+	it("要約は戻してから履歴へ残す（FR-PII-02a）", async () => {
+		const apiHandler = {
+			createMessage: vi.fn(function* () {
+				yield { type: "text" as const, text: "{{email-001}} と話した" }
+			}),
+			countTokens: vi.fn(async () => 10),
+		} as never
+
+		const result = await summarizeConversation({
+			messages: [
+				{ type: "message", role: "user", content: "a", ts: 1 },
+				{ type: "message", role: "assistant", content: "b", ts: 2 },
+				{ type: "message", role: "user", content: "c", ts: 3 },
+			] as never,
+			apiHandler,
+			systemPrompt: "指示",
+			taskId: "t",
+			restoreForHistory: (text: string) => text.replace("{{email-001}}", "taro@corp.example"),
+		})
+
+		// 伏せたまま残すと、対応表が消えたあと二度と戻せない。
+		const summary = result.messages.at(-1) as { content: string }
+		expect(summary.content).toContain("taro@corp.example")
+		expect(summary.content).not.toContain("{{email-001}}")
+		// 返す文字列は画面と ui_messages.json へ入る。こちらも戻す。
+		expect(result.summary).toContain("taro@corp.example")
+		expect(result.summary).not.toContain("{{email-001}}")
+	})
+
+	it("伏せる処理が無ければ、そのまま送る", async () => {
+		const apiHandler = { createMessage: vi.fn(() => stream()), countTokens: vi.fn(async () => 10) } as never
+
+		await summarizeConversation({
+			messages: [
+				{ type: "message", role: "user", content: "a", ts: 1 },
+				{ type: "message", role: "assistant", content: "b", ts: 2 },
+				{ type: "message", role: "user", content: "c", ts: 3 },
+			] as never,
+			apiHandler,
+			systemPrompt: "指示",
+			taskId: "t",
+		})
+
+		expect(
+			(apiHandler as unknown as { createMessage: { mock: { calls: unknown[][] } } }).createMessage,
+		).toHaveBeenCalled()
+	})
+})

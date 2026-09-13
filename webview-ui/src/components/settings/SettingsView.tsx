@@ -78,6 +78,7 @@ import { Section } from "./Section"
 import PromptsSettings from "./PromptsSettings"
 import { SlashCommandsSettings } from "./SlashCommandsSettings"
 import { SkillsSettings } from "./SkillsSettings"
+import { PiiSettings } from "./PiiSettings"
 import { UISettings } from "./UISettings"
 import ModesView from "../modes/ModesView"
 import McpView from "../mcp/McpView"
@@ -206,6 +207,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		includeCurrentCost,
 		maxGitStatusFiles,
 		skillSources,
+		piiMasking,
 	} = cachedState
 
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
@@ -351,6 +353,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 					experiments,
 					customSupportPrompts,
 					skillSources,
+					// **入切は会話の画面が持つ。** 保存の写しで上書きすると、会話の画面での
+					// 切り替えを巻き戻し、伏せたつもりで送ってしまう。
+					piiMasking: { ...piiMasking, enabled: extensionState.piiMasking?.enabled },
 				},
 			})
 
@@ -811,6 +816,10 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								<LanguageSettings
 									language={language || "en"}
 									setCachedStateField={setCachedStateField}
+								/>
+								<PiiSettings
+									piiMasking={piiMasking}
+									setPiiMasking={(value) => setCachedStateField("piiMasking", value)}
 								/>
 								<ExperimentalSettings
 									setExperimentEnabled={setExperimentEnabled}

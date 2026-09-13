@@ -3,6 +3,7 @@ import OpenAI from "openai"
 import { serializeError } from "serialize-error"
 
 import {
+	type AgentMessage,
 	type ClineAsk,
 	type ClineMessage,
 	type ClineSay,
@@ -13,6 +14,8 @@ import {
 	type ToolProgressStatus,
 } from "@openai-agent/types"
 
+import { t } from "../../i18n"
+import { totalCount } from "../../services/pii/maskText"
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
 import { ApiStream } from "../../api/transform/stream"
 import { getModelMaxOutputTokens } from "../../shared/api"
@@ -110,6 +113,36 @@ export interface ApiRequestOrchestratorDeps {
 	/** 拡張の Output チャンネルへ 1 行ログ（段階表示用）。未配線でも安全なよう optional。 */
 	log?: (message: string) => void
 
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
+	 *
+	 * **ここを唯一の口にする。** 読み取り・言及・探索・端末の出力のどれから入ってきた
+	 * 文字列でも、送信はここを通る。経路ごとに当てるとどれかを取りこぼす。
+	 *
+	 * 対応表は Task が持つ。未配線なら伏せない（`FR-PII-01a`）。
+	 */
+	maskForRequest?: (
+		systemPrompt: string,
+		messages: AgentMessage[],
+	) => Promise<{
+		systemPrompt: string
+		messages: AgentMessage[]
+		/** 種類ごとの件数（`FR-PII-01c`）。0 のまま進んでいれば設定が効いていない。 */
+		counts?: Record<string, number | undefined>
+		/** 辞書で読めなかったもの（`FR-PII-03d`）。一度だけ渡ってくる。 */
+		troubles?: readonly string[]
+		/** シークレットモードが入っていたか。切のときは何も出さない。 */
+		enabled?: boolean
+	}>
+
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * 要約は履歴へ残るので、残す前に戻す。伏せたまま残すと、対応表が消えたあと二度と
+	 * 戻せない。
+	 */
+	restoreForHistory?: (text: string) => string
+
 	// provider 経由の副作用
 	getProviderState: () => Promise<ApiRequestProviderState | undefined>
 	getSystemPrompt: () => Promise<string>
@@ -140,6 +173,13 @@ export interface ApiRequestOrchestratorDeps {
 
 	/** performance.now() を Task の static フィールドに書き戻すためのフック。 */
 	stampLastGlobalApiRequestTime: () => void
+}
+
+/** 辞書で読めなかったことを示す。黙って進めると、伏せたつもりで素通りする。 */
+async function reportDictionaryTroubles(deps: ApiRequestOrchestratorDeps, troubles: readonly string[]): Promise<void> {
+	for (const trouble of troubles) {
+		await deps.say("error", t("common:pii.dictionaryFailed", { paths: trouble }))
+	}
 }
 
 /**
@@ -223,6 +263,11 @@ export async function condenseContext(deps: ApiRequestOrchestratorDeps): Promise
 		filesReadByAgent,
 		cwd: deps.host.cwd,
 		rooIgnoreController: deps.host.rooIgnoreController,
+		// 要約も伏せてから送る（`FR-PII-01`）。ここを渡さないと、いちばん量の多い会話の
+		// 全体だけが素通りする。
+		maskForRequest: deps.maskForRequest,
+		restoreForHistory: deps.restoreForHistory,
+		reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 	})
 	if (error) {
 		await deps.say(
@@ -318,6 +363,10 @@ export async function handleContextWindowExceededError(deps: ApiRequestOrchestra
 			currentProfileId,
 			metadata,
 			environmentDetails,
+			// 自動の要約も伏せてから送る（`FR-PII-01`）。
+			maskForRequest: deps.maskForRequest,
+			restoreForHistory: deps.restoreForHistory,
+			reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 		})
 
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
@@ -464,6 +513,11 @@ export async function applyInRequestContextManagement(
 			filesReadByAgent: contextMgmtFilesReadByAgent,
 			cwd: deps.host.cwd,
 			rooIgnoreController: deps.host.rooIgnoreController,
+			// **自動の要約も伏せてから送る**（`FR-PII-01`）。利用者が意識しないうちに
+			// 実行されるので、ここが抜けると気づかないまま会話の全体が渡る。
+			maskForRequest: deps.maskForRequest,
+			restoreForHistory: deps.restoreForHistory,
+			reportTroubles: (troubles) => reportDictionaryTroubles(deps, troubles),
 		})
 		if (truncateResult.messages !== deps.host.messageStore.apiConversationHistory) {
 			await deps.overwriteApiConversationHistory(truncateResult.messages)
@@ -656,7 +710,23 @@ export async function* attemptApiRequest(
 	}
 
 	// 保存済み履歴 → 送信する item 列。段の順序に意味があるので関数に寄せてある。
-	const cleanConversationHistory = buildRequestHistory(deps.host.messageStore.apiConversationHistory, api)
+	const builtHistory = buildRequestHistory(deps.host.messageStore.apiConversationHistory, api)
+
+	// 伏せるのは送る写しだけ。保存した履歴は利用者が書いたままにする（`FR-PII-01`）。
+	const masked = await deps.maskForRequest?.(systemPrompt, builtHistory)
+	const cleanConversationHistory = masked?.messages ?? builtHistory
+	const requestSystemPrompt = masked?.systemPrompt ?? systemPrompt
+
+	// **切のときは何も出さない。** 使っていない利用者の記録に、要求のたびに 0 件の行が
+	// 積まれると、`0 のまま` という手がかりの意味が失われる。
+	if (masked?.enabled) {
+		// 件数を出す（`FR-PII-01c`）。0 のまま進んでいれば、種類を全部切っているか辞書が
+		// 読めていない。気づく手がかりはこれしかない。
+		deps.log?.(`[PII] 伏せた箇所: ${totalCount(masked.counts ?? {})}`)
+
+		// 黙って進めると、伏せたつもりで素通りする。出し方は 1 か所に置く。
+		await reportDictionaryTroubles(deps, masked.troubles ?? [])
+	}
 
 	// Check auto-approval limits
 	const approvalResult = await deps.host.autoApprovalHandler.checkAutoApprovalLimits(
@@ -708,7 +778,7 @@ export async function* attemptApiRequest(
 	deps.log?.(
 		`[API] リクエスト送信 (model=${api.getModel().id}, tools=${allTools.length}, stream=${apiConfiguration?.openAiStreamingEnabled ?? true})`,
 	)
-	const stream = api.createMessage(systemPrompt, cleanConversationHistory, metadata)
+	const stream = api.createMessage(requestSystemPrompt, cleanConversationHistory, metadata)
 	const iterator = stream[Symbol.asyncIterator]()
 
 	// Set up abort handling - when the signal is aborted, clean up the controller reference

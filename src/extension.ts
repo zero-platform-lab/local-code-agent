@@ -31,8 +31,15 @@ import { CodeIndexManager } from "./services/code-index/manager"
 import { autoImportSettings } from "./utils/autoImportSettings"
 import { API } from "./extension/api"
 
-import { registerCommands, registerCodeActions, registerTerminalActions, CodeActionProvider } from "./activate"
+import {
+	registerCommands,
+	registerCodeActions,
+	registerPiiCommands,
+	registerTerminalActions,
+	CodeActionProvider,
+} from "./activate"
 import { initializeI18n } from "./i18n"
+import { sessionVault } from "./services/pii/maskConversation"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -217,6 +224,32 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	registerCodeActions(context)
 	registerTerminalActions(context)
+	// 機密情報の伏せ字は編集中のファイルだけを見る。provider を必要としない。
+	registerPiiCommands(
+		context,
+		() => contextProxy.getValue("piiMasking") ?? {},
+		// 戻せるのは、いま動いているタスクで割り当てた伏せ字だけ（`FR-PII-20a`）。
+		() => {
+			// 明示的に戻す操作は、戻さない設定でも動かす（`FR-PII-20`）。戻さないまま
+			// 進めて最後にまとめて戻すのが、この操作の使い道である。
+			//
+			// **会話が無くても戻せる（`FR-PII-20a`）。** 右クリックで伏せ、他の道具へ渡し、
+			// 戻ってきてから元へ戻す使い方がある。会話が動いていることを条件にすると、
+			// その間に会話を閉じただけで戻せなくなる。
+			const task = provider.getCurrentTask()
+			return task
+				? (text: string) => task.restoreExplicitly(text)
+				: (text: string) => sessionVault().restore(text)
+		},
+		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
+		// 別の値を指す。
+		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
+		// 第 2 層は会話から借りる。会話が無ければ第 1 層だけで伏せる。
+		() => {
+			const masker = provider.getCurrentTask()?.piiMasker
+			return masker ? (texts) => masker.properNounsFor(texts) : undefined
+		},
+	)
 
 	// Allows other extensions to activate once Agent is ready.
 	vscode.commands.executeCommand(`${Package.name}.activationCompleted`)

@@ -3,6 +3,7 @@ import crypto from "crypto"
 import { itemText } from "../task-persistence/agentMessageUtils"
 import { t } from "../../i18n"
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
+import type { AgentMessage } from "@openai-agent/types"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { buildCleanConversationHistory } from "../task/buildCleanConversationHistory"
 import { maybeRemoveImageBlocks } from "../../api/transform/image-cleaning"
@@ -135,6 +136,35 @@ export type SummarizeConversationOptions = {
 	filesReadByAgent?: string[]
 	cwd?: string
 	rooIgnoreController?: AgentIgnoreController
+
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
+	 *
+	 * **要約もここを実行する。** 要約は `attemptApiRequest` を経ずに直接 LLM を呼ぶので、
+	 * 渡さないと、会話の全体が伏せられないまま送られる。伏せる箇所が数えられるという前提が
+	 * 成り立たなくなる。
+	 */
+	maskForRequest?: (
+		systemPrompt: string,
+		messages: AgentMessage[],
+	) => Promise<{
+		systemPrompt: string
+		messages: AgentMessage[]
+		/** 辞書で読めなかったもの（`FR-PII-03d`）。一度だけ渡ってくるので、捨てない。 */
+		troubles?: readonly string[]
+	}>
+
+	/** 辞書で読めなかったことを利用者へ示す。渡さないと、要約が最初の呼び出しのとき黙る。 */
+	reportTroubles?: (troubles: readonly string[]) => Promise<void>
+
+	/**
+	 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+	 *
+	 * **要約は履歴へ残る。** 伏せたまま残すと、対応表が消えたあと（タスクが終わったあと）
+	 * 二度と戻せない。保存した履歴は利用者が書いたままにする、という決めごとも破る。
+	 * 送る前に伏せ、返ってきた要約は戻してから残す。
+	 */
+	restoreForHistory?: (text: string) => string
 }
 
 /**
@@ -167,6 +197,9 @@ export async function summarizeConversation(options: SummarizeConversationOption
 		filesReadByAgent,
 		cwd,
 		rooIgnoreController,
+		maskForRequest,
+		restoreForHistory,
+		reportTroubles,
 	} = options
 
 	const response: SummarizeResponse = { messages, cost: 0, summary: "" }
@@ -228,7 +261,19 @@ export async function summarizeConversation(options: SummarizeConversationOption
 	let summary = ""
 	let cost = 0
 	try {
-		const stream = apiHandler.createMessage(promptToUse, requestMessages, metadata)
+		// 要約も伏せてから送る（`FR-PII-01`）。要約だけが素通りすると、いちばん量の多い
+		// 会話の全体がそのまま渡る。
+		const masked = await maskForRequest?.(promptToUse, requestMessages)
+		// **受け取った警告を捨てない。** 要約が最初の呼び出しになることがあり、そこで
+		// 捨てると、辞書が読めていないことを誰も知らないまま進む（`FR-PII-03d`）。
+		if (masked?.troubles?.length) {
+			await reportTroubles?.(masked.troubles)
+		}
+		const stream = apiHandler.createMessage(
+			masked?.systemPrompt ?? promptToUse,
+			masked?.messages ?? requestMessages,
+			metadata,
+		)
 
 		for await (const chunk of stream) {
 			if (chunk.type === "text") {
@@ -295,7 +340,13 @@ export async function summarizeConversation(options: SummarizeConversationOption
 
 	// Build the summary content as separate text blocks
 	// item 列では message の content は文字列。ブロックごとに組み立てて最後に連結する。
-	const summaryParts: string[] = [`## Conversation Summary\n${summary}`]
+	// **戻すのはモデルが書いた要約だけにする。**
+	//
+	// このあと `summaryParts` には、ディスクから読んだファイルの中身も入る。利用者が
+	// 右クリックで伏せたファイルなら、そこには利用者が置いた伏せ字がある。まとめて
+	// 戻すと、**利用者がファイルから消した値が履歴に書き戻される**。
+	const restoredSummary = restoreForHistory ? restoreForHistory(summary) : summary
+	const summaryParts: string[] = [`## Conversation Summary\n${restoredSummary}`]
 
 	// Add command blocks (active workflows) in their own system-reminder block if present
 	if (commandBlocks) {
@@ -344,6 +395,8 @@ ${commandBlocks}
 	const summaryMessage: ApiMessage = {
 		type: "message",
 		role: "user", // Fresh start model: summary is a user message
+		// **戻してから残す。** 伏せたまま履歴へ入れると、対応表が消えたあと二度と戻せない。
+		// 戻すのは上の `restoredSummary` で済ませてある。ここでまとめて戻さない。
 		content: summaryParts.join("\n\n"),
 		ts: lastMsgTs + 1, // Unique timestamp after last message
 		isSummary: true,
@@ -391,7 +444,15 @@ ${commandBlocks}
 	}
 
 	const newContextTokens = messageTokens + toolTokens
-	return { messages: newMessages, summary, cost, newContextTokens, condenseId }
+	// **返す要約も戻す。** これは画面と `ui_messages.json` へ入る。伏せたまま残すと、
+	// 対応表が消えたあと読めない文字列だけが残る。
+	return {
+		messages: newMessages,
+		summary: restoredSummary,
+		cost,
+		newContextTokens,
+		condenseId,
+	}
 }
 
 /**

@@ -3,7 +3,14 @@ import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
 
-import { getGitSha, copyPaths, copyWasms, generatePackageJson } from "@openai-agent/build"
+import {
+	getGitSha,
+	copyPaths,
+	copyWasms,
+	piiRuntimeBundle,
+	bundleTarget,
+	generatePackageJson,
+} from "@openai-agent/build"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,6 +28,8 @@ function patchBranding(text) {
 async function main() {
 	const name = "extension-internal"
 	const production = process.argv.includes("--production")
+	// 配る先。`--target=linux-x64` の形。`src/esbuild.mjs` と同じ受け方にする。
+	const target = bundleTarget(process.argv, process.env)
 	const minify = production
 	const sourcemap = !production
 
@@ -54,6 +63,9 @@ async function main() {
 	const srcDir = path.join(__dirname, "..", "..", "src")
 	const buildDir = path.join(__dirname, "build")
 	const distDir = path.join(buildDir, "dist")
+
+	// 第 2 層の設定は 1 か所から取る。2 つの束ね方でずれないようにするためである。
+	const pii = piiRuntimeBundle({ srcDir, distDir, target })
 
 	console.log(`[${name}] srcDir: ${srcDir}`)
 	console.log(`[${name}] buildDir: ${buildDir}`)
@@ -158,6 +170,7 @@ async function main() {
 				build.onEnd(() => copyWasms(srcDir, distDir))
 			},
 		},
+		pii.plugin,
 		{
 			name: "copyLocales",
 			setup(build) {
@@ -192,7 +205,8 @@ async function main() {
 		plugins,
 		entryPoints: [path.join(srcDir, "extension.ts")],
 		outfile: path.join(distDir, "extension.js"),
-		external: ["vscode"],
+		external: ["vscode", ...pii.external],
+		alias: pii.alias,
 	}
 
 	/**

@@ -90,7 +90,7 @@
 - プロファイル一覧の項目は別スキーマである（`providerSettingsEntrySchema` の id / name /
   apiProvider / modelId）。上の 28 キーには含まれない。
 
-### B2. グローバル設定（`packages/types/src/global-settings.ts`、74キー）
+### B2. グローバル設定（`packages/types/src/global-settings.ts`、75キー）
 
 - **自動承認（~16）**: autoApprovalEnabled, alwaysAllow{ReadOnly, ReadOnlyOutsideWorkspace, Write,
   WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks, FollowupQuestions},
@@ -127,7 +127,7 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 
 ## C. VS Code UI 面
 
-### C1. コマンド（contributes.commands、23）
+### C1. コマンド（contributes.commands、27）
 
 - タスク / 画面: plusButtonClicked, historyButtonClicked, popoutButtonClicked, settingsButtonClicked,
   openInNewTab, newTask, focusInput, acceptInput
@@ -135,6 +135,7 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 - ターミナル: terminalAddToContext, terminalFixCommand, terminalExplainCommand
 - 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
+- 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
 - 設定: setCustomStoragePath, importSettings
 
 ### C2. 設定タブ（`SettingsView.tsx` の `sectionNames`、11）

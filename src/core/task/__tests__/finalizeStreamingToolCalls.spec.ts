@@ -21,7 +21,14 @@ function makeDeps(
 		ready?: boolean
 	} = {},
 ) {
-	const host = {
+	const host: {
+		stream: {
+			streamingToolCallIndices: Map<string, number>
+			assistantMessageContent: unknown[]
+			userMessageContentReady: boolean
+		}
+		unmask?: (text: string) => string
+	} = {
 		stream: {
 			streamingToolCallIndices: new Map<string, number>(opts.indices ?? []),
 			assistantMessageContent: (opts.content ?? []) as unknown[],
@@ -61,7 +68,7 @@ describe("finalizeStreamingToolCalls", () => {
 
 		finalizeStreamingToolCalls([endEvent("call_1")] as never, deps as never)
 
-		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1")
+		expect(parser.finalizeStreamingToolCall).toHaveBeenCalledWith("call_1", undefined)
 		expect(host.stream.assistantMessageContent[0]).toBe(finalToolUse)
 		expect(finalToolUse.id).toBe("call_1")
 		expect(host.stream.streamingToolCallIndices.has("call_1")).toBe(false)
@@ -165,5 +172,36 @@ describe("finalizeStreamingToolCalls", () => {
 
 		expect(presentAssistantMessage).toHaveBeenCalledTimes(2)
 		expect(host.stream.streamingToolCallIndices.size).toBe(0)
+	})
+
+	it("host の戻し方を、束縛したうえで parser へ渡す（FR-PII-02a）", () => {
+		// **本物の host はクラスである。** `vi.fn()` を挿すと `this` を辿らないので、
+		// 束縛の抜けを見逃す。`this` を使う実装で確かめる。
+		class Restorer {
+			readonly table = new Map([["{{email-001}}", "taro@corp.example"]])
+			stream = {
+				streamingToolCallIndices: new Map<string, number>(),
+				assistantMessageContent: [] as unknown[],
+				userMessageContentReady: true,
+			}
+			unmask(text: string): string {
+				return text.replace("{{email-001}}", this.table.get("{{email-001}}")!)
+			}
+		}
+		const host = new Restorer()
+		parser.finalizeStreamingToolCall.mockReturnValue({ type: "tool_use", name: "read_file" })
+
+		// 逐次で届いた引数もここで完成する。完成の経路と同じ戻し方を実行する。
+		finalizeStreamingToolCalls(
+			[{ type: "tool_call_end", id: "call_1" }] as never,
+			{
+				host,
+				presentAssistantMessage: () => {},
+			} as never,
+		)
+
+		const passed = parser.finalizeStreamingToolCall.mock.calls.at(-1)?.[1] as (text: string) => string
+		// 外して渡すと、ここで TypeError になる。
+		expect(passed('{"content":"{{email-001}}"}')).toBe('{"content":"taro@corp.example"}')
 	})
 })

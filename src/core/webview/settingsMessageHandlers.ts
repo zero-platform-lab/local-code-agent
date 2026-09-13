@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
 
 import {
+	type PiiTerm,
 	type AgentSettings,
 	type ExperimentId,
 	type Language,
@@ -18,6 +19,11 @@ import { exportSettings, importSettingsWithFeedback } from "../config/importExpo
 import { fetchSkillSource } from "../../services/skills/skillSourceFetcher"
 import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../services/skills/skillSourceCredentials"
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
+import { DICTIONARY_HEADER, exportDictionary } from "../../services/pii/dictionaryEditor"
+import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
+import { fetchModel } from "../../services/pii/nerFetch"
+import { defaultModelDirectory, describeCheck } from "../../services/pii/nerModel"
+import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
@@ -306,6 +312,76 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		}
 
 		await vscode.window.showErrorMessage(t("common:skills.credentialFailed", { error: result.error ?? "" }))
+	},
+
+	exportPiiDictionary: async (provider, message) => {
+		// 語は設定と辞書の両方に散らばる。書き出すときは、どちらに書いたかを
+		// 気にせずに済むよう 1 つにまとめる（`FR-PII-17a`）。
+		//
+		// **画面が渡してきた値を優先する。** 画面の値は保存するまで設定へ入らない。
+		// 保存済みだけを読むと、足したばかりの辞書が書き出しに入らないのに成功したように
+		// 見える。
+		const saved = provider.contextProxy.getValue("piiMasking")
+		const sent = message.values as { terms?: PiiTerm[]; dictionaryPaths?: string[] } | undefined
+
+		await exportDictionary({
+			terms: sent?.terms ?? saved?.terms,
+			dictionaryPaths: sent?.dictionaryPaths ?? saved?.dictionaryPaths,
+		})
+	},
+
+	openPiiDictionary: async (_provider, message) => {
+		// **`~` を展開してから開く。** 画面の例示が `~/.agent/pii-dictionary.txt` なので、
+		// そのまま渡すと作業ディレクトリの下に `~` というディレクトリを作ってしまう。
+		const raw = typeof message.text === "string" ? message.text : ""
+		const target = resolveDictionaryPath(raw) ?? defaultDictionaryPath()
+
+		// 無ければ作る。**書き方も一緒に入れる**（`FR-PII-16`）。空のファイルを渡されても、
+		// タブが種類を表すことも `/.../` が正規表現になることも分からない。
+		await openFile(target, { create: true, content: DICTIONARY_HEADER })
+	},
+
+	fetchPiiNerModel: async (provider, message) => {
+		// **利用者が押したときだけ取りに行く（`FR-PII-23c`）。** 282 MB を勝手に取らない。
+		// **画面が渡してきた置き場所を優先する。** 保存前の値でも、押した人はそこへ
+		// 取りたい。保存済みだけを読むと、別の場所へ 282 MB を取ってしまう。
+		const masking = provider.contextProxy.getValue("piiMasking")
+		// **空の文字列も画面の答えとして扱う。** 欄を空にしたのは「既定の場所へ」という
+		// 意思である。空を falsy として保存済みへ落とすと、消したはずの古い場所へ
+		// 282 MB を取りに行き、拡張は既定の場所を見るので第 2 層は切のままになる。
+		const raw = typeof message.text === "string" ? message.text : masking?.properNouns?.modelPath
+		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
+
+		// 282 MB を待たせるので、何を取っているかを出す。
+		const check = await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: t("common:pii.fetchingModel"),
+				cancellable: false,
+			},
+			async (progress) => {
+				try {
+					return await fetchModel(directory, { report: (one) => progress.report({ message: one }) })
+				} catch (error) {
+					await vscode.window.showErrorMessage(
+						t("common:pii.fetchFailed", { error: error instanceof Error ? error.message : String(error) }),
+					)
+					return undefined
+				}
+			},
+		)
+
+		if (check === undefined) return
+
+		// **取れたつもりで欠けている状態を作らない。** 欠けたまま入にすると、第 2 層が
+		// 静かに動かず、画面の見た目も変わらない。
+		const why = describeCheck(check)
+		if (why) {
+			await vscode.window.showErrorMessage(t("common:pii.modelIncomplete", { detail: why }))
+			return
+		}
+
+		await vscode.window.showInformationMessage(t("common:pii.modelReady", { path: directory }))
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

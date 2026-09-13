@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { execSync } from "child_process"
+import { createRequire } from "module"
 
 import { ViewsContainer, Views, Menus, Configuration, Keybindings, contributesSchema } from "./types.js"
 
@@ -318,4 +319,169 @@ function transformRecord<T>(obj: Record<string, any>, from: string, to: string):
 		}),
 		{} as T,
 	)
+}
+
+/**
+ * 第 2 層（固有名詞の検出）が使う実行の仕組みを `dist` へ写す。
+ *
+ * **なぜ束ねないか。** `onnxruntime-node` は native の実行ファイルを
+ * `require(`../bin/napi-v6/${process.platform}/${process.arch}/…`)` で読む。束ねると
+ * この相対の位置が `dist` を基準に解決され、実行ファイルが見つからない。
+ *
+ * **なぜ `dist/node_modules` なのか。** VSIX は `--no-dependencies` で作るので、
+ * `node_modules` は同梱されない。`dist/extension.js` から `onnxruntime-node` を要求すると、
+ * Node は `dist/node_modules` を見に行く。そこに置けば解決できる。
+ *
+ * **GPU 用は写さない。** CUDA だけで 302 MB あり、判定は CPU で 21 ms で終わる
+ * （`docs/features/pii-proper-nouns.md`）。
+ *
+ * @param target 配る先。`linux-x64` の形。省略すると、いま動いている環境に合わせる
+ */
+export function copyOnnxRuntime(srcDir: string, distDir: string, target?: string): void {
+	// **`universal` は native を入れない。**
+	//
+	// platform 別に作れない配布物（macOS や arm の利用者が受け取るもの）である。第 2 層は
+	// 動かないが、第 1 層はモデルを要らないのでそのまま動く。黙って抜くと取り違えるので、
+	// 抜いたことを出す。
+	if (target === "universal") {
+		console.log("[copyOnnxRuntime] universal のため native を入れない（第 2 層は動かない）")
+		return
+	}
+
+	const [platform, arch] = (target ?? `${process.platform}-${process.arch}`).split("-")
+
+	// **失敗を握り潰さない。** 写せていないまま VSIX を作ると、第 2 層が動かないのに
+	// 画面上は何も変わらず、原因の分からない不具合になる。
+	const roots = resolveRuntimeRoots(srcDir)
+
+	const dest = path.join(distDir, "node_modules")
+
+	// 判定そのものを実行するもの。platform ごとに 1 つだけ写す。
+	let natives = 0
+	copyPackage(roots.node, path.join(dest, "onnxruntime-node"), (relative) => {
+		if (relative.startsWith("dist/") || relative === "package.json") return true
+		if (!relative.startsWith(`bin/napi-v6/${platform}/${arch}/`)) return false
+		// GPU 用。同梱しても使わない。
+		if (/cuda|tensorrt|DirectML|dxcompiler|dxil/i.test(relative)) return false
+
+		natives++
+		return true
+	})
+
+	// **1 つも写せていなければ失敗にする。**
+	//
+	// VS Code の platform の名前と onnxruntime の並びは同じとは限らない（`alpine-x64` は
+	// `linux/` の下、`linux-armhf` は `arm`）。合わないと写す対象が 0 件になるが、
+	// `copyPackage` は黙って何もしない。成功と言えば、第 2 層の無い配布物が出来上がる。
+	if (natives === 0) {
+		throw new Error(
+			`${platform}-${arch} に当たる native が ${roots.node} に無い。` +
+				`VS Code の platform の名前と onnxruntime の並びが食い違っている。`,
+		)
+	}
+
+	// `onnxruntime-node` が実行時に要求する。型と少量の JavaScript だけである。
+	copyPackage(roots.common, path.join(dest, "onnxruntime-common"), (relative) =>
+		relative.startsWith("dist/") || relative === "package.json",
+	)
+
+	console.log(`[copyOnnxRuntime] Copied onnxruntime for ${platform}-${arch} to ${dest}`)
+}
+
+/**
+ * `onnxruntime-node` と `onnxruntime-common` の場所を解く。pnpm の配置に依らない。
+ *
+ * **`require.resolve` は使えない。** この module は ESM として読み込まれるので、
+ * `require` が無い。`srcDir` を基点に `createRequire` を作る。
+ */
+function resolveRuntimeRoots(srcDir: string): { node: string; common: string } {
+	const fromSrc = createRequire(path.join(srcDir, "package.json"))
+	const req = createRequire(fromSrc.resolve("@huggingface/transformers"))
+
+	// **`onnxruntime-common` は `onnxruntime-node` から解く。** `@huggingface/transformers`
+	// は `onnxruntime-common` を依存として宣言していないので、そちらから解くと、入れ方に
+	// よっては見つからないか、**`onnxruntime-node` が要求するのと違う版**を拾う。
+	const node = packageRoot(req.resolve("onnxruntime-node"), "onnxruntime-node")
+	const fromNode = createRequire(path.join(node, "package.json"))
+
+	return { node, common: packageRoot(fromNode.resolve("onnxruntime-common"), "onnxruntime-common") }
+}
+
+/**
+ * 入口のファイルから、そのパッケージの根を辿る。
+ *
+ * `package.json` は `exports` に載っていないことがあるので、直接は解決できない。
+ * `name` が一致する `package.json` に当たるまで上へ辿る。
+ */
+function packageRoot(entry: string, name: string): string {
+	let dir = path.dirname(entry)
+	for (let depth = 0; depth < 10; depth++) {
+		const manifest = path.join(dir, "package.json")
+		if (fs.existsSync(manifest) && JSON.parse(fs.readFileSync(manifest, "utf8")).name === name) return dir
+		dir = path.dirname(dir)
+	}
+
+	throw new Error(`${name} の根が見つからない: ${entry}`)
+}
+
+/** `keep` が真を返すファイルだけを写す。相対パスは `/` で区切る。 */
+function copyPackage(from: string, to: string, keep: (relative: string) => boolean): void {
+	for (const entry of fs.readdirSync(from, { recursive: true, withFileTypes: true })) {
+		if (!entry.isFile()) continue
+
+		const full = path.join(entry.parentPath ?? entry.path, entry.name)
+		const relative = path.relative(from, full).split(path.sep).join("/")
+		if (!keep(relative)) continue
+
+		const target = path.join(to, relative)
+		fs.mkdirSync(path.dirname(target), { recursive: true })
+		fs.copyFileSync(full, target)
+	}
+}
+
+/**
+ * 第 2 層（固有名詞の検出）のために、束ね方へ足すもの。
+ *
+ * **なぜ切り出すか。** 束ね方の設定は 2 つある（`src/esbuild.mjs` と
+ * `apps/vscode-internal/esbuild.mjs`）。片方にだけ入れたことが実際にあり、配った VSIX
+ * では第 2 層が黙って動かなかった。例外は握られるので、画面には何も出ない。
+ *
+ * **grep で揃っているか確かめる試験も置いていたが、それは後追いでしかない。** 覚えていた
+ * 型しか見ず、次のずれは通る。両方がこの 1 つを呼ぶ形にすれば、ずれようがない。
+ */
+export function piiRuntimeBundle(options: {
+	srcDir: string
+	distDir: string
+	/** 配る先。`linux-x64` の形。`universal` なら native を入れない。 */
+	target?: string
+	/** 監視のときは、既に写してあれば飛ばす。数十 MB を保存のたびに写さない。 */
+	watch?: boolean
+}): {
+	external: string[]
+	alias: Record<string, string>
+	plugin: { name: string; setup: (build: { onEnd: (fn: () => void) => void }) => void }
+} {
+	const { srcDir, distDir, target, watch } = options
+
+	return {
+		// native の実行ファイルを相対の位置で読むので、束ねると見つからない。
+		external: ["onnxruntime-node"],
+		// 画像用で本製品は使わない。同梱すると 16.5 MB 増える。
+		alias: { sharp: path.join(srcDir, "build-stubs", "sharp.js") },
+		plugin: {
+			name: "copyOnnxRuntime",
+			setup(build) {
+				build.onEnd(() => {
+					// `dist` は毎回消えるので、監視でも 1 回目は要る。
+					const binding = path.join(distDir, "node_modules", "onnxruntime-node", "bin")
+					if (!watch || !fs.existsSync(binding)) copyOnnxRuntime(srcDir, distDir, target)
+				})
+			},
+		},
+	}
+}
+
+/** 配る先を引数と環境変数から読む。`vsce` が束ね直すので、環境変数も見る。 */
+export function bundleTarget(argv: readonly string[], env: Record<string, string | undefined>): string | undefined {
+	return argv.find((one) => one.startsWith("--target="))?.slice("--target=".length) || env.VSIX_TARGET
 }

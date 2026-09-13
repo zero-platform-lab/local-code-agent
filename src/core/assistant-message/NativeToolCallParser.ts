@@ -51,6 +51,31 @@ export type ToolCallStreamEvent = ApiStreamToolCallStartChunk | ApiStreamToolCal
  * This class also handles raw tool call chunk processing, converting
  * provider-level raw chunks into start/delta/end events.
  */
+/**
+ * 解釈した引数の中の文字列を、欄ごとに元の値へ戻す（`FR-PII-02a`）。
+ *
+ * **JSON の文字列へ直接当てない。** 元の値は引用符も改行も含み得るので、戻した結果が
+ * JSON として壊れる。壊れると `JSON.parse` が投げ、ツールの呼び出しが黙って消える。
+ * 解釈したあとなら、値がどんな文字を含んでいても安全である。
+ */
+function restoreDeep(value: unknown, unmask?: (text: string) => string): unknown {
+	if (!unmask) return value
+	if (typeof value === "string") return unmask(value)
+	if (Array.isArray(value)) return value.map((item) => restoreDeep(item, unmask))
+	if (value !== null && typeof value === "object") {
+		// **鍵にも当てる。** 伏せ字が鍵になっている引数（`{"{{host-001}}": {...}}`）を
+		// そのままにすると、ツールは存在しない名前を相手に動く。値だけ戻すと、同じ
+		// 対象を指す 2 つの表記が 1 つの引数に混ざる。
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+				unmask(key),
+				restoreDeep(item, unmask),
+			]),
+		)
+	}
+	return value
+}
+
 export class NativeToolCallParser {
 	// Streaming state management for argument accumulation (keyed by tool call id)
 	// Note: name is string to accommodate dynamic MCP tools (mcp--serverName--toolName)
@@ -232,7 +257,18 @@ export class NativeToolCallParser {
 	 * Uses partial-json-parser to extract values from incomplete JSON immediately.
 	 * Returns a partial ToolUse with currently parsed parameters.
 	 */
-	public static processStreamingChunk(id: string, chunk: string): ToolUse | null {
+	public static processStreamingChunk(
+		id: string,
+		chunk: string,
+		/**
+		 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+		 *
+		 * **途中の形も戻す。** 逐次の内容はそのまま差分の画面へ流れるので、戻さないと
+		 * `{{email-001}}` が見えたまま書き込まれ得る。解釈したあとの欄ごとに当てるので、
+		 * 途中で切れていても JSON は壊れない。
+		 */
+		unmask?: (text: string) => string,
+	): ToolUse | null {
 		const toolCall = this.streamingToolCalls.get(id)
 		if (!toolCall) {
 			return null
@@ -261,7 +297,7 @@ export class NativeToolCallParser {
 			return this.createPartialToolUse(
 				toolCall.id,
 				resolvedName,
-				partialArgs || {},
+				restoreDeep(partialArgs || {}, unmask) as Record<string, unknown>,
 				true, // partial
 				originalName,
 			)
@@ -276,7 +312,10 @@ export class NativeToolCallParser {
 	 * Finalize a streaming tool call.
 	 * Parses the complete JSON and returns the final ToolUse or McpToolUse.
 	 */
-	public static finalizeStreamingToolCall(id: string): ToolUse | McpToolUse | null {
+	public static finalizeStreamingToolCall(
+		id: string,
+		unmask?: (text: string) => string,
+	): ToolUse | McpToolUse | null {
 		const toolCall = this.streamingToolCalls.get(id)
 		if (!toolCall) {
 			return null
@@ -284,11 +323,14 @@ export class NativeToolCallParser {
 
 		// Parse the complete accumulated JSON
 		// Cast to any for the name since parseToolCall handles both ToolName and dynamic MCP tools
-		const finalToolUse = this.parseToolCall({
-			id: toolCall.id,
-			name: toolCall.name as ToolName,
-			arguments: toolCall.argumentsAccumulator,
-		})
+		const finalToolUse = this.parseToolCall(
+			{
+				id: toolCall.id,
+				name: toolCall.name as ToolName,
+				arguments: toolCall.argumentsAccumulator,
+			},
+			unmask,
+		)
 
 		// Clean up streaming state
 		this.streamingToolCalls.delete(id)
@@ -351,11 +393,23 @@ export class NativeToolCallParser {
 	 * @param toolCall - The native tool call from the API stream
 	 * @returns A properly typed ToolUse object
 	 */
-	public static parseToolCall<TName extends ToolName>(toolCall: {
-		id: string
-		name: TName
-		arguments: string
-	}): ToolUse<TName> | McpToolUse | null {
+	public static parseToolCall<TName extends ToolName>(
+		toolCall: {
+			id: string
+			name: TName
+			arguments: string
+		},
+		/**
+		 * 伏せ字を元の値へ戻す（`FR-PII-02a`）。
+		 *
+		 * モデルは伏せ字のまま応答するので、戻さずにファイルへ書くと `{{email-001}}` と
+		 * いう文字列がそのまま書かれる。完成の経路も逐次の経路もここを通る。
+		 *
+		 * **解釈してから欄ごとに戻す。** JSON の文字列へ直接当てると、元の値が引用符や
+		 * 改行を含むときに JSON が壊れ、`JSON.parse` が投げて呼び出しが黙って消える。
+		 */
+		unmask?: (text: string) => string,
+	): ToolUse<TName> | McpToolUse | null {
 		// Check if this is a dynamic MCP tool (mcp--serverName--toolName)
 		// Also handle models that output underscores instead of hyphens (mcp__serverName__toolName)
 		const mcpPrefix = MCP_TOOL_PREFIX + MCP_TOOL_SEPARATOR
@@ -365,7 +419,8 @@ export class NativeToolCallParser {
 			const normalizedName = normalizeMcpToolName(toolCall.name)
 			if (normalizedName.startsWith(mcpPrefix)) {
 				// Pass the original tool call but with normalized name for parsing
-				return this.parseDynamicMcpTool({ ...toolCall, name: normalizedName })
+				// MCP のツールでも、引数は同じように戻してから解釈する。
+				return this.parseDynamicMcpTool({ ...toolCall, name: normalizedName }, unmask)
 			}
 		}
 
@@ -381,7 +436,12 @@ export class NativeToolCallParser {
 
 		try {
 			// Parse the arguments JSON string
-			const args = toolCall.arguments === "" ? {} : JSON.parse(toolCall.arguments)
+			// 解釈してから欄ごとに戻す（`FR-PII-02a`）。JSON の文字列へ直接当てると、元の値が
+			// 引用符や改行を含むときに壊れ、呼び出しが黙って消える。
+			const args = restoreDeep(toolCall.arguments === "" ? {} : JSON.parse(toolCall.arguments), unmask) as Record<
+				string,
+				unknown
+			>
 
 			// Build stringified params for display/logging.
 			// Tool execution MUST use nativeArgs (typed) and does not support legacy fallbacks.
@@ -447,10 +507,13 @@ export class NativeToolCallParser {
 	 * These are generated dynamically by getMcpServerTools() and are returned
 	 * as McpToolUse objects that preserve the original tool name.
 	 */
-	public static parseDynamicMcpTool(toolCall: { id: string; name: string; arguments: string }): McpToolUse | null {
+	public static parseDynamicMcpTool(
+		toolCall: { id: string; name: string; arguments: string },
+		unmask?: (text: string) => string,
+	): McpToolUse | null {
 		try {
 			// Parse the arguments - these are the actual tool arguments passed directly
-			const args = JSON.parse(toolCall.arguments || "{}")
+			const args = restoreDeep(JSON.parse(toolCall.arguments || "{}"), unmask) as Record<string, unknown>
 
 			// Normalize the tool name to handle models that output underscores instead of hyphens
 			// e.g., mcp__serverName__toolName -> mcp--serverName--toolName

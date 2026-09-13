@@ -4,6 +4,14 @@ import { singleCompletionHandler } from "../../utils/single-completion-handler"
 import { ProviderSettingsManager } from "../config/ProviderSettingsManager"
 
 export interface MessageEnhancerOptions {
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。
+	 *
+	 * 返ってきた文は利用者の入力欄へ戻るので、`restore` で元へ戻す。渡されなければ
+	 * 伏せない。
+	 */
+	maskForPrompt?: (text: string) => Promise<{ text: string; restore: (text: string) => string }>
+
 	text: string
 	apiConfiguration: ProviderSettings
 	customSupportPrompts?: Record<string, any>
@@ -40,6 +48,7 @@ export class MessageEnhancer {
 				includeTaskHistoryInEnhance,
 				currentClineMessages,
 				providerSettingsManager,
+				maskForPrompt,
 			} = options
 
 			// Determine which API configuration to use
@@ -74,12 +83,17 @@ export class MessageEnhancer {
 				customSupportPrompts,
 			)
 
-			// Call the single completion handler to get the enhanced prompt
-			const enhancedText = await singleCompletionHandler(configToUse, enhancementPrompt)
+			// **ここでも伏せる**（`FR-PII-01`）。文の手直しは会話の履歴まで
+			// 添えて送るので、抜けるといちばん量の多い内容が素通りする。
+			//
+			// 結果は利用者の入力欄へ戻るため、返ってきた文の伏せ字は元へ戻す。戻さないと、
+			// 利用者が読めない文を渡されることになる。
+			const masked = await maskForPrompt?.(enhancementPrompt)
+			const enhancedText = await singleCompletionHandler(configToUse, masked?.text ?? enhancementPrompt)
 
 			return {
 				success: true,
-				enhancedText,
+				enhancedText: masked ? masked.restore(enhancedText) : enhancedText,
 			}
 		} catch (error) {
 			return {

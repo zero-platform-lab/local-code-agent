@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 	registerCommands: vi.fn(),
 	registerCodeActions: vi.fn(),
 	registerTerminalActions: vi.fn(),
+	registerPiiCommands: vi.fn(),
 	API: vi.fn().mockImplementation((...args: unknown[]) => ({ api: true, args })),
 	providerInstance: {
 		resolveWebviewView: vi.fn(),
@@ -84,6 +85,7 @@ vi.mock("../activate", () => ({
 	registerCommands: mocks.registerCommands,
 	registerCodeActions: mocks.registerCodeActions,
 	registerTerminalActions: mocks.registerTerminalActions,
+	registerPiiCommands: mocks.registerPiiCommands,
 	CodeActionProvider: class {
 		static providedCodeActionKinds = ["quickfix"]
 	},
@@ -157,6 +159,7 @@ describe("activate - 基本フロー", () => {
 		expect(mocks.registerCommands).toHaveBeenCalledTimes(1)
 		expect(mocks.registerCodeActions).toHaveBeenCalledTimes(1)
 		expect(mocks.registerTerminalActions).toHaveBeenCalledTimes(1)
+		expect(mocks.registerPiiCommands).toHaveBeenCalledTimes(1)
 		// activationCompleted の合図を出す
 		expect(vscode.commands.executeCommand).toHaveBeenCalledWith("test-extension.activationCompleted")
 		// 各種プロバイダ登録の Disposable が subscriptions に載る

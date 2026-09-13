@@ -686,5 +686,55 @@
 	"includeMaxOutputTokensDescription": "Send max output tokens parameter in API requests. Some providers may not support this.",
 	"limitMaxTokensDescription": "Limit the maximum number of tokens in the response",
 	"maxOutputTokensLabel": "Max output tokens",
-	"maxTokensGenerateDescription": "Maximum tokens to generate in response"
+	"maxTokensGenerateDescription": "Maximum tokens to generate in response",
+	"pii": {
+		"title": "Masking Sensitive Information",
+		"description": "Replaces personal information and company names with placeholders before sending to the LLM. Off by default.",
+		"kinds": "What to mask",
+		"noKinds": "No kind is selected, so nothing will be masked.",
+		"dictionaries": "Dictionary files",
+		"dictionariesDescription": "One term per line. A tab can be followed by a kind (person / org). Wrapping in /EMP-\\\\d{5}/ makes it a regular expression.",
+		"noDictionary": "No dictionary is configured.",
+		"addDictionary": "Add a dictionary",
+		"removeDictionary": "Remove",
+		"openDictionary": "Open (create if missing)",
+		"export": "Export the dictionary",
+		"kind": {
+			"person": "Names",
+			"org": "Company names",
+			"term": "Terms",
+			"email": "Email addresses",
+			"phone": "Phone numbers",
+			"host": "Host names",
+			"ip": "IP addresses",
+			"card": "Card numbers",
+			"secret": "Keys",
+			"zip": "Postal codes",
+			"address": "Addresses",
+			"mynumber": "My Number"
+		},
+		"stateOn": "Currently on. Toggle it with the button at the bottom right of the chat view.",
+		"stateOff": "Currently off. Toggle it with the button at the bottom right of the chat view.",
+		"properNouns": {
+			"title": "Proper noun detection (layer 2)",
+			"description": "Masks names and companies that are not in the dictionary, judged from the surrounding text. Requires model files to be placed separately (about 282 MB).",
+			"enable": "Use proper noun detection",
+			"entities": "Categories to mask",
+			"entity": {
+				"PER": "Person",
+				"ORG": "Company",
+				"ORG-P": "Political organization",
+				"ORG-O": "Other organization",
+				"LOC": "Place",
+				"INS": "Facility",
+				"PRD": "Product (makes technical text unreadable)",
+				"EVT": "Event"
+			},
+			"modelPath": "Model directory",
+			"modelPathPlaceholder": "Leave empty to use the default location",
+			"fetch": "Fetch the model",
+			"offline": "On a closed network, fetch the files on another machine and place them here.",
+			"noEntities": "No category is selected, so nothing will be masked — only the model load happens."
+		}
+	}
 }

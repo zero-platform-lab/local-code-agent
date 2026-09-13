@@ -179,6 +179,26 @@
 				"command": "openai-agent.setAutonomyModePlan",
 				"title": "%command.setAutonomyModePlan.title%",
 				"category": "%configuration.title%"
+			},
+			{
+				"command": "openai-agent.maskSecretsInFile",
+				"title": "%command.maskSecretsInFile.title%",
+				"icon": "$(shield)"
+			},
+			{
+				"command": "openai-agent.restoreSecretsInFile",
+				"title": "%command.restoreSecretsInFile.title%",
+				"icon": "$(discard)"
+			},
+			{
+				"command": "openai-agent.addToDictionary",
+				"title": "%command.addToDictionary.title%",
+				"icon": "$(add)"
+			},
+			{
+				"command": "openai-agent.exportDictionary",
+				"title": "%command.exportDictionary.title%",
+				"icon": "$(export)"
 			}
 		],
 		"menus": {
@@ -200,6 +220,18 @@
 				{
 					"command": "openai-agent.improveCode",
 					"group": "1_actions@3"
+				},
+				{
+					"command": "openai-agent.maskSecretsInFile",
+					"group": "2_pii@1"
+				},
+				{
+					"command": "openai-agent.restoreSecretsInFile",
+					"group": "2_pii@2"
+				},
+				{
+					"command": "openai-agent.addToDictionary",
+					"group": "2_pii@3"
 				}
 			],
 			"terminal/context": [
@@ -443,13 +475,17 @@
 		"format": "prettier --write .",
 		"bundle": "node esbuild.mjs",
 		"vscode:prepublish": "pnpm bundle --production",
-		"vsix": "mkdirp ../bin && vsce package --no-dependencies --out ../bin",
-		"publish:marketplace": "vsce publish --no-dependencies && ovsx publish --no-dependencies",
+		"vsix": "node package-vsix.mjs universal linux-x64 win32-x64",
+		"publish:marketplace": "node package-vsix.mjs universal linux-x64 win32-x64 --publish",
 		"watch:bundle": "pnpm bundle --watch",
 		"watch:tsc": "cd .. && tsc --noEmit --watch --project src/tsconfig.json",
-		"clean": "rimraf README.md LICENSE dist logs mock .turbo"
+		"clean": "rimraf README.md LICENSE dist logs mock .turbo",
+		"vsix:linux-x64": "node package-vsix.mjs linux-x64",
+		"vsix:win32-x64": "node package-vsix.mjs win32-x64",
+		"vsix:universal": "node package-vsix.mjs universal"
 	},
 	"dependencies": {
+		"@huggingface/transformers": "^4.2.0",
 		"@modelcontextprotocol/sdk": "^1.26.0",
 		"@openai-agent/core": "workspace:^",
 		"@openai-agent/ipc": "workspace:^",

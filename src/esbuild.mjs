@@ -5,7 +5,14 @@ import { fileURLToPath } from "url"
 import process from "node:process"
 import * as console from "node:console"
 
-import { copyPaths, copyWasms, copyLocales, setupLocaleWatcher } from "@openai-agent/build"
+import {
+	copyPaths,
+	copyWasms,
+	copyLocales,
+	piiRuntimeBundle,
+	bundleTarget,
+	setupLocaleWatcher,
+} from "@openai-agent/build"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,6 +39,10 @@ async function main() {
 	const name = "extension"
 	const production = process.argv.includes("--production")
 	const watch = process.argv.includes("--watch")
+	// 配る先。`--target=linux-x64` の形。環境変数だと Windows で書き方が変わるので引数で受ける。
+	// **環境変数も見る。** `vsce` が `vscode:prepublish` を実行し直すため、引数だけだと
+	// 束ね直しで指定が失われ、いま動いている機械の platform のものが入る。
+	const target = bundleTarget(process.argv, process.env)
 	const minify = production
 	const sourcemap = true // Always generate source maps for error handling.
 
@@ -55,6 +66,9 @@ async function main() {
 	const srcDir = __dirname
 	const buildDir = __dirname
 	const distDir = path.join(buildDir, "dist")
+
+	// 第 2 層の設定は 1 か所から取る。2 つの束ね方でずれないようにするためである。
+	const pii = piiRuntimeBundle({ srcDir, distDir, target, watch })
 
 	if (fs.existsSync(distDir)) {
 		console.log(`[${name}] Cleaning dist directory: ${distDir}`)
@@ -88,6 +102,7 @@ async function main() {
 				build.onEnd(() => copyWasms(srcDir, distDir))
 			},
 		},
+		pii.plugin,
 		{
 			name: "copyLocales",
 			setup(build) {
@@ -123,7 +138,11 @@ async function main() {
 		// global-agent must be external because it dynamically patches Node.js http/https modules
 		// which breaks when bundled. It needs access to the actual Node.js module instances.
 		// undici must be bundled because our VSIX is packaged with `--no-dependencies`.
-		external: ["vscode", "esbuild", "global-agent"],
+		// onnxruntime-node は束ねない。native の実行ファイルを
+		// `require(`../bin/napi-v6/${process.platform}/...`)` で読むため、束ねると相対の
+		// 位置がずれる。`dist/node_modules/` へ写して、そこから解決させる。
+		external: ["vscode", "esbuild", "global-agent", ...pii.external],
+		alias: pii.alias,
 	}
 
 	/**

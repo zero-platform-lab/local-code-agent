@@ -649,3 +649,35 @@ describe("NativeToolCallParser", () => {
 		})
 	})
 })
+
+describe("伏せ字を元の値へ戻す（FR-PII-02a）", () => {
+	/** 改行と引用符を含む値。JSON の文字列へ直接当てると壊れる形である。 */
+	const unmask = (text: string) => text.replaceAll("{{address-001}}", '東京都港区\n1-2-3 "本社"')
+
+	it("解釈してから欄ごとに戻す。引用符や改行を含んでも呼び出しが消えない", () => {
+		const toolUse = NativeToolCallParser.parseToolCall(
+			{
+				id: "call_1",
+				name: "write_to_file" as never,
+				arguments: JSON.stringify({ path: "a.md", content: "住所は {{address-001}} です" }),
+			},
+			unmask,
+		)
+
+		// 直接当てていると JSON.parse が投げ、ここが null になって編集が黙って消える。
+		expect(toolUse).not.toBeNull()
+		expect((toolUse as { nativeArgs?: Record<string, unknown> })?.nativeArgs?.content).toBe(
+			'住所は 東京都港区\n1-2-3 "本社" です',
+		)
+	})
+
+	it("戻し方を渡さなければ、引数はそのまま", () => {
+		const toolUse = NativeToolCallParser.parseToolCall({
+			id: "call_1",
+			name: "write_to_file" as never,
+			arguments: JSON.stringify({ path: "a.md", content: "{{address-001}}" }),
+		})
+
+		expect((toolUse as { nativeArgs?: Record<string, unknown> })?.nativeArgs?.content).toBe("{{address-001}}")
+	})
+})

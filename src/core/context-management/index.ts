@@ -3,7 +3,13 @@ import type { ContentBlockParam } from "@openai-agent/types"
 import crypto from "crypto"
 
 import { ApiHandler, ApiHandlerCreateMessageMetadata } from "../../api"
-import { MAX_CONDENSE_THRESHOLD, MIN_CONDENSE_THRESHOLD, summarizeConversation, SummarizeResponse } from "../condense"
+import {
+	MAX_CONDENSE_THRESHOLD,
+	MIN_CONDENSE_THRESHOLD,
+	summarizeConversation,
+	type SummarizeConversationOptions,
+	SummarizeResponse,
+} from "../condense"
 import { ApiMessage } from "../task-persistence/apiMessages"
 import { ANTHROPIC_DEFAULT_MAX_TOKENS } from "@openai-agent/types"
 import { AgentIgnoreController } from "../ignore/AgentIgnoreController"
@@ -250,6 +256,17 @@ export type ContextManagementOptions = {
 	cwd?: string
 	/** Optional controller for file access validation */
 	rooIgnoreController?: AgentIgnoreController
+	/**
+	 * 送信の直前に機密情報を伏せる（`FR-PII-01`）。要約へそのまま渡す。
+	 *
+	 * 自動の要約は利用者が意識しないうちに実行されるので、ここを渡さないと、気づかないまま
+	 * 会話の全体が伏せられずに送られる。
+	 */
+	maskForRequest?: SummarizeConversationOptions["maskForRequest"]
+	/** 要約を履歴へ残す前に、伏せ字を元の値へ戻す（`FR-PII-02a`）。 */
+	restoreForHistory?: SummarizeConversationOptions["restoreForHistory"]
+	/** 辞書で読めなかったことを利用者へ示す。 */
+	reportTroubles?: SummarizeConversationOptions["reportTroubles"]
 }
 
 export type ContextManagementResult = SummarizeResponse & {
@@ -283,6 +300,9 @@ export async function manageContext({
 	filesReadByAgent,
 	cwd,
 	rooIgnoreController,
+	maskForRequest,
+	restoreForHistory,
+	reportTroubles,
 }: ContextManagementOptions): Promise<ContextManagementResult> {
 	let error: string | undefined
 	let errorDetails: string | undefined
@@ -339,6 +359,9 @@ export async function manageContext({
 				filesReadByAgent,
 				cwd,
 				rooIgnoreController,
+				maskForRequest,
+				restoreForHistory,
+				reportTroubles,
 			})
 			if (result.error) {
 				error = result.error

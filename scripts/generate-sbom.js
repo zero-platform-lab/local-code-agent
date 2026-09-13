@@ -14,12 +14,38 @@ const path = require("path")
 // 入力:
 //   src/esbuild-metafile.json  … esbuild の metafile（extension と worker）
 //   webview-ui/vite-modules.json … rollup が取り込んだモジュール ID
-// どちらもビルド時に生成される。SBOM を作る前にビルドが要る。
+//   src/dist/node_modules/      … 束ねずに写したもの（native を含むため束ねられない）
+// どれもビルド時に生成される。SBOM を作る前にビルドが要る。
 
 const ROOT = path.join(__dirname, "..")
 
 /** pnpm のレイアウト `node_modules/.pnpm/<name>@<version>[_peer]/node_modules/<name>/…` を解く。 */
 const PNPM_PATH = /node_modules\/\.pnpm\/(.+?)@([0-9][^/]*)\/node_modules\//
+
+/**
+ * 束ねずに `dist/node_modules` へ写したものを数える。
+ *
+ * native を含むものは束ねられないので、`metafile` の入力に現れない。ここを読まないと
+ * **実際に同梱しているのに SBOM に載らない**。写した実物から読むので、写し方を変えても
+ * ずれない。
+ */
+function packagesFromDist() {
+	const found = new Map()
+	const dir = path.join(ROOT, "src", "dist", "node_modules")
+	if (!fs.existsSync(dir)) return found
+
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		if (!entry.isDirectory()) continue
+
+		const manifest = path.join(dir, entry.name, "package.json")
+		if (!fs.existsSync(manifest)) continue
+
+		const { name, version } = JSON.parse(fs.readFileSync(manifest, "utf8"))
+		if (name && version) found.set(`${name}@${version}`, { name, version })
+	}
+
+	return found
+}
 
 function packagesFromPaths(paths) {
 	const found = new Map()
@@ -80,6 +106,7 @@ function main() {
 		...packagesFromPaths(Object.keys(metafile.extension.inputs)),
 		...packagesFromPaths(Object.keys(metafile.worker.inputs)),
 		...packagesFromPaths(viteModules),
+		...packagesFromDist(),
 	])
 
 	const licenses = licenseIndex()

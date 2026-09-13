@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { execSync } from "child_process"
+import { createRequire } from "module"
 
 import { ViewsContainer, Views, Menus, Configuration, Keybindings, contributesSchema } from "./types.js"
 
@@ -318,4 +319,95 @@ function transformRecord<T>(obj: Record<string, any>, from: string, to: string):
 		}),
 		{} as T,
 	)
+}
+
+/**
+ * 第 2 層（固有名詞の検出）が使う実行の仕組みを `dist` へ写す。
+ *
+ * **なぜ束ねないか。** `onnxruntime-node` は native の実行ファイルを
+ * `require(`../bin/napi-v6/${process.platform}/${process.arch}/…`)` で読む。束ねると
+ * この相対の位置が `dist` を基準に解決され、実行ファイルが見つからない。
+ *
+ * **なぜ `dist/node_modules` なのか。** VSIX は `--no-dependencies` で作るので、
+ * `node_modules` は同梱されない。`dist/extension.js` から `onnxruntime-node` を要求すると、
+ * Node は `dist/node_modules` を見に行く。そこに置けば解決できる。
+ *
+ * **GPU 用は写さない。** CUDA だけで 302 MB あり、判定は CPU で 21 ms で終わる
+ * （`docs/features/pii-proper-nouns.md`）。
+ *
+ * @param target 配る先。`linux-x64` の形。省略すると、いま動いている環境に合わせる
+ */
+export function copyOnnxRuntime(srcDir: string, distDir: string, target?: string): void {
+	const [platform, arch] = (target ?? `${process.platform}-${process.arch}`).split("-")
+
+	// **失敗を握り潰さない。** 写せていないまま VSIX を作ると、第 2 層が動かないのに
+	// 画面上は何も変わらず、原因の分からない不具合になる。
+	const roots = resolveRuntimeRoots(srcDir)
+
+	const dest = path.join(distDir, "node_modules")
+
+	// 判定そのものを実行するもの。platform ごとに 1 つだけ写す。
+	copyPackage(roots.node, path.join(dest, "onnxruntime-node"), (relative) => {
+		if (relative.startsWith("dist/") || relative === "package.json") return true
+		if (!relative.startsWith(`bin/napi-v6/${platform}/${arch}/`)) return false
+		// GPU 用。同梱しても使わない。
+		return !/cuda|tensorrt|DirectML|dxcompiler|dxil/i.test(relative)
+	})
+
+	// `onnxruntime-node` が実行時に要求する。型と少量の JavaScript だけである。
+	copyPackage(roots.common, path.join(dest, "onnxruntime-common"), (relative) =>
+		relative.startsWith("dist/") || relative === "package.json",
+	)
+
+	console.log(`[copyOnnxRuntime] Copied onnxruntime for ${platform}-${arch} to ${dest}`)
+}
+
+/**
+ * `onnxruntime-node` と `onnxruntime-common` の場所を解く。pnpm の配置に依らない。
+ *
+ * **`require.resolve` は使えない。** この module は ESM として読み込まれるので、
+ * `require` が無い。`srcDir` を基点に `createRequire` を作る。
+ */
+function resolveRuntimeRoots(srcDir: string): { node: string; common: string } {
+	const fromSrc = createRequire(path.join(srcDir, "package.json"))
+	const req = createRequire(fromSrc.resolve("@huggingface/transformers"))
+
+	return {
+		node: packageRoot(req.resolve("onnxruntime-node")),
+		common: packageRoot(req.resolve("onnxruntime-common")),
+	}
+}
+
+/**
+ * 入口のファイルから、そのパッケージの根を辿る。
+ *
+ * `package.json` は `exports` に載っていないことがあるので、直接は解決できない。
+ * `name` が一致する `package.json` に当たるまで上へ辿る。
+ */
+function packageRoot(entry: string): string {
+	const name = entry.includes("onnxruntime-node") ? "onnxruntime-node" : "onnxruntime-common"
+
+	let dir = path.dirname(entry)
+	for (let depth = 0; depth < 10; depth++) {
+		const manifest = path.join(dir, "package.json")
+		if (fs.existsSync(manifest) && JSON.parse(fs.readFileSync(manifest, "utf8")).name === name) return dir
+		dir = path.dirname(dir)
+	}
+
+	throw new Error(`${name} の根が見つからない: ${entry}`)
+}
+
+/** `keep` が真を返すファイルだけを写す。相対パスは `/` で区切る。 */
+function copyPackage(from: string, to: string, keep: (relative: string) => boolean): void {
+	for (const entry of fs.readdirSync(from, { recursive: true, withFileTypes: true })) {
+		if (!entry.isFile()) continue
+
+		const full = path.join(entry.parentPath ?? entry.path, entry.name)
+		const relative = path.relative(from, full).split(path.sep).join("/")
+		if (!keep(relative)) continue
+
+		const target = path.join(to, relative)
+		fs.mkdirSync(path.dirname(target), { recursive: true })
+		fs.copyFileSync(full, target)
+	}
 }

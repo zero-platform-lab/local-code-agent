@@ -5,7 +5,7 @@ import { fileURLToPath } from "url"
 import process from "node:process"
 import * as console from "node:console"
 
-import { copyPaths, copyWasms, copyLocales, setupLocaleWatcher } from "@openai-agent/build"
+import { copyPaths, copyWasms, copyLocales, copyOnnxRuntime, setupLocaleWatcher } from "@openai-agent/build"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,6 +32,8 @@ async function main() {
 	const name = "extension"
 	const production = process.argv.includes("--production")
 	const watch = process.argv.includes("--watch")
+	// 配る先。`--target=linux-x64` の形。環境変数だと Windows で書き方が変わるので引数で受ける。
+	const target = process.argv.find((one) => one.startsWith("--target="))?.slice("--target=".length)
 	const minify = production
 	const sourcemap = true // Always generate source maps for error handling.
 
@@ -89,6 +91,12 @@ async function main() {
 			},
 		},
 		{
+			name: "copyOnnxRuntime",
+			setup(build) {
+				build.onEnd(() => copyOnnxRuntime(srcDir, distDir, target))
+			},
+		},
+		{
 			name: "copyLocales",
 			setup(build) {
 				build.onEnd(() => copyLocales(srcDir, distDir))
@@ -123,7 +131,14 @@ async function main() {
 		// global-agent must be external because it dynamically patches Node.js http/https modules
 		// which breaks when bundled. It needs access to the actual Node.js module instances.
 		// undici must be bundled because our VSIX is packaged with `--no-dependencies`.
-		external: ["vscode", "esbuild", "global-agent"],
+		// onnxruntime-node は束ねない。native の実行ファイルを
+		// `require(`../bin/napi-v6/${process.platform}/...`)` で読むため、束ねると相対の
+		// 位置がずれる。`dist/node_modules/` へ写して、そこから解決させる。
+		external: ["vscode", "esbuild", "global-agent", "onnxruntime-node"],
+		alias: {
+			// 画像を扱うためのもので、本製品は使わない。同梱すると 16.5 MB 増える。
+			sharp: "./build-stubs/sharp.js",
+		},
 	}
 
 	/**

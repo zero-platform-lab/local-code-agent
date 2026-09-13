@@ -290,26 +290,28 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 	it("切のままなら実行しない", async () => {
 		const masker = new TaskPiiMasker({ enabled: true })
 
-		const result = await masker.maskForRequest("", [message("森さんへ")])
+		const result = await masker.maskForRequest("", [message("森が担当")])
 
 		expect(ner.calls).toBe(0)
-		expect(result.messages[0]).toMatchObject({ content: "森さんへ" })
+		expect(result.messages[0]).toMatchObject({ content: "森が担当" })
 	})
 
 	it("入れると、辞書に無い名前も伏せる", async () => {
 		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
 
-		const result = await masker.maskForRequest("", [message("森さんへ")])
+		// **敬称を付けない。** 付けると第 1 層の規則（`FR-PII-24`）が拾い、第 2 層を
+		// 確かめたことにならない。
+		const result = await masker.maskForRequest("", [message("森が担当")])
 
-		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}さんへ" })
+		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}が担当" })
 	})
 
 	it("同じ本文を二度判定しない", async () => {
 		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
 
-		await masker.maskForRequest("", [message("森さんへ")])
+		await masker.maskForRequest("", [message("森が担当")])
 		const before = ner.calls
-		await masker.maskForRequest("", [message("森さんへ")])
+		await masker.maskForRequest("", [message("森が担当")])
 
 		expect(ner.calls).toBe(before)
 	})
@@ -323,9 +325,9 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 			properNouns: { enabled: true },
 		})
 
-		const result = await masker.maskForRequest("", [message("森さんと taro@corp.example")])
+		const result = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
 
-		expect(result.messages[0]).toMatchObject({ content: "森さんと {{email-001}}" })
+		expect(result.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
 		expect(result.troubles.join()).toContain("固有名詞の検出を実行できない")
 		expect(result.troubles.join()).toContain("SHA256SUMS")
 	})
@@ -344,9 +346,9 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 		// 種類の切り替えは第 1 層と第 2 層の両方に効く。
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"], properNouns: { enabled: true } })
 
-		const result = await masker.maskForRequest("", [message("森さんへ")])
+		const result = await masker.maskForRequest("", [message("森が担当")])
 
-		expect(result.messages[0]).toMatchObject({ content: "森さんへ" })
+		expect(result.messages[0]).toMatchObject({ content: "森が担当" })
 	})
 
 	it("置き場所を変えたら読み直す", async () => {
@@ -382,10 +384,10 @@ describe("覆っていなかった経路", () => {
 		ner.backend = {}
 		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
 
-		const result = await masker.maskPrompt("森さんへ連絡")
+		const result = await masker.maskPrompt("森が担当")
 
-		expect(result.text).toBe("{{person-001}}さんへ連絡")
-		expect(result.restore(result.text)).toBe("森さんへ連絡")
+		expect(result.text).toBe("{{person-001}}が担当")
+		expect(result.restore(result.text)).toBe("森が担当")
 	})
 
 	it("空白だけの辞書の指定は、時刻を見に行かない", async () => {

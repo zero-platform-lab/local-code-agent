@@ -177,6 +177,16 @@ export class TaskPiiMasker {
 	 * 第 2 層が動かないだけで、第 1 層はそのまま動かす。ただし**黙らない**
 	 * （`FR-PII-22a`）。画面の見た目が変わらないので、出さないと取り違えに気づけない。
 	 */
+	/**
+	 * 第 2 層の判定を、会話の外からも使えるようにする（`FR-PII-11`）。
+	 *
+	 * 右クリックのファイルの置き換えで使う。ここを通さないと、会話では伏せる名前が
+	 * ファイルには残り、**利用者は綺麗になったと思って渡す**。
+	 */
+	async properNounsFor(texts: readonly string[]): Promise<MaskOptions["properNouns"]> {
+		return this.properNouns(texts)
+	}
+
 	private async properNouns(texts: readonly string[]): Promise<MaskOptions["properNouns"]> {
 		const settings = this.settings.properNouns
 		if (settings?.enabled !== true) return undefined
@@ -215,15 +225,18 @@ export class TaskPiiMasker {
 		// 積み上がる。数を抑えるのは、全部同時に投げると記憶が膨らむためである。
 		for (let at = 0; at < pending.length; at += NER_AT_ONCE) {
 			const batch = pending.slice(at, at + NER_AT_ONCE)
-			try {
-				const found = await Promise.all(batch.map((text) => detectWith(backend, text, options)))
-				batch.forEach((text, index) => this.nerMemo.set(text, found[index]))
-			} catch (error) {
-				// **済んだぶんは捨てない。** 捨てると、判定できていた本文まで第 1 層だけに
-				// なる。しかもその結果は記憶へ残り、この会話の間ずっと効かなくなる。
-				//
+			// **`allSettled` にする。** `all` だと 1 件の失敗で、同じまとまりの中で
+			// 済んでいたぶんまで捨てる。
+			const found = await Promise.allSettled(batch.map((text) => detectWith(backend, text, options)))
+			found.forEach((one, index) => {
+				if (one.status === "fulfilled") this.nerMemo.set(batch[index], one.value)
+			})
+
+			const failed = found.find((one) => one.status === "rejected")
+			if (failed) {
 				// **次の要求で読み直す。** 一度の不調で、この会話の間ずっと第 2 層を
-				// 止めない。
+				// 止めない。済んだぶんは上で記憶へ入れてある。
+				const error = (failed as PromiseRejectedResult).reason
 				this.backend = undefined
 				this.backendTried = false
 				this.trouble(directory, error instanceof Error ? error.message : String(error))

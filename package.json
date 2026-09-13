@@ -34,7 +34,9 @@
 		"changeset:version": "cp CHANGELOG.md src/CHANGELOG.md && changeset version && cp -vf src/CHANGELOG.md .",
 		"knip": "knip --include files",
 		"npm:publish:types": "pnpm --filter @openai-agent/types npm:publish",
-		"sbom": "node scripts/generate-sbom.js"
+		"sbom": "node scripts/generate-sbom.js",
+		"vsix:linux-x64": "pnpm --filter openai-agent vsix:linux-x64",
+		"vsix:win32-x64": "pnpm --filter openai-agent vsix:win32-x64"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^2.27.10",

@@ -64,8 +64,10 @@ suite("PII masking inside the extension host", function () {
 		assert.ok(!sent.includes("山田"), "肩書きの手前の名前が載っている")
 		assert.ok(sent.includes("部長"), "肩書きまで伏せてはいけない")
 
-		assert.ok(sent.includes("{{email-001}}"), "伏せ字が載っている")
-		assert.ok(sent.includes("{{org-001}}"), "挙げた語の伏せ字が載っている")
+		// **番号で当てない。** 対応表は拡張ホストで 1 つを共有するので、先に動いた試験の
+		// 数だけ番号が進む。形で確かめる。
+		assert.ok(/\{\{email-\d{3,}\}\}/.test(sent), "伏せ字が載っている")
+		assert.ok(/\{\{org-\d{3,}\}\}/.test(sent), "挙げた語の伏せ字が載っている")
 	})
 
 	test("切なら、生の値が載る", async () => {
@@ -88,6 +90,6 @@ suite("PII masking inside the extension host", function () {
 
 		// 辞書にも敬称にも頼らずに社名が伏せられる。
 		assert.ok(!sent.includes(SECRETS.org), "辞書に無い社名が載っている")
-		assert.ok(sent.includes("{{org-001}}"), "第 2 層の伏せ字が載っている")
+		assert.ok(/\{\{org-\d{3,}\}\}/.test(sent), "第 2 層の伏せ字が載っている")
 	})
 })

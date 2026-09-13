@@ -293,3 +293,34 @@ describe("restoreSecretsInActiveEditor（FR-PII-20）", () => {
 		expect(mocks.showErrorMessage).toHaveBeenCalledExactlyOnceWith("common:pii.replaceFailed")
 	})
 })
+
+describe("右クリックでも第 2 層を通す（FR-PII-11・FR-PII-21）", () => {
+	it("会話が動いていれば、辞書に無い名前も伏せる", async () => {
+		// 通さないと、会話では伏せる名前がファイルには残る。利用者は綺麗になったと
+		// 思って渡すので、取りこぼしがそのまま外へ出る。
+		mocks.activeTextEditor = editorWith("担当は森です")
+		answerConfirm()
+
+		await maskSecretsInActiveEditor(
+			{ kinds: ["person"] },
+			createAllocator(),
+			async () => (text) =>
+				text.includes("森") ? [{ kind: "person" as const, start: 3, end: 4, value: "森" }] : [],
+		)
+
+		expect(mocks.applyEdit).toHaveBeenCalledOnce()
+		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
+		expect(edit.replacements.map((one) => one.text)).toEqual(["{{person-001}}"])
+	})
+
+	it("会話が無ければ、第 1 層だけで伏せる", async () => {
+		mocks.activeTextEditor = editorWith("担当は森と taro@corp.example")
+		answerConfirm()
+
+		await maskSecretsInActiveEditor({ kinds: ["person", "email"] }, createAllocator())
+
+		// 「森」は敬称も肩書きも付いていないので、第 1 層では採らない。
+		const edit = mocks.applyEdit.mock.calls[0][0] as CapturedEdit
+		expect(edit.replacements.map((one) => one.text)).toEqual(["{{email-001}}"])
+	})
+})

@@ -3,7 +3,7 @@ import * as vscode from "vscode"
 import { t } from "../../i18n"
 
 import { readDictionaries } from "./dictionary"
-import { createAllocator, findPii, type PlaceholderAllocator } from "./maskText"
+import { createAllocator, findPii, type MaskOptions, type PlaceholderAllocator } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
 /**
@@ -98,6 +98,13 @@ export async function maskSecretsInActiveEditor(
 	 * 読んで書き戻すと、別人の値が書き込まれる。
 	 */
 	allocator?: PlaceholderAllocator,
+	/**
+	 * 第 2 層の判定（`FR-PII-21`）。会話が動いていれば、そこから借りる。
+	 *
+	 * 渡さないと、会話では伏せる名前がファイルには残る。利用者は綺麗になったと思って
+	 * 渡すので、取りこぼしがそのまま外へ出る。
+	 */
+	properNounsFor?: (texts: readonly string[]) => Promise<MaskOptions["properNouns"]>,
 ): Promise<void> {
 	const editor = vscode.window.activeTextEditor
 	if (!editor) {
@@ -135,9 +142,12 @@ export async function maskSecretsInActiveEditor(
 		secretLabels: settings.secretLabels,
 	}
 
+	// 第 2 層も通す。会話と同じものを伏せるためである。
+	const properNouns = await properNounsFor?.([text])
+
 	// **検出は 1 回だけにする。** 数えるのに番号は要らない。全部の正規表現と 1,863 件の
 	// 地名の照合を、確認の前後で二度走らせない。
-	const matches = findPii(text, options).filter(
+	const matches = findPii(text, { ...options, properNouns }).filter(
 		(match) => range === undefined || (match.start >= range.start && match.end <= range.end),
 	)
 

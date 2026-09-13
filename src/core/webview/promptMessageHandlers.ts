@@ -152,7 +152,13 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
  * 作り直すと、押すたびに辞書のファイルを全部読み直すことになる。
  */
 let standalone: TaskPiiMasker | undefined
-let standaloneFor: WebviewMessageHost | undefined
+/**
+ * どの provider のために作ったか。
+ *
+ * **弱い参照で持つ。** 強く持つと、側面の画面を閉じたあとも provider と
+ * `contextProxy` を抱え続け、拡張ホストが終わるまで解放されない。
+ */
+let standaloneFor: WeakRef<WebviewMessageHost> | undefined
 
 function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
 	const current = provider.getCurrentTask()?.piiMasker
@@ -164,9 +170,9 @@ function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
 	//
 	// **provider が変われば作り直す。** 側面の画面を閉じて開き直すと別の provider に
 	// なる。持ち越すと、死んだ `contextProxy` を読み続ける。
-	if (!standalone || standaloneFor !== provider) {
+	if (!standalone || standaloneFor?.deref() !== provider) {
 		standalone = new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking"))
-		standaloneFor = provider
+		standaloneFor = new WeakRef(provider)
 	}
 	return standalone
 }

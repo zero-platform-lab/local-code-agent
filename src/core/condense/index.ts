@@ -340,7 +340,13 @@ export async function summarizeConversation(options: SummarizeConversationOption
 
 	// Build the summary content as separate text blocks
 	// item 列では message の content は文字列。ブロックごとに組み立てて最後に連結する。
-	const summaryParts: string[] = [`## Conversation Summary\n${summary}`]
+	// **戻すのはモデルが書いた要約だけにする。**
+	//
+	// このあと `summaryParts` には、ディスクから読んだファイルの中身も入る。利用者が
+	// 右クリックで伏せたファイルなら、そこには利用者が置いた伏せ字がある。まとめて
+	// 戻すと、**利用者がファイルから消した値が履歴に書き戻される**。
+	const restoredSummary = restoreForHistory ? restoreForHistory(summary) : summary
+	const summaryParts: string[] = [`## Conversation Summary\n${restoredSummary}`]
 
 	// Add command blocks (active workflows) in their own system-reminder block if present
 	if (commandBlocks) {
@@ -390,7 +396,8 @@ ${commandBlocks}
 		type: "message",
 		role: "user", // Fresh start model: summary is a user message
 		// **戻してから残す。** 伏せたまま履歴へ入れると、対応表が消えたあと二度と戻せない。
-		content: restoreForHistory ? restoreForHistory(summaryParts.join("\n\n")) : summaryParts.join("\n\n"),
+		// 戻すのは上の `restoredSummary` で済ませてある。ここでまとめて戻さない。
+		content: summaryParts.join("\n\n"),
 		ts: lastMsgTs + 1, // Unique timestamp after last message
 		isSummary: true,
 		condenseId, // Unique ID for this summary, used to track which messages it replaces
@@ -441,7 +448,7 @@ ${commandBlocks}
 	// 対応表が消えたあと読めない文字列だけが残る。
 	return {
 		messages: newMessages,
-		summary: restoreForHistory ? restoreForHistory(summary) : summary,
+		summary: restoredSummary,
 		cost,
 		newContextTokens,
 		condenseId,

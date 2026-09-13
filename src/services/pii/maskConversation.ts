@@ -174,13 +174,19 @@ export function maskConversation(
 		const masked = applyPlan(text, plan.edits)
 
 		if (memo) {
-			const held = (memo.bytes ?? 0) + text.length + masked.length
-			if (held > MEMO_LIMIT) {
-				memo.clear()
-				memo.bytes = 0
+			const size = text.length + masked.length
+
+			// **1 件で上限を超えるものは覚えない。** 覚えると、そのあと毎回「超えている」
+			// 判定になり、入れるたびに全部捨てる。1 件だけの記憶に成り下がり、会話が
+			// 伸びるほど走査が二乗で増えるという、記憶を置いた理由そのものが消える。
+			if (size <= MEMO_LIMIT) {
+				if ((memo.bytes ?? 0) + size > MEMO_LIMIT) {
+					memo.clear()
+					memo.bytes = 0
+				}
+				memo.set(text, { text: masked, counts: plan.counts })
+				memo.bytes = (memo.bytes ?? 0) + size
 			}
-			memo.set(text, { text: masked, counts: plan.counts })
-			memo.bytes = (memo.bytes ?? 0) + text.length + masked.length
 		}
 		return masked
 	}

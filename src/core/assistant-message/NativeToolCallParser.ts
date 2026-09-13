@@ -63,8 +63,14 @@ function restoreDeep(value: unknown, unmask?: (text: string) => string): unknown
 	if (typeof value === "string") return unmask(value)
 	if (Array.isArray(value)) return value.map((item) => restoreDeep(item, unmask))
 	if (value !== null && typeof value === "object") {
+		// **鍵にも当てる。** 伏せ字が鍵になっている引数（`{"{{host-001}}": {...}}`）を
+		// そのままにすると、ツールは存在しない名前を相手に動く。値だけ戻すと、同じ
+		// 対象を指す 2 つの表記が 1 つの引数に混ざる。
 		return Object.fromEntries(
-			Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, restoreDeep(item, unmask)]),
+			Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+				unmask(key),
+				restoreDeep(item, unmask),
+			]),
 		)
 	}
 	return value

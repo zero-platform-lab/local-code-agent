@@ -244,6 +244,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
 		// 別の値を指す。
 		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
+		// 第 2 層は会話から借りる。会話が無ければ第 1 層だけで伏せる。
+		() => {
+			const masker = provider.getCurrentTask()?.piiMasker
+			return masker ? (texts) => masker.properNounsFor(texts) : undefined
+		},
 	)
 
 	// Allows other extensions to activate once Agent is ready.

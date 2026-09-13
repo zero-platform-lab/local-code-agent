@@ -1,7 +1,7 @@
 import * as vscode from "vscode"
 
 import { getPiiCommand } from "../utils/commands"
-import type { PlaceholderAllocator } from "../services/pii/maskText"
+import type { MaskOptions, PlaceholderAllocator } from "../services/pii/maskText"
 import {
 	maskSecretsInActiveEditor,
 	restoreSecretsInActiveEditor,
@@ -35,10 +35,17 @@ export const registerPiiCommands = (
 	 * 書き込まれる。
 	 */
 	getAllocator: () => PlaceholderAllocator | undefined = () => undefined,
+	/**
+	 * 第 2 層の判定（`FR-PII-21`）。会話が動いていれば、そこから借りる。
+	 *
+	 * 渡さないと、会話では伏せる名前がファイルには残る。
+	 */
+	getProperNouns: () => ((texts: readonly string[]) => Promise<MaskOptions["properNouns"]>) | undefined = () =>
+		undefined,
 ) => {
 	context.subscriptions.push(
 		vscode.commands.registerCommand(getPiiCommand("maskSecretsInFile"), () =>
-			maskSecretsInActiveEditor(readSettings(), getAllocator()),
+			maskSecretsInActiveEditor(readSettings(), getAllocator(), getProperNouns()),
 		),
 		vscode.commands.registerCommand(getPiiCommand("restoreSecretsInFile"), () =>
 			restoreSecretsInActiveEditor(getUnmask()),

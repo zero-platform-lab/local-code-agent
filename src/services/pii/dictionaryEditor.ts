@@ -107,9 +107,8 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 		return
 	}
 
-	// 符号化の判別と、末尾が改行かどうかを 1 度の読み込みで済ませる。
-	const current = await readForAppend(target)
-	if (current === undefined) {
+	// **符号化は先に見る。** 種類を聞いたあとで「書けません」と言うのは順序が悪い。
+	if ((await readForAppend(target)) === undefined) {
 		// 壊さないために止める。手で足すか、UTF-8 で保存し直してもらう。
 		await vscode.window.showWarningMessage(t("common:pii.dictionaryNotUtf8", { path: target }))
 		return
@@ -117,6 +116,17 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 
 	const kind = await pickKind()
 	if (!kind) {
+		return
+	}
+
+	// **書く直前にもう一度読む。**
+	//
+	// 種類を選ぶ窓は利用者が閉じるまで待つ。その間にファイルが変われば、先に読んだ内容は
+	// 古い。古い内容で判断すると、説明が 2 度書かれたり、改行を足さずに前の語と繋がったり
+	// する。繋がれば、どちらの語も二度と一致しない。
+	const current = await readForAppend(target)
+	if (current === undefined) {
+		await vscode.window.showWarningMessage(t("common:pii.dictionaryNotUtf8", { path: target }))
 		return
 	}
 

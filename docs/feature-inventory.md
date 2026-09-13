@@ -134,8 +134,8 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 - コードアクション: explainCode, fixCode, improveCode, addToContext
 - ターミナル: terminalAddToContext, terminalFixCommand, terminalExplainCommand
 - 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
-- 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
+- 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
 - 設定: setCustomStoragePath, importSettings
 
 ### C2. 設定タブ（`SettingsView.tsx` の `sectionNames`、11）

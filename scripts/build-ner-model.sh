@@ -68,8 +68,20 @@ tar -czf "$OUT_ABS/ner-ja.tar.gz" -C "$OUT_ABS" ner-ja
 (cd "$DIST" && find . -type f | sort | xargs sha256sum) > "$OUT_ABS/SHA256SUMS"
 (cd "$OUT_ABS" && sha256sum ner-ja.tar.gz) >> "$OUT_ABS/SHA256SUMS"
 
+echo "--- 添付する形に並べる ---"
+# **取得する側は 1 ファイルずつ取る。** 添付は平らに並ぶので、`onnx/` の下のものも
+# 名前だけにして置く（`src/services/pii/nerFetch.ts` の `assetName`）。書庫は人が
+# 閉鎖環境へ運ぶためのもので、拡張は使わない。
+UPLOAD="$OUT_ABS/upload"
+rm -rf "$UPLOAD"
+mkdir -p "$UPLOAD"
+cp "$DIST/config.json" "$DIST/tokenizer.json" "$DIST/tokenizer_config.json" \
+	"$DIST/special_tokens_map.json" "$DIST/onnx/model_quantized.onnx" \
+	"$OUT_ABS/SHA256SUMS" "$OUT_ABS/ner-ja.tar.gz" "$UPLOAD/"
+
 echo
 echo "出来た:"
-ls -l "$OUT_ABS/ner-ja.tar.gz" "$OUT_ABS/SHA256SUMS"
+ls -l "$UPLOAD"
 echo
-echo "GitHub Release の model-ner-ja-vN に、この 2 つを添付する。"
+echo "GitHub Release の model-ner-ja-vN に、$UPLOAD の中身を全部添付する。"
+echo "5 つのファイルは取得のボタンが 1 つずつ取る。書庫は人が運ぶためのものである。"

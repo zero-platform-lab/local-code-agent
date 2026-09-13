@@ -96,7 +96,10 @@ async function main() {
 		{
 			name: "copyOnnxRuntime",
 			setup(build) {
-				build.onEnd(() => copyOnnxRuntime(srcDir, distDir, target))
+				build.onEnd(() => {
+					// **watch では毎回写さない。** 数十 MB を同期で写すと、保存のたびに待たされる。
+					if (!watch) copyOnnxRuntime(srcDir, distDir, target)
+				})
 			},
 		},
 		{

@@ -3,7 +3,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
 
-import { getGitSha, copyPaths, copyWasms, generatePackageJson } from "@openai-agent/build"
+import { getGitSha, copyPaths, copyWasms, copyOnnxRuntime, generatePackageJson } from "@openai-agent/build"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -21,6 +21,9 @@ function patchBranding(text) {
 async function main() {
 	const name = "extension-internal"
 	const production = process.argv.includes("--production")
+	// 配る先。`--target=linux-x64` の形。`src/esbuild.mjs` と同じ受け方にする。
+	const target =
+		process.argv.find((one) => one.startsWith("--target="))?.slice("--target=".length) || process.env.VSIX_TARGET
 	const minify = production
 	const sourcemap = !production
 
@@ -159,6 +162,16 @@ async function main() {
 			},
 		},
 		{
+			// **`src/esbuild.mjs` と同じ扱いにする。** 片方だけに入れると、そちらでは動くのに
+			// 配る側では第 2 層が黙って動かない。両方が揃っていることは
+			// `packages/build/src/__tests__/bundlerParity.invariants.spec.ts` が固定する。
+			name: "copyOnnxRuntime",
+			setup(build) {
+				// この束ね方は配布のためだけに実行するので、watch は無い。毎回写してよい。
+				build.onEnd(() => copyOnnxRuntime(srcDir, distDir, target))
+			},
+		},
+		{
 			name: "copyLocales",
 			setup(build) {
 				build.onEnd(() => {
@@ -192,7 +205,12 @@ async function main() {
 		plugins,
 		entryPoints: [path.join(srcDir, "extension.ts")],
 		outfile: path.join(distDir, "extension.js"),
-		external: ["vscode"],
+		// onnxruntime-node は束ねない。native を相対の位置で読むため（`src/esbuild.mjs` と同じ）。
+		external: ["vscode", "onnxruntime-node"],
+		alias: {
+			// 画像を扱うためのもので、本製品は使わない。同梱すると 16.5 MB 増える。
+			sharp: path.join(srcDir, "build-stubs", "sharp.js"),
+		},
 	}
 
 	/**

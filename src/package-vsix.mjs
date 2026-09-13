@@ -19,51 +19,66 @@ import { fileURLToPath } from "url"
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 const publish = process.argv.includes("--publish")
-const target = process.argv.find((one) => /^[a-z0-9]+-[a-z0-9]+$/.test(one))
+const targets = process.argv.filter((one) => /^[a-z0-9]+-[a-z0-9]+$/.test(one))
 
 // **platform を指さない作り方を許さない。**
 //
 // 指さないと、いま動いている機械の native だけが入る。ほかの platform で入れた人は、
 // 第 2 層が黙って動かない（例外は `TaskPiiMasker` が握るので、画面には何も出ない）。
-if (!target) {
-	console.error("使い方: node package-vsix.mjs <platform>-<arch>（例: linux-x64）")
+if (targets.length === 0) {
+	console.error("使い方: node package-vsix.mjs <platform>-<arch> [<platform>-<arch> …] [--publish]")
 	console.error("第 2 層の native を含むため、platform を指さずには作れない。")
 	process.exit(1)
 }
 
-const env = { ...process.env, VSIX_TARGET: target }
+for (const target of targets) {
+	buildOne(target)
+}
 
-const run = (command, args) => {
+/** 1 つ実行する。失敗したらそこで止める。 */
+function run(command, args, env) {
 	const result = spawnSync(command, args, { cwd: here, env, stdio: "inherit", shell: true })
 	if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
-run("pnpm", ["bundle", "--production", `--target=${target}`])
-run("mkdirp", ["../bin"])
-run("vsce", [publish ? "publish" : "package", "--no-dependencies", "--target", target, "--out", "../bin"])
+function buildOne(target) {
+	// 束ね直しにも届くよう、環境変数でも渡す（`vsce` が `vscode:prepublish` を実行し直す）。
+	const env = { ...process.env, VSIX_TARGET: target }
 
-// **確かめる。** 束ね直しで platform が戻っていないか、写した実物から見る。
-//
-// **`unzip` に頼らない。** Windows には無いことが多く、無いと検査が黙って素通りする。
-// この取り違えが起きたのはまさに Windows 向けを作ったときなので、そこで効かない検査には
-// 意味が無い。VSIX の中身は `dist/` の写しなので、そちらを直接見る。
-const binDir = path.join(here, "dist", "node_modules", "onnxruntime-node", "bin", "napi-v6")
-if (!existsSync(binDir)) {
-	console.error(`\n${binDir} が無い。第 2 層の実行の仕組みが同梱されていない。`)
-	process.exit(1)
+	run("pnpm", ["bundle", "--production", `--target=${target}`], env)
+	run("mkdirp", ["../bin"], env)
+
+	if (publish) {
+		// **2 つの店へ出す。** 片方だけにすると、もう片方の利用者が古い版のままになる。
+		run("vsce", ["publish", "--no-dependencies", "--target", target], env)
+		run("ovsx", ["publish", "--no-dependencies", "--target", target], env)
+	} else {
+		run("vsce", ["package", "--no-dependencies", "--target", target, "--out", "../bin"], env)
+	}
+
+	// **確かめる。** 束ね直しで platform が戻っていないか、写した実物から見る。
+	//
+	// **`unzip` に頼らない。** Windows には無いことが多く、無いと検査が黙って素通りする。
+	// この取り違えが起きたのはまさに Windows 向けを作ったときなので、そこで効かない検査には
+	// 意味が無い。VSIX の中身は `dist/` の写しなので、そちらを直接見る。
+	const binDir = path.join(here, "dist", "node_modules", "onnxruntime-node", "bin", "napi-v6")
+	if (!existsSync(binDir)) {
+		console.error(`\n${binDir} が無い。第 2 層の実行の仕組みが同梱されていない。`)
+		process.exit(1)
+	}
+
+	const platforms = readdirSync(binDir, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.flatMap((entry) =>
+			readdirSync(path.join(binDir, entry.name), { withFileTypes: true })
+				.filter((arch) => arch.isDirectory())
+				.map((arch) => `${entry.name}-${arch.name}`),
+		)
+
+	if (platforms.length !== 1 || platforms[0] !== target) {
+		console.error(`\n${target} を作ったつもりが、入っているのは ${platforms.join(", ") || "（無し）"} である。`)
+		process.exit(1)
+	}
+
+	console.log(`\n確認: ${target} の実行の仕組みだけが入っている。`)
 }
-
-const platforms = readdirSync(binDir, { withFileTypes: true })
-	.filter((entry) => entry.isDirectory())
-	.flatMap((entry) =>
-		readdirSync(path.join(binDir, entry.name), { withFileTypes: true })
-			.filter((arch) => arch.isDirectory())
-			.map((arch) => `${entry.name}-${arch.name}`),
-	)
-
-if (platforms.length !== 1 || platforms[0] !== target) {
-	console.error(`\n${target} を作ったつもりが、入っているのは ${platforms.join(", ") || "（無し）"} である。`)
-	process.exit(1)
-}
-
-console.log(`\n確認: ${target} の実行の仕組みだけが入っている。`)

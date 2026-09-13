@@ -85,7 +85,7 @@ describe("registerPiiCommands", () => {
 		// 対応表が無いことは、戻す側が利用者へ伝える。
 		expect(mocks.restoreSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(undefined)
 		// 会話が無ければ、その場限りの番号で振る。
-		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith({}, undefined)
+		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith({}, undefined, undefined)
 	})
 
 	it("Disposable を全部 subscriptions へ載せる", () => {
@@ -112,7 +112,7 @@ describe("registerPiiCommands", () => {
 		handler()
 
 		// 番号の場所を分けると、同じ形の伏せ字が別の値を指す。
-		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(settings, allocator)
+		expect(mocks.maskSecretsInActiveEditor).toHaveBeenCalledExactlyOnceWith(settings, allocator, undefined)
 	})
 
 	it.each([

@@ -347,12 +347,28 @@ export function copyOnnxRuntime(srcDir: string, distDir: string, target?: string
 	const dest = path.join(distDir, "node_modules")
 
 	// 判定そのものを実行するもの。platform ごとに 1 つだけ写す。
+	let natives = 0
 	copyPackage(roots.node, path.join(dest, "onnxruntime-node"), (relative) => {
 		if (relative.startsWith("dist/") || relative === "package.json") return true
 		if (!relative.startsWith(`bin/napi-v6/${platform}/${arch}/`)) return false
 		// GPU 用。同梱しても使わない。
-		return !/cuda|tensorrt|DirectML|dxcompiler|dxil/i.test(relative)
+		if (/cuda|tensorrt|DirectML|dxcompiler|dxil/i.test(relative)) return false
+
+		natives++
+		return true
 	})
+
+	// **1 つも写せていなければ失敗にする。**
+	//
+	// VS Code の platform の名前と onnxruntime の並びは同じとは限らない（`alpine-x64` は
+	// `linux/` の下、`linux-armhf` は `arm`）。合わないと写す対象が 0 件になるが、
+	// `copyPackage` は黙って何もしない。成功と言えば、第 2 層の無い配布物が出来上がる。
+	if (natives === 0) {
+		throw new Error(
+			`${platform}-${arch} に当たる native が ${roots.node} に無い。` +
+				`VS Code の platform の名前と onnxruntime の並びが食い違っている。`,
+		)
+	}
 
 	// `onnxruntime-node` が実行時に要求する。型と少量の JavaScript だけである。
 	copyPackage(roots.common, path.join(dest, "onnxruntime-common"), (relative) =>

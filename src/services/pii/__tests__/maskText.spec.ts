@@ -8,7 +8,6 @@
 import {
 	detectPhones,
 	detectAuthorization,
-	detectHonorificNames,
 	clearCompiledCache,
 	detectLabelledSecrets,
 	myNumberCheckDigit,
@@ -579,77 +578,7 @@ describe("findPii", () => {
 	})
 })
 
-describe("敬称と肩書きの手前を人名として採る（FR-PII-24）", () => {
-	const values = (text: string) => detectHonorificNames(text).map((one) => one.value)
-
-	it.each([
-		["敬称", "森さんから相談", ["森"]],
-		["姓名", "田中太郎さんへ", ["田中太郎"]],
-		["肩書き", "山田部長に確認", ["山田"]],
-		["カタカナ", "スミスさんへ", ["スミス"]],
-		["敬称ちがい", "鈴木氏と佐藤様", ["鈴木", "佐藤"]],
-	])("%s: %s → %j", (_label, text, expected) => {
-		expect(values(text)).toEqual(expected)
-	})
-
-	it("助詞で区切れるので、1 文に 2 人いても両方採る", () => {
-		// ひらがなを名前の文字に入れていないので、`と` が区切りとして働く。
-		expect(values("鈴木課長と佐藤主任")).toEqual(["鈴木", "佐藤"])
-	})
-
-	it.each([
-		["お客様へのご案内", "お客"],
-		["皆様おつかれさま", "皆"],
-		["営業部長に確認", "営業"],
-		["担当部長へ", "担当"],
-		["副社長と専務", "副"],
-	])("%s は人名でない", (text) => {
-		expect(values(text)).toEqual([])
-	})
-
-	it("より長い肩書きの一部は採らない", () => {
-		// `本部長` を `本` ＋ `部長` として採ってしまう。
-		expect(values("本部長の承認")).toEqual([])
-	})
-
-	it("伏せるのは名前だけで、肩書きは残す（FR-PII-24a）", () => {
-		// まとめて伏せると、誰に何を頼む話か分からなくなる。
-		const result = maskText("山田部長に確認", { kinds: ["person"] })
-
-		expect(result.text).toBe("{{person-001}}部長に確認")
-	})
-
-	it("辞書に無い氏名を拾う", () => {
-		const result = maskText("森さんから林の伐採について相談", { kinds: ["person"] })
-
-		// 「林」は人名でないので触らない。
-		expect(result.text).toBe("{{person-001}}さんから林の伐採について相談")
-	})
-
-	it("4 文字を超える名前は、断片を採るくらいなら採らない", () => {
-		// **この試験が 2 つの抑えを守っている。**
-		//   前の区切りを見なければ `木小次郎` を採る（名前の途中から始めてしまう）
-		//   長さの上限を広げれば `佐々木小次郎` を採る（上限の意味が無くなる）
-		// どちらも伏せ字が元の名前と食い違うので、戻したときに文が壊れる。
-		expect(values("佐々木小次郎さんへ")).toEqual([])
-	})
-
-	it("漢字が直に続くと取りすぎる（できていないこと）", () => {
-		// 区切りが無いので、どこから名前かを規則では決められない。第 2 層が要る。
-		expect(values("昨日森さんに会った")).toEqual(["昨日森"])
-	})
-})
-
 describe("レビューで見つかった取りこぼしと誤検出", () => {
-	it.each([
-		["田中本部長に確認", ["田中"]],
-		["山田副部長へ", ["山田"]],
-		["鈴木取締役の承認", ["鈴木"]],
-	])("%s の名前を捨てない（FR-PII-24）", (text, expected) => {
-		// **捨てていた。** より長い肩書きが付くと、名前ごと採らずに素通りしていた。
-		expect(detectHonorificNames(text).map((one) => one.value)).toEqual(expected)
-	})
-
 	it.each([
 		["commit の途中", "build sha0312345678"],
 		["版番号の途中", "v2.0312345678"],

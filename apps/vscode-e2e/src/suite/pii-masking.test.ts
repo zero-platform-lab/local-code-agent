@@ -60,9 +60,9 @@ suite("PII masking inside the extension host", function () {
 		for (const [name, value] of Object.entries(SECRETS)) {
 			assert.ok(!sent.includes(value), `${name} が載っている`)
 		}
-		// 敬称と肩書きの規則（`FR-PII-24`）も効く。肩書きは残す。
-		assert.ok(!sent.includes("山田"), "肩書きの手前の名前が載っている")
-		assert.ok(sent.includes("部長"), "肩書きまで伏せてはいけない")
+		// **第 1 層は推定に頼らない。** 辞書に無い氏名は伏せない（`山田部長` の `山田`）。
+		// 伏せたいなら、辞書へ足すか第 2 層を入れる。
+		assert.ok(sent.includes("山田部長"), "第 1 層が推定で伏せている")
 
 		// **番号で当てない。** 対応表は拡張ホストで 1 つを共有するので、先に動いた試験の
 		// 数だけ番号が進む。形で確かめる。
@@ -75,7 +75,7 @@ suite("PII masking inside the extension host", function () {
 		const sent = await sendAndCapture({})
 
 		assert.ok(sent.includes(SECRETS.email), "伏せていないのに載っていない")
-		assert.ok(sent.includes("山田部長"), "伏せていないのに載っていない")
+		assert.ok(sent.includes(SECRETS.org), "伏せていないのに載っていない")
 	})
 
 	test("第 2 層を入にしても、辞書に無い名前まで伏せる（FR-PII-21）", async function () {

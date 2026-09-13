@@ -4,7 +4,6 @@ import {
 	detectAuthorization,
 	detectCards,
 	detectEmails,
-	detectHonorificNames,
 	detectHosts,
 	detectIps,
 	detectKnownSecrets,
@@ -166,8 +165,6 @@ export function findPii(text: string, options: MaskOptions = {}): PiiMatch[] {
 	if (wants("phone")) found.push(...detectPhones(text))
 	if (wants("zip")) found.push(...detectZipCodes(text))
 	if (wants("address")) found.push(...detectAddresses(text))
-	// 敬称と肩書きの手前。辞書に無い氏名を拾う唯一の規則である（`FR-PII-24`）。
-	if (wants("person")) found.push(...detectHonorificNames(text))
 
 	// **第 1 層を優先する（`FR-PII-21f`）。** 第 1 層は形で判定していて確実なので、
 	// 重なったときに推定側を採る理由が無い。種類の切り替えは第 2 層にも効かせる。

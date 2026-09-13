@@ -3,7 +3,7 @@ import * as vscode from "vscode"
 import { t } from "../../i18n"
 
 import { readDictionaries } from "./dictionary"
-import { planMasking, type PlaceholderAllocator } from "./maskText"
+import { createAllocator, planMasking, type PlaceholderAllocator } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
 /**
@@ -70,7 +70,7 @@ export async function restoreSecretsInActiveEditor(unmask: ((text: string) => st
 		return
 	}
 
-	// **いまの文書の終わりまでにする。** 写しの長さで測らない。 写しの長さで測ると、間に入った
+	// **いまの文書の終わりまでにする。** 写しの長さで測らない。測ると、間に入った
 	// 編集の分だけ足りず、末尾が二重になる。全体を置き換えるので、写しを取ったあとの編集は
 	// どのみち巻き戻る。
 	const workspaceEdit = new vscode.WorkspaceEdit()
@@ -129,18 +129,19 @@ export async function maskSecretsInActiveEditor(
 		? undefined
 		: { start: document.offsetAt(selection.start), end: document.offsetAt(selection.end) }
 
-	const plan = planMasking(
-		text,
-		{
-			terms: [...(settings.terms ?? []), ...dictionary.terms],
-			kinds: settings.kinds,
-			secretLabels: settings.secretLabels,
-		},
-		range,
-		allocator,
-	)
+	const options = {
+		terms: [...(settings.terms ?? []), ...dictionary.terms],
+		kinds: settings.kinds,
+		secretLabels: settings.secretLabels,
+	}
 
-	if (plan.edits.length === 0) {
+	// **確認の前は使い捨ての割り当て係で数える。**
+	//
+	// 共有の対応表で数えると、利用者が断っても番号が減らず、**書かれてもいない値が
+	// 対応表に残る**。あとでモデルがその伏せ字を書けば、その値がファイルへ入る。
+	const preview = planMasking(text, options, range, createAllocator())
+
+	if (preview.edits.length === 0) {
 		await vscode.window.showInformationMessage(t("common:pii.nothingFound"))
 		return
 	}
@@ -148,7 +149,7 @@ export async function maskSecretsInActiveEditor(
 	// 戻せない操作なので、確認を挟む。件数は種類ごとに出す。
 	const confirm = t("common:pii.confirmReplace")
 	const answer = await vscode.window.showWarningMessage(
-		t("common:pii.confirm", { summary: describeCounts(plan.counts) }),
+		t("common:pii.confirm", { summary: describeCounts(preview.counts) }),
 		{ modal: true },
 		confirm,
 	)
@@ -162,6 +163,9 @@ export async function maskSecretsInActiveEditor(
 		await vscode.window.showWarningMessage(t("common:pii.documentChanged"))
 		return
 	}
+
+	// **ここで初めて共有の対応表へ入れる。** 断られていれば、ここまで来ない。
+	const plan = planMasking(text, options, range, allocator)
 
 	// 1 つの `WorkspaceEdit` にまとめる。取り消しの操作 1 回で元へ戻る（`FR-PII-11c`）。
 	const workspaceEdit = new vscode.WorkspaceEdit()

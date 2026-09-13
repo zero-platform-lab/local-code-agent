@@ -1,6 +1,7 @@
 import * as vscode from "vscode"
 
 import {
+	type PiiTerm,
 	type AgentSettings,
 	type ExperimentId,
 	type Language,
@@ -313,11 +314,20 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		await vscode.window.showErrorMessage(t("common:skills.credentialFailed", { error: result.error ?? "" }))
 	},
 
-	exportPiiDictionary: async (provider, _message) => {
+	exportPiiDictionary: async (provider, message) => {
 		// 語は設定と辞書の両方に散らばる。書き出すときは、どちらに書いたかを
 		// 気にせずに済むよう 1 つにまとめる（`FR-PII-17a`）。
-		const masking = provider.contextProxy.getValue("piiMasking")
-		await exportDictionary({ terms: masking?.terms, dictionaryPaths: masking?.dictionaryPaths })
+		//
+		// **画面が渡してきた値を優先する。** 画面の値は保存するまで設定へ入らない。
+		// 保存済みだけを読むと、足したばかりの辞書が書き出しに入らないのに成功したように
+		// 見える。
+		const saved = provider.contextProxy.getValue("piiMasking")
+		const sent = message.values as { terms?: PiiTerm[]; dictionaryPaths?: string[] } | undefined
+
+		await exportDictionary({
+			terms: sent?.terms ?? saved?.terms,
+			dictionaryPaths: sent?.dictionaryPaths ?? saved?.dictionaryPaths,
+		})
 	},
 
 	openPiiDictionary: async (_provider, message) => {
@@ -331,10 +341,12 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		await openFile(target, { create: true, content: DICTIONARY_HEADER })
 	},
 
-	fetchPiiNerModel: async (provider, _message) => {
+	fetchPiiNerModel: async (provider, message) => {
 		// **利用者が押したときだけ取りに行く（`FR-PII-23c`）。** 282 MB を勝手に取らない。
+		// **画面が渡してきた置き場所を優先する。** 保存前の値でも、押した人はそこへ
+		// 取りたい。保存済みだけを読むと、別の場所へ 282 MB を取ってしまう。
 		const masking = provider.contextProxy.getValue("piiMasking")
-		const raw = masking?.properNouns?.modelPath
+		const raw = (typeof message.text === "string" && message.text) || masking?.properNouns?.modelPath
 		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
 
 		// 282 MB を待たせるので、何を取っているかを出す。

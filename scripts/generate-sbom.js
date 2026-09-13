@@ -34,10 +34,25 @@ function packagesFromDist() {
 	const dir = path.join(ROOT, "src", "dist", "node_modules")
 	if (!fs.existsSync(dir)) return found
 
+	// **`@scope` の下まで見る。** 見ないと、`@img/sharp-linux-x64` のような名前を
+	// 同梱しているのに SBOM へ載らない。載らないことは誤りとして出ないので気づけない。
+	const roots = []
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		if (!entry.isDirectory()) continue
 
-		const manifest = path.join(dir, entry.name, "package.json")
+		if (entry.name.startsWith("@")) {
+			const scope = path.join(dir, entry.name)
+			for (const inner of fs.readdirSync(scope, { withFileTypes: true })) {
+				if (inner.isDirectory()) roots.push(path.join(scope, inner.name))
+			}
+			continue
+		}
+
+		roots.push(path.join(dir, entry.name))
+	}
+
+	for (const root of roots) {
+		const manifest = path.join(root, "package.json")
 		if (!fs.existsSync(manifest)) continue
 
 		const { name, version } = JSON.parse(fs.readFileSync(manifest, "utf8"))

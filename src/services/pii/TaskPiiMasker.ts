@@ -3,9 +3,9 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 import { promises as fs } from "fs"
 
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
-import { collectTexts, maskConversation, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
+import { collectTexts, maskConversation, MEMO_LIMIT, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
 import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
-import { defaultModelDirectory, describeCheck, verifyModel } from "./nerModel"
+import { defaultModelDirectory, describeCheck } from "./nerModel"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
 import type { PiiKind, PiiMatch, PiiTerm } from "./types"
 
@@ -50,6 +50,14 @@ async function stamps(paths: readonly string[]): Promise<string[]> {
 export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string) => readonly PiiMatch[] {
 	return (text) => found.get(text) ?? []
 }
+
+/**
+ * 一度に走らせる判定の数。
+ *
+ * 1 つずつ待つと、初回の長い履歴で本文の数だけ待ち時間が積み上がる。全部同時にすると
+ * 記憶が膨らむ。
+ */
+const NER_AT_ONCE = 8
 
 export class TaskPiiMasker {
 	/**
@@ -133,6 +141,9 @@ export class TaskPiiMasker {
 			this.loadedFrom = key
 			// 設定が変われば、覚えていた結果はもう当てにならない。
 			this.memo.clear()
+			// **文字数も戻す。** 戻さないと、空の記憶が上限を超えている扱いになり、
+			// 次に入れた 1 件をすぐ捨てる。以後ずっと何も覚えられない。
+			this.memo.bytes = 0
 			// 第 2 層も読み直す。置き場所を変えても効かない、という取り違えを避ける。
 			this.nerMemo = new Map()
 			this.backend = undefined
@@ -173,11 +184,16 @@ export class TaskPiiMasker {
 
 		if (!this.backendTried) {
 			this.backendTried = true
-			this.backend = await loadBackend(directory)
 
-			if (!this.backend) {
-				const why = describeCheck(await verifyModel(directory))
-				this.troubles = [...this.troubles, `固有名詞の検出を実行できない（${directory}）: ${why}`]
+			// **例外で要求全体を殺さない（`FR-PII-23b`）。** モデルの読み込みは native を
+			// 伴うので、環境によっては投げる。投げたまま通すと、第 1 層も動かないまま
+			// 会話が失敗する。第 2 層が動かないだけにして、その旨を出す。
+			try {
+				const loaded = await loadBackend(directory)
+				this.backend = loaded.backend
+				if (!loaded.backend) this.trouble(directory, describeCheck(loaded.check))
+			} catch (error) {
+				this.trouble(directory, error instanceof Error ? error.message : String(error))
 			}
 		}
 
@@ -185,12 +201,42 @@ export class TaskPiiMasker {
 		if (!backend) return undefined
 
 		const options = { minScore: settings.minScore, entities: settings.entities }
-		for (const text of texts) {
-			if (this.nerMemo.has(text)) continue
-			this.nerMemo.set(text, await detectWith(backend, text, options))
+		const pending = texts.filter((text) => !this.nerMemo.has(text))
+
+		// **まとめて走らせる。** 1 つずつ待つと、初回の長い履歴で本文の数だけ待ち時間が
+		// 積み上がる。数を抑えるのは、全部同時に投げると記憶が膨らむためである。
+		for (let at = 0; at < pending.length; at += NER_AT_ONCE) {
+			const batch = pending.slice(at, at + NER_AT_ONCE)
+			try {
+				const found = await Promise.all(batch.map((text) => detectWith(backend, text, options)))
+				batch.forEach((text, index) => this.nerMemo.set(text, found[index]))
+			} catch (error) {
+				// 判定できなかった本文は第 1 層だけで伏せる。次の要求で作り直す。
+				this.backend = undefined
+				this.trouble(directory, error instanceof Error ? error.message : String(error))
+				return undefined
+			}
 		}
 
+		this.capNerMemo()
 		return lookupOf(this.nerMemo)
+	}
+
+	/** 第 2 層が動かなかったことを伝える（`FR-PII-22a`）。黙ると取り違えに気づけない。 */
+	private trouble(directory: string, why: string | undefined): void {
+		this.troubles = [...this.troubles, `固有名詞の検出を実行できない（${directory}）: ${why}`]
+	}
+
+	/**
+	 * 判定の記憶が膨らみ続けないようにする。
+	 *
+	 * 鍵は本文そのもので、数十 KB のツールの出力がそのまま残る。件数ではなく文字数で
+	 * 抑えるのは、`MaskMemo` と同じ理由である。
+	 */
+	private capNerMemo(): void {
+		let held = 0
+		for (const text of this.nerMemo.keys()) held += text.length
+		if (held > MEMO_LIMIT) this.nerMemo = new Map()
 	}
 
 	/**

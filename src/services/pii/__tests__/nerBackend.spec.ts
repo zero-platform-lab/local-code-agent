@@ -116,13 +116,17 @@ describe("loadBackend（FR-PII-23b）", () => {
 
 	it("モデルが置かれていなければ、何も返さない", async () => {
 		// 誤りとして扱わない。第 2 層が動かないだけで、第 1 層はそのまま動く。
-		expect(await loadBackend(dir)).toBeUndefined()
+		const { backend, check } = await loadBackend(dir)
+
+		expect(backend).toBeUndefined()
+		// **照合の結果も返す。** 返さないと、理由を出すために 265 MB を二度読み直す。
+		expect(check.missing).toEqual(["SHA256SUMS"])
 	})
 
 	it("照合に通れば読み、網へ取りに行かせない（FR-PII-22）", async () => {
 		await placeModel()
 
-		const backend = await loadBackend(dir)
+		const { backend } = await loadBackend(dir)
 
 		expect(backend).toBeDefined()
 		// ここが真のままだと、置いていないファイルを網から取りに行く。
@@ -143,7 +147,7 @@ describe("loadBackend（FR-PII-23b）", () => {
 		await placeModel()
 		hf.tokenizer = { tokenize: () => [], bos_token: null, eos_token: null }
 
-		const backend = await loadBackend(dir)
+		const { backend } = await loadBackend(dir)
 
 		expect(backend?.bos).toBe("<s>")
 		expect(backend?.eos).toBe("</s>")
@@ -154,7 +158,7 @@ describe("loadBackend（FR-PII-23b）", () => {
 		hf.tokenizer = { tokenize: () => ["▁", "鈴木"], bos_token: "<s>", eos_token: "</s>" }
 		hf.classified = [{ index: 2, entity: "PER", score: 0.99, word: "鈴木" }]
 
-		const backend = await loadBackend(dir)
+		const { backend } = await loadBackend(dir)
 
 		await expect(detectWith(backend!, "鈴木")).resolves.toEqual([
 			{ kind: "person", start: 0, end: 2, value: "鈴木" },

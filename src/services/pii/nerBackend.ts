@@ -3,7 +3,7 @@ import * as path from "path"
 import type { PiiMatch } from "./types"
 import { toPiiMatches, type NerOptions } from "./nerDetector"
 import { alignTokens, groupEntities, type ClassifiedToken } from "./nerSpans"
-import { verifyModel } from "./nerModel"
+import { verifyModel, type ModelCheck } from "./nerModel"
 
 /**
  * 第 2 層の判定を実行する。
@@ -55,8 +55,11 @@ export async function detectWith(backend: NerBackend, text: string, options: Ner
  * 照合に通らなければ `undefined` を返す（`FR-PII-23b`）。**誤りとして扱わない。**
  * モデルを置いていない利用者のほうが多く、その場合は第 2 層が動かないだけである。
  */
-export async function loadBackend(directory: string): Promise<NerBackend | undefined> {
-	if (!(await verifyModel(directory)).ok) return undefined
+export async function loadBackend(directory: string): Promise<{ backend?: NerBackend; check: ModelCheck }> {
+	// **照合の結果も返す。** 呼ぶ側が理由を出すために照合し直すと、265 MB を二度
+	// 読み直すことになり、送信の手前で待たされる。
+	const check = await verifyModel(directory)
+	if (!check.ok) return { check }
 
 	// 束ねずに読み込む。native を含むため、使うときだけ読む。
 	const { AutoTokenizer, env, pipeline } = await import("@huggingface/transformers")
@@ -69,10 +72,12 @@ export async function loadBackend(directory: string): Promise<NerBackend | undef
 	const tokenizer = await AutoTokenizer.from_pretrained(name)
 	const classifier = await pipeline("token-classification", name, { dtype: "q8" })
 
-	return {
+	const backend: NerBackend = {
 		tokenize: (text) => tokenizer.tokenize(text) as string[],
 		classify: async (text) => (await classifier(text)) as unknown as ClassifiedToken[],
 		bos: (tokenizer.bos_token ?? "<s>") as string,
 		eos: (tokenizer.eos_token ?? "</s>") as string,
 	}
+
+	return { backend, check }
 }

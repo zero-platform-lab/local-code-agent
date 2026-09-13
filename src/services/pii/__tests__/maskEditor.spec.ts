@@ -118,6 +118,25 @@ describe("maskSecretsInActiveEditor", () => {
 		expect(mocks.applyEdit).not.toHaveBeenCalled()
 	})
 
+	it("断られたら、番号も対応表も動かさない（FR-PII-11b）", async () => {
+		// **数えるだけで番号を割り当てていた。** 断っても対応表に実際の値が残り、
+		// あとでモデルがその伏せ字を書けば、書かれてもいない値がファイルへ入る。
+		const allocator = createAllocator()
+		mocks.activeTextEditor = editorWith("連絡は taro@corp.example へ")
+		mocks.showWarningMessage.mockResolvedValueOnce(undefined)
+
+		await maskSecretsInActiveEditor({ kinds: ["email"] }, allocator)
+
+		expect(allocator.table.size).toBe(0)
+
+		// 次に承諾したときは 001 から始まる。
+		mocks.activeTextEditor = editorWith("連絡は taro@corp.example へ")
+		answerConfirm()
+		await maskSecretsInActiveEditor({ kinds: ["email"] }, allocator)
+
+		expect([...allocator.table.keys()]).toEqual(["{{email-001}}"])
+	})
+
 	it("承諾されたら 1 つの編集としてまとめて当てる（FR-PII-11c）", async () => {
 		mocks.activeTextEditor = editorWith("taro@corp.example と hanako@corp.example")
 		answerConfirm()

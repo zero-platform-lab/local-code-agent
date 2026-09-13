@@ -121,7 +121,7 @@ export async function addSelectionToDictionary(options: AddTermOptions = {}): Pr
 	}
 
 	await fs.mkdir(path.dirname(target), { recursive: true })
-	// **改行を足してから書く。** 前の行が改行で終わっていない場合である。 足さないと、前の語と
+	// **改行を足してから書く。** 前の行が改行で終わっていない場合である。足さないと、前の語と
 	// 繋がって 1 つの語になり、どちらも二度と一致しなくなる。
 	await fs.appendFile(target, headFor(current) + dictionaryLine({ value, kind }), "utf8")
 

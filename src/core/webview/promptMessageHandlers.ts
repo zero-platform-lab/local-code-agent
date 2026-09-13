@@ -152,11 +152,21 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
  * 作り直すと、押すたびに辞書のファイルを全部読み直すことになる。
  */
 let standalone: TaskPiiMasker | undefined
+let standaloneFor: WebviewMessageHost | undefined
 
 function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
 	const current = provider.getCurrentTask()?.piiMasker
 	if (current) return current
 
-	standalone ??= new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking") ?? {})
+	// **`?? {}` を付けない。** 付けると読み取りが必ず真になり、`TaskPiiMasker` の
+	// 「読めなければ最後に分かっていた設定を使う」という守りが効かなくなる。設定がまだ
+	// 読めていない間に `{}` で上書きされ、**伏せていない要求が黙って送られる**。
+	//
+	// **provider が変われば作り直す。** 側面の画面を閉じて開き直すと別の provider に
+	// なる。持ち越すと、死んだ `contextProxy` を読み続ける。
+	if (!standalone || standaloneFor !== provider) {
+		standalone = new TaskPiiMasker(() => provider.contextProxy.getValue("piiMasking"))
+		standaloneFor = provider
+	}
 	return standalone
 }

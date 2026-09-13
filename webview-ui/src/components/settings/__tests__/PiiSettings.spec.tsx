@@ -156,7 +156,11 @@ describe("書き出し（FR-PII-17）", () => {
 		fireEvent.click(screen.getByTestId("pii-export"))
 
 		expect(postMessage).toHaveBeenCalledTimes(1)
-		expect(postMessage).toHaveBeenCalledWith({ type: "exportPiiDictionary" })
+		// **保存前の値を渡す。** 渡さないと、足したばかりの辞書が書き出しに入らない。
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "exportPiiDictionary",
+			values: { terms: undefined, dictionaryPaths: [] },
+		})
 	})
 })
 
@@ -211,6 +215,29 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 
 		fireEvent.click(screen.getByTestId("pii-model-fetch"))
 
-		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel" })
+		// **保存前の置き場所を渡す。** 渡さないと、別の場所へ 282 MB を取ってしまう。
+		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel", text: "" })
+	})
+})
+
+describe("保存前の値を渡す", () => {
+	it("書き込んだ置き場所をそのまま送る（FR-PII-23c）", () => {
+		// 保存を待たずに押せてしまうので、押した時点の値を渡す。
+		renderWith({ properNouns: { enabled: true, modelPath: "~/models/ner" } })
+
+		fireEvent.click(screen.getByTestId("pii-model-fetch"))
+
+		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel", text: "~/models/ner" })
+	})
+
+	it("書き込んだ辞書をそのまま送る（FR-PII-17a）", () => {
+		renderWith({ terms: [{ value: "株式会社サンプル" }], dictionaryPaths: ["/w/team.txt"] })
+
+		fireEvent.click(screen.getByTestId("pii-export"))
+
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "exportPiiDictionary",
+			values: { terms: [{ value: "株式会社サンプル" }], dictionaryPaths: ["/w/team.txt"] },
+		})
 	})
 })

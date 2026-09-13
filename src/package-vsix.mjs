@@ -12,7 +12,7 @@
 // 取り違えが黙って通る。
 
 import { spawnSync } from "child_process"
-import { readFileSync } from "fs"
+import { existsSync, readdirSync } from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 
@@ -24,7 +24,6 @@ if (!target || !/^[a-z0-9]+-[a-z0-9]+$/.test(target)) {
 	process.exit(1)
 }
 
-const [platform, arch] = target.split("-")
 const env = { ...process.env, VSIX_TARGET: target }
 
 const run = (command, args) => {
@@ -36,19 +35,28 @@ run("pnpm", ["bundle", "--production", `--target=${target}`])
 run("mkdirp", ["../bin"])
 run("vsce", ["package", "--no-dependencies", "--target", target, "--out", "../bin"])
 
-// **確かめる。** 束ね直しで platform が戻っていないか、出来たものから見る。
-const version = JSON.parse(readFileSync(path.join(here, "package.json"), "utf8")).version
-const vsix = path.join(here, "..", "bin", `openai-agent-${target}-${version}.vsix`)
-const listed = spawnSync("unzip", ["-l", vsix], { encoding: "utf8" })
-
-if (listed.status === 0) {
-	const wanted = `napi-v6/${platform}/${arch}/`
-	const others = listed.stdout.split("\n").filter((line) => /napi-v6\//.test(line) && !line.includes(wanted))
-
-	if (!listed.stdout.includes(wanted) || others.length > 0) {
-		console.error(`\n${vsix} に ${target} 以外のものが入っている:`)
-		for (const line of others) console.error(`  ${line.trim()}`)
-		process.exit(1)
-	}
-	console.log(`\n確認: ${target} の実行の仕組みだけが入っている。`)
+// **確かめる。** 束ね直しで platform が戻っていないか、写した実物から見る。
+//
+// **`unzip` に頼らない。** Windows には無いことが多く、無いと検査が黙って素通りする。
+// この取り違えが起きたのはまさに Windows 向けを作ったときなので、そこで効かない検査には
+// 意味が無い。VSIX の中身は `dist/` の写しなので、そちらを直接見る。
+const binDir = path.join(here, "dist", "node_modules", "onnxruntime-node", "bin", "napi-v6")
+if (!existsSync(binDir)) {
+	console.error(`\n${binDir} が無い。第 2 層の実行の仕組みが同梱されていない。`)
+	process.exit(1)
 }
+
+const platforms = readdirSync(binDir, { withFileTypes: true })
+	.filter((entry) => entry.isDirectory())
+	.flatMap((entry) =>
+		readdirSync(path.join(binDir, entry.name), { withFileTypes: true })
+			.filter((arch) => arch.isDirectory())
+			.map((arch) => `${entry.name}-${arch.name}`),
+	)
+
+if (platforms.length !== 1 || platforms[0] !== target) {
+	console.error(`\n${target} を作ったつもりが、入っているのは ${platforms.join(", ") || "（無し）"} である。`)
+	process.exit(1)
+}
+
+console.log(`\n確認: ${target} の実行の仕組みだけが入っている。`)

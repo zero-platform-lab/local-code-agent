@@ -121,7 +121,14 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 								<Button
 									variant="secondary"
 									className="py-1"
-									onClick={() => vscode.postMessage({ type: "exportPiiDictionary" })}
+									// **保存前の値を渡す。** 渡さないと、拡張は保存済みの設定を読む。足したばかりの
+									// 辞書が書き出しに入らず、利用者には成功したように見える。
+									onClick={() =>
+										vscode.postMessage({
+											type: "exportPiiDictionary",
+											values: { terms: masking.terms, dictionaryPaths: paths },
+										})
+									}
 									data-testid="pii-export">
 									<Download />
 								</Button>
@@ -243,7 +250,11 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 								variant="secondary"
 								className="py-1"
 								// 取得は操作なので、押した時点で拡張ホストへ送る。
-								onClick={() => vscode.postMessage({ type: "fetchPiiNerModel" })}
+								// **保存前の置き場所を渡す。** 渡さないと、書いたばかりの場所ではなく
+								// 保存済みの場所へ 282 MB を取ってしまう。
+								onClick={() =>
+									vscode.postMessage({ type: "fetchPiiNerModel", text: properNouns.modelPath ?? "" })
+								}
 								data-testid="pii-model-fetch">
 								<Download />
 							</Button>

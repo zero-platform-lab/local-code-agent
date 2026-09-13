@@ -6,6 +6,8 @@
 // 変えるので、漏れより害が大きい場面がある。
 
 import {
+	detectPhones,
+	detectAuthorization,
 	detectHonorificNames,
 	clearCompiledCache,
 	detectLabelledSecrets,
@@ -635,5 +637,39 @@ describe("敬称と肩書きの手前を人名として採る（FR-PII-24）", (
 	it("漢字が直に続くと取りすぎる（できていないこと）", () => {
 		// 区切りが無いので、どこから名前かを規則では決められない。第 2 層が要る。
 		expect(values("昨日森さんに会った")).toEqual(["昨日森"])
+	})
+})
+
+describe("レビューで見つかった取りこぼしと誤検出", () => {
+	it.each([
+		["田中本部長に確認", ["田中"]],
+		["山田副部長へ", ["山田"]],
+		["鈴木取締役の承認", ["鈴木"]],
+	])("%s の名前を捨てない（FR-PII-24）", (text, expected) => {
+		// **捨てていた。** より長い肩書きが付くと、名前ごと採らずに素通りしていた。
+		expect(detectHonorificNames(text).map((one) => one.value)).toEqual(expected)
+	})
+
+	it.each([
+		["commit の途中", "build sha0312345678"],
+		["版番号の途中", "v2.0312345678"],
+		["識別子の途中", "id=abc0312345678"],
+	])("%s を電話番号として採らない（FR-PII-05）", (_label, text) => {
+		// 前の区切りを数字だけで見ていたので、英字や点の後ろを拾っていた。
+		expect(detectPhones(text)).toEqual([])
+	})
+
+	it.each([
+		["03-1234-5678", "03-1234-5678"],
+		["電話 090-1234-5678", "090-1234-5678"],
+	])("%s は電話番号として採る", (text, expected) => {
+		expect(detectPhones(text).map((one) => one.value)).toEqual([expected])
+	})
+
+	it("小文字の bearer も採る（FR-PII-10f）", () => {
+		// curl の出力や多くの SDK は小文字で書く。区別するとそこだけ素通りする。
+		expect(detectAuthorization("authorization: bearer abcd1234efgh5678").map((one) => one.value)).toEqual([
+			"abcd1234efgh5678",
+		])
 	})
 })

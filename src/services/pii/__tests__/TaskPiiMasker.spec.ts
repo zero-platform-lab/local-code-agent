@@ -21,13 +21,19 @@ const ner = vi.hoisted(() => ({
 	/** 判定した回数。同じ本文を二度判定していないかを見る。 */
 	calls: 0,
 	check: { ok: false, missing: ["SHA256SUMS"], mismatched: [] },
+	loadThrows: false,
+	detectThrows: false,
 }))
 
 // モデルは 265 MB あり、試験のたびに読めない。読む段だけを偽物にする。
 vi.mock("../nerBackend", () => ({
-	loadBackend: async () => ner.backend,
+	loadBackend: async () => {
+		if (ner.loadThrows) throw new Error("native を読めない")
+		return { backend: ner.backend, check: ner.check }
+	},
 	detectWith: async (_backend: unknown, text: string) => {
 		ner.calls++
+		if (ner.detectThrows) throw new Error("判定に失敗した")
 		// 「森」を人名として返す偽の判定。第 1 層には無い規則である。
 		const at = text.indexOf("森")
 		return at < 0 ? [] : [{ kind: "person", start: at, end: at + 1, value: "森" }]
@@ -290,6 +296,8 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 		ner.backend = {}
 		ner.calls = 0
 		ner.check = { ok: false, missing: ["SHA256SUMS"], mismatched: [] }
+		ner.loadThrows = false
+		ner.detectThrows = false
 	})
 
 	it("切のままなら実行しない", async () => {
@@ -455,5 +463,48 @@ describe("対応表は本製品で 1 つを共有する（FR-PII-02b）", () => 
 		])
 
 		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
+	})
+})
+
+describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () => {
+	beforeEach(() => {
+		ner.backend = {}
+		ner.calls = 0
+		ner.loadThrows = false
+		ner.detectThrows = false
+	})
+
+	const settings = { enabled: true, kinds: ["email", "person"] as const, properNouns: { enabled: true } }
+
+	it("読み込みが投げても、会話は止まらない", async () => {
+		// **止めてはいけない。** 例外を通すと第 1 層も動かないまま会話が失敗する。
+		ner.loadThrows = true
+		const masker = new TaskPiiMasker(settings as never)
+
+		const result = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
+
+		expect(result.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
+		expect(result.troubles.join()).toContain("native を読めない")
+	})
+
+	it("判定が投げても、会話は止まらない", async () => {
+		ner.detectThrows = true
+		const masker = new TaskPiiMasker(settings as never)
+
+		const result = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
+
+		expect(result.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
+		expect(result.troubles.join()).toContain("判定に失敗した")
+	})
+
+	it("一度投げたら、次の要求でも第 1 層だけで動く", async () => {
+		// 投げたモデルを抱え続けると、要求のたびに同じ例外で待たされる。
+		ner.detectThrows = true
+		const masker = new TaskPiiMasker(settings as never)
+		await masker.maskForRequest("", [message("森が担当")])
+
+		const second = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
+
+		expect(second.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
 	})
 })

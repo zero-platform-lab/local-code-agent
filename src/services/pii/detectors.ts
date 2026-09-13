@@ -21,7 +21,7 @@ import type { PiiMatch, PiiTerm } from "./types"
  * 誤って伏せるとモデルが読む内容が変わる。本文も書き換えない。位置を返すだけで、伏せ字の
  * 割り当ては `maskText` が行う。分けておくと、検出だけを本文なしで確かめられる。
  *
- * **誤って伏せないことを重く扱う。** 伏せることと同じ重さである。 検査や語で絞っているのは全て
+ * **誤って伏せないことを重く扱う。** 伏せることと同じ重さである。検査や語で絞っているのは全て
  * そのためである。取りこぼしは利用者が挙げる語で補えるが、誤検出は補えない。
  */
 
@@ -43,7 +43,7 @@ export function detectEmails(text: string): PiiMatch[] {
  * `1700000000000` や、`commit 0123456789ab` のような識別子の先頭 10 桁が電話番号として
  * 伏せられ、記録が読めなくなる。
  */
-const PHONE = /(?<![0-9])(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}(?![0-9A-Za-z_])/g
+const PHONE = /(?<![0-9A-Za-z_.])(?:\+81[-\s(]?|0)\d{1,4}[-\s)]?\d{1,4}[-\s]?\d{3,4}(?![0-9A-Za-z_])/g
 
 export function detectPhones(text: string): PiiMatch[] {
 	return collect(text, PHONE, "phone").filter((match) => {
@@ -282,7 +282,7 @@ function labelPattern(label: string): string {
 /**
  * 鍵の値。
  *
- * **引用符か数字を要求する。** どちらも無いものは採らない。 そうしないと、
+ * **引用符か数字を要求する。** どちらも無いものは採らない。そうしないと、
  * `const apiKey = defaultApiKey` の `defaultApiKey` のような普通の識別子まで伏せる。
  * モデルへ渡すコードの識別子が `{{secret-001}}` に変わり、参照の関係が読めなくなる。
  *
@@ -350,7 +350,9 @@ export function detectLabelledSecrets(text: string, labels: readonly string[] = 
 }
 
 /** `Authorization` の `Bearer` と `Basic` に続く値（`FR-PII-10f`）。 */
-const AUTHORIZATION = /\b(?:Bearer|Basic)\s+(?<value>[A-Za-z0-9._~+/=-]{8,})/g
+// **大文字小文字を区別しない。** curl の出力や多くの SDK は小文字の `bearer` を書く。
+// 区別すると、そこだけ素通りする。
+const AUTHORIZATION = /\b(?:Bearer|Basic)\s+(?<value>[A-Za-z0-9._~+/=-]{8,})/gi
 
 export function detectAuthorization(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []
@@ -510,25 +512,39 @@ const NOT_NAME_BEFORE_TITLE = new Set([
 const NAME_BEFORE = (suffixes: readonly string[]) =>
 	new RegExp(`(?<!${NAME_CHAR})(?<value>${NAME_CHAR}{1,4})(?:${suffixes.join("|")})`, "g")
 
+/**
+ * 組み上げた正規表現。**呼ばれるたびに組み直さない。**
+ *
+ * 5 つと 20 の選択肢を持つ 2 つの式を、本文 1 つごとに組み直していた。履歴が 200 件
+ * あれば 400 回になる。送信の直前に同期で実行されるので、そのぶん待たされる。
+ */
+const HONORIFIC_PATTERNS = [
+	[NAME_BEFORE(HONORIFICS), NOT_NAME_BEFORE_HONORIFIC],
+	[NAME_BEFORE(TITLES), NOT_NAME_BEFORE_TITLE],
+] as const
+
 export function detectHonorificNames(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []
 
-	for (const [suffixes, deny] of [
-		[HONORIFICS, NOT_NAME_BEFORE_HONORIFIC],
-		[TITLES, NOT_NAME_BEFORE_TITLE],
-	] as const) {
-		for (const found of text.matchAll(NAME_BEFORE(suffixes))) {
+	for (const [pattern, deny] of HONORIFIC_PATTERNS) {
+		// `matchAll` は `lastIndex` を触らないので、使い回してよい。
+		for (const found of text.matchAll(pattern)) {
 			const value = found.groups?.value
 			if (!value || deny.has(value)) continue
 
-			// **より長い肩書きの一部なら採らない。** `本部長` を `本` ＋ `部長` として
-			// 採ってしまう。名前と敬称を繋いだものが肩書きの一覧にあれば、それは名前でない。
-			if (TITLES.some((title) => found[0].endsWith(title) && title.length > found[0].length - value.length)) {
-				continue
-			}
+			// **より長い肩書きが後ろに付いていれば、そのぶん名前を切り詰める。**
+			//
+			// 正規表現は名前を長く採ろうとするので、`田中本部長` を `田中本` ＋ `部長` と
+			// 読む。**捨ててはいけない。** 捨てると `田中` が素のまま送られる。いちばん長い
+			// 肩書きを見つけ、その手前までを名前にする。
+			const longest = TITLES.filter((title) => found[0].endsWith(title)).sort((a, b) => b.length - a.length)[0]
+			const name = longest ? found[0].slice(0, found[0].length - longest.length) : value
+
+			// 肩書きだけで名前が残らない（`本部長`）。人名ではない。
+			if (name.length === 0 || deny.has(name)) continue
 
 			// **敬称と肩書きは範囲へ入れない。** モデルが役職を読めなくなる。
-			matches.push({ kind: "person", start: found.index, end: found.index + value.length, value })
+			matches.push({ kind: "person", start: found.index, end: found.index + name.length, value: name })
 		}
 	}
 
@@ -564,7 +580,7 @@ const BANCHI_MARK = String.raw`[0-9０-９]+[丁目番地号][0-9０-９丁目�
 /**
  * 町域と番地。
  *
- * **離れている場合は強く要求する。** 空白を挟むときの話である。 離れていると町域ではなく文の続き
+ * **離れている場合は強く要求する。** 空白を挟むときの話である。離れていると町域ではなく文の続き
  * である見込みが高い（「中央区の面積は 1-2 です」）。続けて書いてあるときだけ、2 つに
  * 区切る番地（`銀座1-2`）を認める。
  */
@@ -647,7 +663,7 @@ export function detectTerms(text: string, terms: readonly PiiTerm[]): PiiMatch[]
 		const needle = term.value.trim()
 		if (needle.length === 0) continue
 
-		// **小文字の索引を借りない。** 元の文字列とずれる。 `İ` のように小文字に
+		// **小文字の索引を借りない。** 元の文字列とずれる。`İ` のように小文字に
 		// すると長さが変わる文字があり、そこから先の位置が全部ずれる。伏せる範囲が
 		// 1 文字ずれ、伏せ残しが出て、対応表にも切れた値が入る。
 		// 正規表現の `i` を使えば、索引は元の文字列のものになる。

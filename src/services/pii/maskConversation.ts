@@ -117,7 +117,7 @@ export type MaskConversationResult = {
 /**
  * 会話を伏せる。
  *
- * **部分ごとに置き換える。** 割り当て係だけを共有する。 番号は割り当て係が持つので、
+ * **部分ごとに置き換える。** 割り当て係だけを共有する。番号は割り当て係が持つので、
  * 部分に分けても同じ値には同じ伏せ字が当たる。
  */
 /**
@@ -140,7 +140,7 @@ export type MaskMemo = Map<string, { text: string; counts: Partial<Record<PiiKin
  * **文字数で数える。** 件数だけで抑えると、数十 KB のツールの出力が 5,000 件残り得る。
  * 数える場所は `MaskMemo` 自身が持つ。
  */
-const MEMO_LIMIT = 4_000_000
+export const MEMO_LIMIT = 4_000_000
 
 export function maskConversation(
 	systemPrompt: string,
@@ -149,7 +149,7 @@ export function maskConversation(
 	vault?: PiiVault,
 	memo?: MaskMemo,
 ): MaskConversationResult {
-	// **部分ごとに置き換える。** 割り当て係だけを共有する。 連結してから置き換えると、
+	// **部分ごとに置き換える。** 割り当て係だけを共有する。連結してから置き換えると、
 	// 区切りをまたいだ一致が起きる（住所の照合は空白も飲み込む）。またいだ分は片方が
 	// 伏せられないまま送られ、対応表には区切りを含む値が入る。
 	const allocator = vault ?? createAllocator()

@@ -82,6 +82,31 @@ export class PiiVault implements PlaceholderAllocator {
 	}
 }
 
+/**
+ * 本製品が動いている間ずっと使う対応表（`FR-PII-02b`）。
+ *
+ * **1 つしか持たない。** タスクごとに分けると、タスク A で `{{email-001}}` に割り当てた
+ * 値と、タスク B の `{{email-001}}` が別物になる。A で伏せたファイルを B が読むと、
+ * モデルは同じ伏せ字を見て別人の値を書き戻す。
+ *
+ * **会話をしていなくても使える。** 右クリックでファイルを伏せ、他の道具へ渡し、戻って
+ * きてから元へ戻す、という使い方のためである。会話が動いていることを条件にすると、
+ * その間に会話を閉じただけで戻せなくなる。
+ *
+ * **ディスクへは書かない。** 書けば伏せた値そのものを保存することになり、伏せた意味が
+ * 無くなる。本製品を終えれば消える（`FR-PII-20b`）。
+ */
+let shared: PiiVault | undefined
+
+export function sessionVault(): PiiVault {
+	return (shared ??= new PiiVault())
+}
+
+/** 試験のために捨てる。本番では呼ばない。 */
+export function resetSessionVault(): void {
+	shared = undefined
+}
+
 export type MaskConversationResult = {
 	messages: AgentMessage[]
 	systemPrompt: string

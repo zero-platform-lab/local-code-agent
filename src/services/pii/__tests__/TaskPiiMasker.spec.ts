@@ -40,6 +40,11 @@ vi.mock("../nerModel", async (importOriginal) => ({
 }))
 
 import { lookupOf, TaskPiiMasker } from "../TaskPiiMasker"
+import { resetSessionVault, sessionVault } from "../maskConversation"
+
+// **対応表は本製品で 1 つを共有する（`FR-PII-02b`）。** 捨てないと、前の試験で
+// 割り当てた番号が残り、`{{email-001}}` を期待する試験が `002` を見て落ちる。
+beforeEach(() => resetSessionVault())
 
 const message = (content: string): AgentMessage => ({ type: "message", role: "user", content }) as AgentMessage
 
@@ -403,5 +408,52 @@ describe("覆っていなかった経路", () => {
 		const masker = new TaskPiiMasker({ enabled: true })
 
 		expect(masker.allocator).toBe(masker.allocator)
+	})
+})
+
+describe("対応表は本製品で 1 つを共有する（FR-PII-02b）", () => {
+	it("別の masker でも、同じ値には同じ伏せ字が当たる", async () => {
+		// **分けると壊れる。** タスク A の `{{email-001}}` とタスク B の `{{email-001}}` が
+		// 別物になり、A で伏せたファイルを B が読むと別人の値が書き戻される。
+		const first = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+		const second = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+
+		await first.maskForRequest("", [message("taro@corp.example")])
+		const result = await second.maskForRequest("", [message("また taro@corp.example へ")])
+
+		expect(result.messages[0]).toMatchObject({ content: "また {{email-001}} へ" })
+	})
+
+	it("別の値には別の番号が当たる", async () => {
+		const first = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+		const second = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+
+		await first.maskForRequest("", [message("taro@corp.example")])
+		const result = await second.maskForRequest("", [message("jiro@corp.example")])
+
+		expect(result.messages[0]).toMatchObject({ content: "{{email-002}}" })
+	})
+
+	it("会話が無くても、共有の対応表から戻せる（FR-PII-20a）", async () => {
+		// 右クリックで伏せ、他の道具へ渡し、戻ってきてから元へ戻す使い方のためである。
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
+		await masker.maskForRequest("", [message("taro@corp.example")])
+
+		expect(sessionVault().restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
+	})
+
+	it("捨てるまでは同じものを返す", () => {
+		expect(sessionVault()).toBe(sessionVault())
+	})
+
+	it("捨てれば番号は 1 から始まる", async () => {
+		await new TaskPiiMasker({ enabled: true, kinds: ["email"] }).maskForRequest("", [message("taro@corp.example")])
+		resetSessionVault()
+
+		const result = await new TaskPiiMasker({ enabled: true, kinds: ["email"] }).maskForRequest("", [
+			message("jiro@corp.example"),
+		])
+
+		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
 	})
 })

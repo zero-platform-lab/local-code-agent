@@ -33,6 +33,11 @@ import { OpenAiHandler } from "../../../api/providers/openai"
 import { allowNetConnect } from "../../../vitest.setup"
 
 import { TaskPiiMasker } from "../TaskPiiMasker"
+import { resetSessionVault } from "../maskConversation"
+
+// **対応表は本製品で 1 つを共有する（`FR-PII-02b`）。** 捨てないと、前の試験で
+// 割り当てた番号が残り、`{{email-001}}` を期待する試験が `002` を見て落ちる。
+beforeEach(() => resetSessionVault())
 
 /** 送られてきた本文を控えるだけのサーバ。応答は最低限の SSE。 */
 async function startServer(): Promise<{ port: number; bodies: string[]; close: () => Promise<void> }> {

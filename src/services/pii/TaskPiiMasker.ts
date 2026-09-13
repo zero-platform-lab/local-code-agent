@@ -3,7 +3,7 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 import { promises as fs } from "fs"
 
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
-import { collectTexts, maskConversation, PiiVault, type MaskMemo } from "./maskConversation"
+import { collectTexts, maskConversation, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
 import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
 import { defaultModelDirectory, describeCheck, verifyModel } from "./nerModel"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
@@ -52,7 +52,13 @@ export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string)
 }
 
 export class TaskPiiMasker {
-	private readonly vault = new PiiVault()
+	/**
+	 * 対応表。**既定では本製品で 1 つを共有する**（`FR-PII-02b`）。
+	 *
+	 * 分けると、別のタスクの `{{email-001}}` と同じ形になり、モデルが別人の値を
+	 * 書き戻す。試験で切り離したいときだけ渡す。
+	 */
+	private readonly vault: PiiVault
 	private terms: PiiTerm[] | undefined
 	private loadedFrom: string | undefined
 	private troubles: string[] = []
@@ -73,7 +79,8 @@ export class TaskPiiMasker {
 	 *
 	 * 対応表だけは持ち越す。番号が振り直されると、前の応答の伏せ字が別の値を指す。
 	 */
-	constructor(read: (() => PiiMasking | undefined) | PiiMasking) {
+	constructor(read: (() => PiiMasking | undefined) | PiiMasking, vault: PiiVault = sessionVault()) {
+		this.vault = vault
 		this.read = typeof read === "function" ? read : () => read
 	}
 

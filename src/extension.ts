@@ -39,6 +39,7 @@ import {
 	CodeActionProvider,
 } from "./activate"
 import { initializeI18n } from "./i18n"
+import { sessionVault } from "./services/pii/maskConversation"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -231,12 +232,18 @@ export async function activate(context: vscode.ExtensionContext) {
 		() => {
 			// 明示的に戻す操作は、戻さない設定でも動かす（`FR-PII-20`）。戻さないまま
 			// 進めて最後にまとめて戻すのが、この操作の使い道である。
+			//
+			// **会話が無くても戻せる（`FR-PII-20a`）。** 右クリックで伏せ、他の道具へ渡し、
+			// 戻ってきてから元へ戻す使い方がある。会話が動いていることを条件にすると、
+			// その間に会話を閉じただけで戻せなくなる。
 			const task = provider.getCurrentTask()
-			return task ? (text: string) => task.restoreExplicitly(text) : undefined
+			return task
+				? (text: string) => task.restoreExplicitly(text)
+				: (text: string) => sessionVault().restore(text)
 		},
 		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
 		// 別の値を指す。
-		() => provider.getCurrentTask()?.piiMasker.allocator,
+		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
 	)
 
 	// Allows other extensions to activate once Agent is ready.

@@ -59,6 +59,15 @@ export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string)
  */
 export const NER_AT_ONCE = 8
 
+/**
+ * 判定にかけてよい時間（`FR-PII-23f`）。
+ *
+ * **第 2 層は取りこぼしてよい層である。** 長い履歴を全部判定しようとすると、送信の手前で
+ * 秒単位の待ちが出る。超えたぶんは第 1 層だけで伏せ、次の要求へ持ち越す。覚えたぶんは
+ * 残るので、会話が進むにつれて判定は行き渡る。
+ */
+const NER_TIME_BUDGET = 3_000
+
 export class TaskPiiMasker {
 	/**
 	 * 対応表。**既定では本製品で 1 つを共有する**（`FR-PII-02b`）。
@@ -220,10 +229,18 @@ export class TaskPiiMasker {
 
 		const options = { minScore: settings.minScore, entities: settings.entities }
 		const pending = texts.filter((text) => !this.nerMemo.has(text))
+		const until = Date.now() + NER_TIME_BUDGET
 
 		// **まとめて走らせる。** 1 つずつ待つと、初回の長い履歴で本文の数だけ待ち時間が
 		// 積み上がる。数を抑えるのは、全部同時に投げると記憶が膨らむためである。
 		for (let at = 0; at < pending.length; at += NER_AT_ONCE) {
+			// **時間で打ち切る（`FR-PII-23f`）。** 第 2 層は取りこぼしてよい層である。
+			// 全部を拾おうとして送信を待たせるほうが害が大きい。**ただし黙らない。**
+			if (Date.now() > until) {
+				this.trouble(directory, `時間内に終わらなかった（残り ${pending.length - at} 件は第 1 層だけ）`)
+				break
+			}
+
 			const batch = pending.slice(at, at + NER_AT_ONCE)
 			// **`allSettled` にする。** `all` だと 1 件の失敗で、同じまとまりの中で
 			// 済んでいたぶんまで捨てる。

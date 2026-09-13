@@ -530,3 +530,47 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		expect(result.troubles.join()).toContain("途中で失敗した")
 	})
 })
+
+describe("時間で打ち切る（FR-PII-23f）", () => {
+	beforeEach(() => {
+		ner.backend = {}
+		ner.calls = 0
+		ner.loadThrows = false
+		ner.detectThrows = false
+		ner.beforeDetect = undefined
+	})
+
+	it("上限を超えたら、そこまでの結果で先へ進む", async () => {
+		// **第 2 層は取りこぼしてよい層である。** 全部を拾おうとして送信を待たせない。
+		// 時計を進めて、2 つ目のまとまりへ入る前に上限を超えさせる。
+		const started = Date.now()
+		let call = 0
+		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 10_000 : 0))
+
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
+		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
+
+		const result = await masker.maskForRequest("", many)
+
+		// 1 つ目のまとまりは判定できている。
+		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}が担当 0" })
+		// **黙らない。** 画面が変わらないので、出さないと取り違えに気づけない。
+		expect(result.troubles.join()).toContain("時間内に終わらなかった")
+		// 残りは第 1 層だけ。敬称が無いので伏せられない。
+		expect(result.messages[NER_AT_ONCE * 3 - 1]).toMatchObject({
+			content: `森が担当 ${NER_AT_ONCE * 3 - 1}`,
+		})
+
+		vi.restoreAllMocks()
+	})
+
+	it("上限に収まれば、全部判定する", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
+		const many = Array.from({ length: NER_AT_ONCE + 2 }, (_, at) => message(`森が担当 ${at}`))
+
+		const result = await masker.maskForRequest("", many)
+
+		expect(result.troubles).toEqual([])
+		expect(result.messages[NER_AT_ONCE + 1]).toMatchObject({ content: `{{person-001}}が担当 ${NER_AT_ONCE + 1}` })
+	})
+})

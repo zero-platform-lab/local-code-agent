@@ -346,7 +346,10 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		// **画面が渡してきた置き場所を優先する。** 保存前の値でも、押した人はそこへ
 		// 取りたい。保存済みだけを読むと、別の場所へ 282 MB を取ってしまう。
 		const masking = provider.contextProxy.getValue("piiMasking")
-		const raw = (typeof message.text === "string" && message.text) || masking?.properNouns?.modelPath
+		// **空の文字列も画面の答えとして扱う。** 欄を空にしたのは「既定の場所へ」という
+		// 意思である。空を falsy として保存済みへ落とすと、消したはずの古い場所へ
+		// 282 MB を取りに行き、拡張は既定の場所を見るので第 2 層は切のままになる。
+		const raw = typeof message.text === "string" ? message.text : masking?.properNouns?.modelPath
 		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
 
 		// 282 MB を待たせるので、何を取っているかを出す。

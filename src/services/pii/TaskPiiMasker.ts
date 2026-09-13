@@ -57,7 +57,7 @@ export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string)
  * 1 つずつ待つと、初回の長い履歴で本文の数だけ待ち時間が積み上がる。全部同時にすると
  * 記憶が膨らむ。
  */
-const NER_AT_ONCE = 8
+export const NER_AT_ONCE = 8
 
 export class TaskPiiMasker {
 	/**
@@ -80,6 +80,8 @@ export class TaskPiiMasker {
 	private backendTried = false
 	/** 本文ごとの第 2 層の結果。同じ本文を毎回判定し直さない。 */
 	private nerMemo = new Map<string, PiiMatch[]>()
+	/** 前の要求で第 2 層が使えたか。変わったら伏せた結果の記憶を捨てる。 */
+	private lastLayerTwo: boolean | undefined
 
 	/**
 	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上
@@ -182,6 +184,9 @@ export class TaskPiiMasker {
 		// `resolveDictionaryPath` は `~` を開き、空欄を落とす。落ちたら既定の場所を見る。
 		const directory = (settings.modelPath && resolveDictionaryPath(settings.modelPath)) || defaultModelDirectory()
 
+		// **先に上限を見る。** 判定したあとに捨てると、いま判定したぶんまで消える。
+		this.capNerMemo()
+
 		if (!this.backendTried) {
 			this.backendTried = true
 
@@ -198,7 +203,10 @@ export class TaskPiiMasker {
 		}
 
 		const backend = this.backend
-		if (!backend) return undefined
+		if (!backend) {
+			this.noteLayerTwo(false)
+			return undefined
+		}
 
 		const options = { minScore: settings.minScore, entities: settings.entities }
 		const pending = texts.filter((text) => !this.nerMemo.has(text))
@@ -211,15 +219,37 @@ export class TaskPiiMasker {
 				const found = await Promise.all(batch.map((text) => detectWith(backend, text, options)))
 				batch.forEach((text, index) => this.nerMemo.set(text, found[index]))
 			} catch (error) {
-				// 判定できなかった本文は第 1 層だけで伏せる。次の要求で作り直す。
+				// **済んだぶんは捨てない。** 捨てると、判定できていた本文まで第 1 層だけに
+				// なる。しかもその結果は記憶へ残り、この会話の間ずっと効かなくなる。
+				//
+				// **次の要求で読み直す。** 一度の不調で、この会話の間ずっと第 2 層を
+				// 止めない。
 				this.backend = undefined
+				this.backendTried = false
 				this.trouble(directory, error instanceof Error ? error.message : String(error))
-				return undefined
+				break
 			}
 		}
 
-		this.capNerMemo()
+		// **判定が終わってから記録する。** 途中で失敗すれば `this.backend` は空になる。
+		// 始める前に「使える」と記録すると、失敗した回を成功として覚えてしまう。
+		this.noteLayerTwo(Boolean(this.backend))
 		return lookupOf(this.nerMemo)
+	}
+
+	/**
+	 * 第 2 層が効いたかどうかが前の要求と変わったら、伏せた結果の記憶を捨てる。
+	 *
+	 * 記憶の鍵は本文だけなので、第 2 層が効かなかったときの結果がそのまま残る。あとで
+	 * モデルが使えるようになっても、覚えていた第 1 層だけの結果を返し続け、**画面には
+	 * 何も出ないまま名前が素通りする**。
+	 */
+	private noteLayerTwo(worked: boolean): void {
+		if (this.lastLayerTwo === worked) return
+
+		this.lastLayerTwo = worked
+		this.memo.clear()
+		this.memo.bytes = 0
 	}
 
 	/** 第 2 層が動かなかったことを伝える（`FR-PII-22a`）。黙ると取り違えに気づけない。 */

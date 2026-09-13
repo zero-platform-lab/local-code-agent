@@ -229,6 +229,12 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 						))}
 					</div>
 
+					{entities.length === 0 ? (
+						<div className="text-sm text-vscode-errorForeground" data-testid="pii-no-entities">
+							{t("settings:pii.properNouns.noEntities")}
+						</div>
+					) : null}
+
 					<label className="block mt-2">{t("settings:pii.properNouns.modelPath")}</label>
 					<div className="flex gap-1 items-center">
 						<VSCodeTextField

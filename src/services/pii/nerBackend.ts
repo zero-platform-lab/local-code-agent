@@ -24,6 +24,22 @@ import { verifyModel, type ModelCheck } from "./nerModel"
  * ファイルだけを使う。判定はこの機械の中で終わる。
  */
 
+/**
+ * 一度に渡す文字の数。
+ *
+ * **モデルは 512 断片までしか見ない。** 超えた分は黙って落ちる。日本語は 1 文字が
+ * 1 断片になり得るので、余裕を見てこの長さに切る。
+ */
+const WINDOW = 256
+
+/**
+ * 窓の重なり。
+ *
+ * 切れ目に名前がまたがると、どちらの窓でも半分しか見えない。名前の長さより十分に
+ * 大きくとる。
+ */
+const OVERLAP = 32
+
 /** モデルを読んだもの。判断は持たない。 */
 export type NerBackend = {
 	/** 文章を断片へ分ける。特殊な印は含まない。 */
@@ -42,11 +58,32 @@ export type NerBackend = {
  * なので、足さないと 1 つずれ、全ての範囲が隣の断片を指す（`nerSpans` を参照）。
  */
 export async function detectWith(backend: NerBackend, text: string, options: NerOptions = {}): Promise<PiiMatch[]> {
+	if (text.length <= WINDOW) return detectOne(backend, text, options, 0)
+
+	// **窓に分けて全部見る。** 分けないと、長い本文の後ろが黙って落ちる。
+	const found: PiiMatch[] = []
+	for (let at = 0; at < text.length; at += WINDOW - OVERLAP) {
+		found.push(...(await detectOne(backend, text.slice(at, at + WINDOW), options, at)))
+		if (at + WINDOW >= text.length) break
+	}
+
+	// 重なりの分だけ二度出る。位置が同じものは 1 つにする。
+	const seen = new Set<string>()
+	return found.filter((one) => {
+		const key = `${one.start}-${one.end}`
+		if (seen.has(key)) return false
+		seen.add(key)
+		return true
+	})
+}
+
+/** 窓 1 つぶんを判定する。`offset` は本文の中での窓の始まりの位置。 */
+async function detectOne(backend: NerBackend, text: string, options: NerOptions, offset: number): Promise<PiiMatch[]> {
 	const pieces = [backend.bos, ...backend.tokenize(text), backend.eos]
 	const spans = alignTokens(text, pieces)
 	const groups = groupEntities(text, spans, await backend.classify(text))
 
-	return toPiiMatches(groups, options)
+	return toPiiMatches(groups, options).map((one) => ({ ...one, start: one.start + offset, end: one.end + offset }))
 }
 
 /**

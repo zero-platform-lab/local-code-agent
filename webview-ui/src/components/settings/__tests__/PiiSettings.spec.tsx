@@ -241,3 +241,19 @@ describe("保存前の値を渡す", () => {
 		})
 	})
 })
+
+describe("区分を 1 つも選んでいない状態（FR-PII-21a）", () => {
+	it("既定ではその注意を出さない", () => {
+		renderWith({ properNouns: { enabled: true } })
+
+		expect(screen.queryByTestId("pii-no-entities")).not.toBeInTheDocument()
+	})
+
+	it("全部外したら、1 件も伏せられないと出す", () => {
+		// モデルの読み込みだけが行われ、入っているのに何も伏せない状態になる。
+		// 伏せる種類の側（`pii-no-kinds`）と同じ扱いにする。
+		renderWith({ properNouns: { enabled: true, entities: [] } })
+
+		expect(screen.getByTestId("pii-no-entities")).toBeInTheDocument()
+	})
+})

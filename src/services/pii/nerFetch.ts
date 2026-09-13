@@ -1,5 +1,7 @@
 import * as path from "path"
-import { promises as fs } from "fs"
+import { createWriteStream, promises as fs } from "fs"
+import { Readable } from "stream"
+import { pipeline } from "stream/promises"
 
 import { fetchThrough, getProxyDispatcher } from "../../utils/proxyDispatcher"
 
@@ -53,9 +55,15 @@ async function download(url: string, target: string): Promise<void> {
 	if (!response.ok) {
 		throw new Error(`${url}: ${response.status} ${response.statusText}`)
 	}
+	if (!response.body) {
+		throw new Error(`${url}: 本文が無い`)
+	}
 
 	await fs.mkdir(path.dirname(target), { recursive: true })
-	await fs.writeFile(target, Buffer.from(await response.arrayBuffer()))
+
+	// **流し込む。** まとめて読むと、265 MB の実体とその写しを同時に抱えることになり、
+	// 拡張ホストごと記憶を使い切りかねない。取り消す手段も用意していない。
+	await pipeline(Readable.fromWeb(response.body as Parameters<typeof Readable.fromWeb>[0]), createWriteStream(target))
 }
 
 /**

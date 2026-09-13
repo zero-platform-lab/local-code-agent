@@ -372,10 +372,13 @@ function resolveRuntimeRoots(srcDir: string): { node: string; common: string } {
 	const fromSrc = createRequire(path.join(srcDir, "package.json"))
 	const req = createRequire(fromSrc.resolve("@huggingface/transformers"))
 
-	return {
-		node: packageRoot(req.resolve("onnxruntime-node")),
-		common: packageRoot(req.resolve("onnxruntime-common")),
-	}
+	// **`onnxruntime-common` は `onnxruntime-node` から解く。** `@huggingface/transformers`
+	// は `onnxruntime-common` を依存として宣言していないので、そちらから解くと、入れ方に
+	// よっては見つからないか、**`onnxruntime-node` が要求するのと違う版**を拾う。
+	const node = packageRoot(req.resolve("onnxruntime-node"), "onnxruntime-node")
+	const fromNode = createRequire(path.join(node, "package.json"))
+
+	return { node, common: packageRoot(fromNode.resolve("onnxruntime-common"), "onnxruntime-common") }
 }
 
 /**
@@ -384,9 +387,7 @@ function resolveRuntimeRoots(srcDir: string): { node: string; common: string } {
  * `package.json` は `exports` に載っていないことがあるので、直接は解決できない。
  * `name` が一致する `package.json` に当たるまで上へ辿る。
  */
-function packageRoot(entry: string): string {
-	const name = entry.includes("onnxruntime-node") ? "onnxruntime-node" : "onnxruntime-common"
-
+function packageRoot(entry: string, name: string): string {
 	let dir = path.dirname(entry)
 	for (let depth = 0; depth < 10; depth++) {
 		const manifest = path.join(dir, "package.json")

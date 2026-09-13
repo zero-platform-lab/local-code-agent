@@ -98,7 +98,13 @@ const INTERNAL_HOST = new RegExp(
 	"gi",
 )
 
-/** 閉じた宛先は伏せない（`FR-PII-06a`）。誰のものでもなく、コードの中で意味を持つ。 */
+/**
+ * 閉じた宛先は伏せない（`FR-PII-06a`）。誰のものでもなく、コードの中で意味を持つ。
+ *
+ * **実際にここで弾けるのは `localhost.localdomain` だけである。** `localhost` や
+ * `127.0.0.1` は `INTERNAL_HOST` の形（`名前.内部向け TLD`）に当たらないので、そもそも
+ * 届かない。IP は `isPrivateOrClosed` が別に弾く。守っているように見せないため書き残す。
+ */
 const CLOSED_HOSTS = new Set(["localhost", "localhost.localdomain", "127.0.0.1", "::1", "0.0.0.0"])
 
 export function detectHosts(text: string): PiiMatch[] {
@@ -531,6 +537,10 @@ export function detectHonorificNames(text: string): PiiMatch[] {
 		for (const found of text.matchAll(pattern)) {
 			const value = found.groups?.value
 			if (!value || deny.has(value)) continue
+
+			// **肩書きに敬称が付いただけのものを人名にしない。** `部長さん` は `部長` ＋
+			// `さん` で、名前がどこにも無い。肩書きの一覧は敬称の側でも除く。
+			if (TITLES.includes(value)) continue
 
 			// **より長い肩書きが後ろに付いていれば、そのぶん名前を切り詰める。**
 			//

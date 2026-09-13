@@ -165,3 +165,51 @@ describe("loadBackend（FR-PII-23b）", () => {
 		])
 	})
 })
+
+describe("長い本文を窓に分ける（FR-PII-21）", () => {
+	/**
+	 * **本物の制約を写した偽物。**
+	 *
+	 * モデルは 512 断片までしか見ず、超えた分は黙って落とす。偽物が無制限だと、
+	 * 落ちていることに試験が気づけない。ここでは渡された長さを見張り、長すぎれば
+	 * 投げる。
+	 */
+	function strictBackend(limit: number): NerBackend {
+		return {
+			tokenize: (text) => [...text],
+			classify: async (text) => {
+				if (text.length > limit) throw new Error(`${limit} 文字を超えている: ${text.length}`)
+				// 「森」を人名として返す。位置は窓の中での索引になる。
+				const at = text.indexOf("森")
+				return at < 0 ? [] : [{ index: at + 1, entity: "PER", score: 0.99, word: "森" }]
+			},
+			bos: "<s>",
+			eos: "</s>",
+		}
+	}
+
+	it("上限を超える本文でも、1 度に渡す量は上限を超えない", async () => {
+		const text = "あ".repeat(2000) + "森"
+
+		// 投げれば、窓に分けられていない。
+		await expect(detectWith(strictBackend(256), text)).resolves.toBeDefined()
+	})
+
+	it("本文の終わりにある名前も拾う", async () => {
+		// 分けないと、後ろが黙って落ちる。画面には何も出ない。
+		const text = "あ".repeat(2000) + "森"
+
+		const found = await detectWith(strictBackend(256), text)
+
+		expect(found).toEqual([{ kind: "person", start: 2000, end: 2001, value: "森" }])
+	})
+
+	it("窓の重なりで二度出たものは 1 つにする", async () => {
+		// 重なりの中にある名前は、2 つの窓の両方から見える。
+		const text = "あ".repeat(240) + "森" + "い".repeat(300)
+
+		const found = await detectWith(strictBackend(256), text)
+
+		expect(found).toEqual([{ kind: "person", start: 240, end: 241, value: "森" }])
+	})
+})

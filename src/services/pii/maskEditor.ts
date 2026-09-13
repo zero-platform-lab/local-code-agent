@@ -3,7 +3,7 @@ import * as vscode from "vscode"
 import { t } from "../../i18n"
 
 import { readDictionaries } from "./dictionary"
-import { createAllocator, planMasking, type PlaceholderAllocator } from "./maskText"
+import { createAllocator, findPii, type PlaceholderAllocator } from "./maskText"
 import type { PiiKind, PiiTerm } from "./types"
 
 /**
@@ -135,13 +135,16 @@ export async function maskSecretsInActiveEditor(
 		secretLabels: settings.secretLabels,
 	}
 
-	// **確認の前は使い捨ての割り当て係で数える。**
-	//
-	// 共有の対応表で数えると、利用者が断っても番号が減らず、**書かれてもいない値が
-	// 対応表に残る**。あとでモデルがその伏せ字を書けば、その値がファイルへ入る。
-	const preview = planMasking(text, options, range, createAllocator())
+	// **検出は 1 回だけにする。** 数えるのに番号は要らない。全部の正規表現と 1,863 件の
+	// 地名の照合を、確認の前後で二度走らせない。
+	const matches = findPii(text, options).filter(
+		(match) => range === undefined || (match.start >= range.start && match.end <= range.end),
+	)
 
-	if (preview.edits.length === 0) {
+	const counts: Partial<Record<PiiKind, number>> = {}
+	for (const match of matches) counts[match.kind] = (counts[match.kind] ?? 0) + 1
+
+	if (matches.length === 0) {
 		await vscode.window.showInformationMessage(t("common:pii.nothingFound"))
 		return
 	}
@@ -149,7 +152,7 @@ export async function maskSecretsInActiveEditor(
 	// 戻せない操作なので、確認を挟む。件数は種類ごとに出す。
 	const confirm = t("common:pii.confirmReplace")
 	const answer = await vscode.window.showWarningMessage(
-		t("common:pii.confirm", { summary: describeCounts(preview.counts) }),
+		t("common:pii.confirm", { summary: describeCounts(counts) }),
 		{ modal: true },
 		confirm,
 	)
@@ -165,15 +168,19 @@ export async function maskSecretsInActiveEditor(
 	}
 
 	// **ここで初めて共有の対応表へ入れる。** 断られていれば、ここまで来ない。
-	const plan = planMasking(text, options, range, allocator)
+	//
+	// **書き込みの成否より先に入れるしかない。** 書き込む文字列そのものが伏せ字なので、
+	// 番号を決めなければ編集を組み立てられない。書き込みに失敗したときは番号だけが
+	// 消費されるが、同じ値には同じ伏せ字が当たるので、指す先が食い違うことは無い。
+	// 渡されなければ 1 回限りの割り当てにする。`planMasking` と同じ扱いである。
+	const own = allocator ?? createAllocator()
 
-	// 1 つの `WorkspaceEdit` にまとめる。取り消しの操作 1 回で元へ戻る（`FR-PII-11c`）。
 	const workspaceEdit = new vscode.WorkspaceEdit()
-	for (const edit of plan.edits) {
+	for (const match of matches) {
 		workspaceEdit.replace(
 			document.uri,
-			new vscode.Range(document.positionAt(edit.start), document.positionAt(edit.end)),
-			edit.placeholder,
+			new vscode.Range(document.positionAt(match.start), document.positionAt(match.end)),
+			own.assign(match.kind, match.value),
 		)
 	}
 
@@ -182,5 +189,5 @@ export async function maskSecretsInActiveEditor(
 		return
 	}
 
-	await vscode.window.showInformationMessage(t("common:pii.replaced", { summary: describeCounts(plan.counts) }))
+	await vscode.window.showInformationMessage(t("common:pii.replaced", { summary: describeCounts(counts) }))
 }

@@ -3,8 +3,6 @@ import * as fs from "fs"
 import * as os from "os"
 import * as path from "path"
 
-import { AgentEventName, type ClineMessage } from "@openai-agent/types"
-
 import { setDefaultSuiteTimeout } from "./test-utils"
 import { waitFor } from "./utils"
 
@@ -42,9 +40,8 @@ suite("PII masking inside the extension host", function () {
 		fake.enqueue({ kind: "tool", name: "attempt_completion", arguments: { result: "ok" } })
 		const before = fake.requests.length
 
-		const collected: ClineMessage[] = []
-		api.on(AgentEventName.Message, ({ message }) => collected.push(message))
-
+		// **聞き手は足さない。** 足すと外す機会が無く、この試験のあとも全ての会話が
+		// 捨て場所の配列へ積まれ続ける。ここで見たいのは送られた本文だけである。
 		await api.startNewTask({
 			configuration: { mode: "ask", autoApprovalEnabled: true, piiMasking } as never,
 			text: TEXT,

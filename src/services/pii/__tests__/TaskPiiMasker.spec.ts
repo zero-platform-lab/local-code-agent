@@ -23,6 +23,7 @@ const ner = vi.hoisted(() => ({
 	check: { ok: false, missing: ["SHA256SUMS"], mismatched: [] },
 	loadThrows: false,
 	detectThrows: false,
+	beforeDetect: undefined as (() => void) | undefined,
 }))
 
 // モデルは 265 MB あり、試験のたびに読めない。読む段だけを偽物にする。
@@ -34,6 +35,7 @@ vi.mock("../nerBackend", () => ({
 	detectWith: async (_backend: unknown, text: string) => {
 		ner.calls++
 		if (ner.detectThrows) throw new Error("判定に失敗した")
+		ner.beforeDetect?.()
 		// 「森」を人名として返す偽の判定。第 1 層には無い規則である。
 		const at = text.indexOf("森")
 		return at < 0 ? [] : [{ kind: "person", start: at, end: at + 1, value: "森" }]
@@ -45,7 +47,7 @@ vi.mock("../nerModel", async (importOriginal) => ({
 	verifyModel: async () => ner.check,
 }))
 
-import { lookupOf, TaskPiiMasker } from "../TaskPiiMasker"
+import { lookupOf, NER_AT_ONCE, TaskPiiMasker } from "../TaskPiiMasker"
 import { resetSessionVault, sessionVault } from "../maskConversation"
 
 // **対応表は本製品で 1 つを共有する（`FR-PII-02b`）。** 捨てないと、前の試験で
@@ -472,6 +474,7 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		ner.calls = 0
 		ner.loadThrows = false
 		ner.detectThrows = false
+		ner.beforeDetect = undefined
 	})
 
 	const settings = { enabled: true, kinds: ["email", "person"] as const, properNouns: { enabled: true } }
@@ -497,14 +500,33 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		expect(result.troubles.join()).toContain("判定に失敗した")
 	})
 
-	it("一度投げたら、次の要求でも第 1 層だけで動く", async () => {
-		// 投げたモデルを抱え続けると、要求のたびに同じ例外で待たされる。
+	it("一度投げても、次の要求では読み直す", async () => {
+		// **一度の不調で、この会話の間ずっと第 2 層を止めない。**
 		ner.detectThrows = true
 		const masker = new TaskPiiMasker(settings as never)
 		await masker.maskForRequest("", [message("森が担当")])
 
-		const second = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
+		ner.detectThrows = false
+		const second = await masker.maskForRequest("", [message("森が担当")])
 
-		expect(second.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
+		expect(second.messages[0]).toMatchObject({ content: "{{person-001}}が担当" })
+	})
+
+	it("一部のまとまりが投げても、済んだぶんは残す", async () => {
+		// 捨てると、判定できていた本文まで第 1 層だけになる。しかもその結果は記憶へ
+		// 残り、この会話の間ずっと効かなくなる。
+		const masker = new TaskPiiMasker(settings as never)
+		let seen = 0
+		ner.beforeDetect = () => {
+			// 9 件目（2 つ目のまとまりの 1 件目）で投げる。
+			if (++seen === NER_AT_ONCE + 1) throw new Error("途中で失敗した")
+		}
+		const many = Array.from({ length: NER_AT_ONCE + 2 }, (_, at) => message(`森が担当 ${at}`))
+
+		const result = await masker.maskForRequest("", many)
+
+		// 1 つ目のまとまりは判定できている。
+		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}が担当 0" })
+		expect(result.troubles.join()).toContain("途中で失敗した")
 	})
 })

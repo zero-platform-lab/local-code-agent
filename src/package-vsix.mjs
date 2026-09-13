@@ -18,9 +18,16 @@ import { fileURLToPath } from "url"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-const target = process.argv[2]
-if (!target || !/^[a-z0-9]+-[a-z0-9]+$/.test(target)) {
+const publish = process.argv.includes("--publish")
+const target = process.argv.find((one) => /^[a-z0-9]+-[a-z0-9]+$/.test(one))
+
+// **platform を指さない作り方を許さない。**
+//
+// 指さないと、いま動いている機械の native だけが入る。ほかの platform で入れた人は、
+// 第 2 層が黙って動かない（例外は `TaskPiiMasker` が握るので、画面には何も出ない）。
+if (!target) {
 	console.error("使い方: node package-vsix.mjs <platform>-<arch>（例: linux-x64）")
+	console.error("第 2 層の native を含むため、platform を指さずには作れない。")
 	process.exit(1)
 }
 
@@ -33,7 +40,7 @@ const run = (command, args) => {
 
 run("pnpm", ["bundle", "--production", `--target=${target}`])
 run("mkdirp", ["../bin"])
-run("vsce", ["package", "--no-dependencies", "--target", target, "--out", "../bin"])
+run("vsce", [publish ? "publish" : "package", "--no-dependencies", "--target", target, "--out", "../bin"])
 
 // **確かめる。** 束ね直しで platform が戻っていないか、写した実物から見る。
 //

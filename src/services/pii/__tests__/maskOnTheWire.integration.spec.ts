@@ -14,7 +14,7 @@
 //   4. 控えた本文に生の値が 1 つも無く、伏せ字が載っていることを確かめる
 //
 // **伏せない場合も確かめる。** 生の値が載ることを見ておかないと、この試験が本当に
-// 何かを見張っているのか分からない。
+// 何かを確かめているのか分からない。
 
 import http from "node:http"
 import type { AddressInfo } from "node:net"
@@ -135,7 +135,7 @@ describe("伏せた結果が実際の HTTP の本文に載る（FR-PII-01）", (
 	it("伏せなければ、生の値が載る", async () => {
 		const server = await startServer()
 		try {
-			// これが載らないなら、上の試験は何も見張っていない。
+			// これが載らないなら、上の試験は何も確かめていない。
 			await send(undefined, server.port)
 
 			const sent = server.bodies.join("")

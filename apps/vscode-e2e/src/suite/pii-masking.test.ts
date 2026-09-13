@@ -17,7 +17,7 @@ import { waitFor } from "./utils"
  * いれば落ちる。
  *
  * **伏せない場合も確かめる。** 生の値が載ることを見ておかないと、この試験が本当に何かを
- * 見張っているのか分からない。
+ * 確かめているのか分からない。
  */
 suite("PII masking inside the extension host", function () {
 	setDefaultSuiteTimeout(this)
@@ -69,7 +69,7 @@ suite("PII masking inside the extension host", function () {
 	})
 
 	test("切なら、生の値が載る", async () => {
-		// これが載らないなら、上の試験は何も見張っていない。
+		// これが載らないなら、上の試験は何も確かめていない。
 		const sent = await sendAndCapture({})
 
 		assert.ok(sent.includes(SECRETS.email), "伏せていないのに載っていない")

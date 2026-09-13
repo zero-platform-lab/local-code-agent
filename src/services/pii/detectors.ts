@@ -536,22 +536,31 @@ export function detectHonorificNames(text: string): PiiMatch[] {
 		// `matchAll` は `lastIndex` を触らないので、使い回してよい。
 		for (const found of text.matchAll(pattern)) {
 			const value = found.groups?.value
-			if (!value || deny.has(value)) continue
+			if (!value) continue
 
-			// **肩書きに敬称が付いただけのものを人名にしない。** `部長さん` は `部長` ＋
-			// `さん` で、名前がどこにも無い。肩書きの一覧は敬称の側でも除く。
-			if (TITLES.includes(value)) continue
-
-			// **より長い肩書きが後ろに付いていれば、そのぶん名前を切り詰める。**
+			// **肩書きを 2 段で切り落とす。**
 			//
-			// 正規表現は名前を長く採ろうとするので、`田中本部長` を `田中本` ＋ `部長` と
-			// 読む。**捨ててはいけない。** 捨てると `田中` が素のまま送られる。いちばん長い
-			// 肩書きを見つけ、その手前までを名前にする。
-			const longest = TITLES.filter((title) => found[0].endsWith(title)).sort((a, b) => b.length - a.length)[0]
-			const name = longest ? found[0].slice(0, found[0].length - longest.length) : value
+			// 正規表現は名前を長く採ろうとするので、肩書きが名前の側へ食い込む。しかも
+			// 食い込み方が 2 通りある。
+			//
+			// | 本文           | 当たった全体 | 採れた名前 | 本当の名前 |
+			// | -------------- | ------------ | ---------- | ---------- |
+			// | `田中本部長`   | `田中本部長` | `田中本`   | `田中`     |
+			// | `田中部長さん` | `田中部長さん` | `田中部長` | `田中`   |
+			//
+			// 上は「名前＋敬称」を繋ぐと肩書きになる形、下は名前の側に肩書きが丸ごと
+			// 入っている形である。**捨ててはいけない。** 捨てると名前が素のまま送られる。
+			const whole = TITLES.filter((title) => found[0].endsWith(title)).sort((a, b) => b.length - a.length)[0]
+			const trimmed = whole ? found[0].slice(0, found[0].length - whole.length) : value
+			const inner = TITLES.filter((title) => trimmed.endsWith(title)).sort((a, b) => b.length - a.length)[0]
+			const name = inner ? trimmed.slice(0, trimmed.length - inner.length) : trimmed
 
-			// 肩書きだけで名前が残らない（`本部長`）。人名ではない。
-			if (name.length === 0 || deny.has(name)) continue
+			// 肩書きだけで名前が残らない（`本部長` `部長さん`）。人名ではない。
+			if (name.length === 0) continue
+
+			// **除く語は両方を見る。** `営業部長さん` は敬称の側で当たるが、除きたい理由は
+			// 肩書きの側にある。片方だけ見ると、部署が人名になる。
+			if (NOT_NAME_BEFORE_HONORIFIC.has(name) || NOT_NAME_BEFORE_TITLE.has(name) || deny.has(name)) continue
 
 			// **敬称と肩書きは範囲へ入れない。** モデルが役職を読めなくなる。
 			matches.push({ kind: "person", start: found.index, end: found.index + name.length, value: name })

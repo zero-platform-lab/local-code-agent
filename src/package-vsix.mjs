@@ -19,7 +19,7 @@ import { fileURLToPath } from "url"
 const here = path.dirname(fileURLToPath(import.meta.url))
 
 const publish = process.argv.includes("--publish")
-const targets = process.argv.filter((one) => /^[a-z0-9]+-[a-z0-9]+$/.test(one))
+const targets = process.argv.filter((one) => one === "universal" || /^[a-z0-9]+-[a-z0-9]+$/.test(one))
 
 // **platform を指さない作り方を許さない。**
 //
@@ -48,12 +48,21 @@ function buildOne(target) {
 	run("pnpm", ["bundle", "--production", `--target=${target}`], env)
 	run("mkdirp", ["../bin"], env)
 
+	// `universal` は platform を指さずに作る。受け取り手を絞らない配布物になる。
+	const forTarget = target === "universal" ? [] : ["--target", target]
+
 	if (publish) {
 		// **2 つの店へ出す。** 片方だけにすると、もう片方の利用者が古い版のままになる。
-		run("vsce", ["publish", "--no-dependencies", "--target", target], env)
-		run("ovsx", ["publish", "--no-dependencies", "--target", target], env)
+		run("vsce", ["publish", "--no-dependencies", ...forTarget], env)
+		run("ovsx", ["publish", "--no-dependencies", ...forTarget], env)
 	} else {
-		run("vsce", ["package", "--no-dependencies", "--target", target, "--out", "../bin"], env)
+		run("vsce", ["package", "--no-dependencies", ...forTarget, "--out", "../bin"], env)
+	}
+
+	// `universal` には native が入らない。確かめる対象が無い。
+	if (target === "universal") {
+		console.log("\n確認: universal には native を入れていない（第 2 層は動かない）。")
+		return
 	}
 
 	// **確かめる。** 束ね直しで platform が戻っていないか、写した実物から見る。

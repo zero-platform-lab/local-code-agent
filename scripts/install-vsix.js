@@ -45,7 +45,13 @@ async function main() {
 			publisher = packageJson.publisher
 		}
 
-		const vsixFileName = `./bin/${name}-${version}.vsix`
+		// **platform 別のものを先に探す。**
+		//
+		// 第 2 層の native を含むため、配布物は platform ごとに分かれる。自分の platform の
+		// ものがあればそれを入れる。無ければ universal（native 無し・第 1 層だけ）を入れる。
+		const target = `${process.platform}-${process.arch}`
+		const candidates = [`./bin/${name}-${target}-${version}.vsix`, `./bin/${name}-${version}.vsix`]
+		const vsixFileName = candidates.find((one) => fs.existsSync(one)) ?? candidates[candidates.length - 1]
 		const extensionId = `${publisher}.${name}`
 		const buildType = isNightly ? "Nightly" : "Regular"
 

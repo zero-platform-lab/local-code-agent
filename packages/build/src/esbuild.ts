@@ -338,6 +338,16 @@ function transformRecord<T>(obj: Record<string, any>, from: string, to: string):
  * @param target 配る先。`linux-x64` の形。省略すると、いま動いている環境に合わせる
  */
 export function copyOnnxRuntime(srcDir: string, distDir: string, target?: string): void {
+	// **`universal` は native を入れない。**
+	//
+	// platform 別に作れない配布物（macOS や arm の利用者が受け取るもの）である。第 2 層は
+	// 動かないが、第 1 層はモデルを要らないのでそのまま動く。黙って抜くと取り違えるので、
+	// 抜いたことを出す。
+	if (target === "universal") {
+		console.log("[copyOnnxRuntime] universal のため native を入れない（第 2 層は動かない）")
+		return
+	}
+
 	const [platform, arch] = (target ?? `${process.platform}-${process.arch}`).split("-")
 
 	// **失敗を握り潰さない。** 写せていないまま VSIX を作ると、第 2 層が動かないのに
@@ -427,4 +437,51 @@ function copyPackage(from: string, to: string, keep: (relative: string) => boole
 		fs.mkdirSync(path.dirname(target), { recursive: true })
 		fs.copyFileSync(full, target)
 	}
+}
+
+/**
+ * 第 2 層（固有名詞の検出）のために、束ね方へ足すもの。
+ *
+ * **なぜ切り出すか。** 束ね方の設定は 2 つある（`src/esbuild.mjs` と
+ * `apps/vscode-internal/esbuild.mjs`）。片方にだけ入れたことが実際にあり、配った VSIX
+ * では第 2 層が黙って動かなかった。例外は握られるので、画面には何も出ない。
+ *
+ * **grep で揃っているか確かめる試験も置いていたが、それは後追いでしかない。** 覚えていた
+ * 型しか見ず、次のずれは通る。両方がこの 1 つを呼ぶ形にすれば、ずれようがない。
+ */
+export function piiRuntimeBundle(options: {
+	srcDir: string
+	distDir: string
+	/** 配る先。`linux-x64` の形。`universal` なら native を入れない。 */
+	target?: string
+	/** 監視のときは、既に写してあれば飛ばす。数十 MB を保存のたびに写さない。 */
+	watch?: boolean
+}): {
+	external: string[]
+	alias: Record<string, string>
+	plugin: { name: string; setup: (build: { onEnd: (fn: () => void) => void }) => void }
+} {
+	const { srcDir, distDir, target, watch } = options
+
+	return {
+		// native の実行ファイルを相対の位置で読むので、束ねると見つからない。
+		external: ["onnxruntime-node"],
+		// 画像用で本製品は使わない。同梱すると 16.5 MB 増える。
+		alias: { sharp: path.join(srcDir, "build-stubs", "sharp.js") },
+		plugin: {
+			name: "copyOnnxRuntime",
+			setup(build) {
+				build.onEnd(() => {
+					// `dist` は毎回消えるので、監視でも 1 回目は要る。
+					const binding = path.join(distDir, "node_modules", "onnxruntime-node", "bin")
+					if (!watch || !fs.existsSync(binding)) copyOnnxRuntime(srcDir, distDir, target)
+				})
+			},
+		},
+	}
+}
+
+/** 配る先を引数と環境変数から読む。`vsce` が束ね直すので、環境変数も見る。 */
+export function bundleTarget(argv: readonly string[], env: Record<string, string | undefined>): string | undefined {
+	return argv.find((one) => one.startsWith("--target="))?.slice("--target=".length) || env.VSIX_TARGET
 }

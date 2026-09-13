@@ -3,7 +3,14 @@ import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
 
-import { getGitSha, copyPaths, copyWasms, copyOnnxRuntime, generatePackageJson } from "@openai-agent/build"
+import {
+	getGitSha,
+	copyPaths,
+	copyWasms,
+	piiRuntimeBundle,
+	bundleTarget,
+	generatePackageJson,
+} from "@openai-agent/build"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -22,8 +29,7 @@ async function main() {
 	const name = "extension-internal"
 	const production = process.argv.includes("--production")
 	// 配る先。`--target=linux-x64` の形。`src/esbuild.mjs` と同じ受け方にする。
-	const target =
-		process.argv.find((one) => one.startsWith("--target="))?.slice("--target=".length) || process.env.VSIX_TARGET
+	const target = bundleTarget(process.argv, process.env)
 	const minify = production
 	const sourcemap = !production
 
@@ -57,6 +63,9 @@ async function main() {
 	const srcDir = path.join(__dirname, "..", "..", "src")
 	const buildDir = path.join(__dirname, "build")
 	const distDir = path.join(buildDir, "dist")
+
+	// 第 2 層の設定は 1 か所から取る。2 つの束ね方でずれないようにするためである。
+	const pii = piiRuntimeBundle({ srcDir, distDir, target })
 
 	console.log(`[${name}] srcDir: ${srcDir}`)
 	console.log(`[${name}] buildDir: ${buildDir}`)
@@ -161,16 +170,7 @@ async function main() {
 				build.onEnd(() => copyWasms(srcDir, distDir))
 			},
 		},
-		{
-			// **`src/esbuild.mjs` と同じ扱いにする。** 片方だけに入れると、そちらでは動くのに
-			// 配る側では第 2 層が黙って動かない。両方が揃っていることは
-			// `packages/build/src/__tests__/bundlerParity.invariants.spec.ts` が固定する。
-			name: "copyOnnxRuntime",
-			setup(build) {
-				// この束ね方は配布のためだけに実行するので、watch は無い。毎回写してよい。
-				build.onEnd(() => copyOnnxRuntime(srcDir, distDir, target))
-			},
-		},
+		pii.plugin,
 		{
 			name: "copyLocales",
 			setup(build) {
@@ -205,12 +205,8 @@ async function main() {
 		plugins,
 		entryPoints: [path.join(srcDir, "extension.ts")],
 		outfile: path.join(distDir, "extension.js"),
-		// onnxruntime-node は束ねない。native を相対の位置で読むため（`src/esbuild.mjs` と同じ）。
-		external: ["vscode", "onnxruntime-node"],
-		alias: {
-			// 画像を扱うためのもので、本製品は使わない。同梱すると 16.5 MB 増える。
-			sharp: path.join(srcDir, "build-stubs", "sharp.js"),
-		},
+		external: ["vscode", ...pii.external],
+		alias: pii.alias,
 	}
 
 	/**

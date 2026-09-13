@@ -475,13 +475,14 @@
 		"format": "prettier --write .",
 		"bundle": "node esbuild.mjs",
 		"vscode:prepublish": "pnpm bundle --production",
-		"vsix": "node package-vsix.mjs linux-x64 win32-x64",
-		"publish:marketplace": "node package-vsix.mjs linux-x64 win32-x64 --publish",
+		"vsix": "node package-vsix.mjs universal linux-x64 win32-x64",
+		"publish:marketplace": "node package-vsix.mjs universal linux-x64 win32-x64 --publish",
 		"watch:bundle": "pnpm bundle --watch",
 		"watch:tsc": "cd .. && tsc --noEmit --watch --project src/tsconfig.json",
 		"clean": "rimraf README.md LICENSE dist logs mock .turbo",
 		"vsix:linux-x64": "node package-vsix.mjs linux-x64",
-		"vsix:win32-x64": "node package-vsix.mjs win32-x64"
+		"vsix:win32-x64": "node package-vsix.mjs win32-x64",
+		"vsix:universal": "node package-vsix.mjs universal"
 	},
 	"dependencies": {
 		"@huggingface/transformers": "^4.2.0",

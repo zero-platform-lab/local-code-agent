@@ -4,6 +4,8 @@ export {
 	copyWasms,
 	copyLocales,
 	copyOnnxRuntime,
+	piiRuntimeBundle,
+	bundleTarget,
 	setupLocaleWatcher,
 	generatePackageJson,
 } from "./esbuild.js"

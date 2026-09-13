@@ -204,3 +204,44 @@ export function maskConversation(
 
 	return { messages: copies, systemPrompt: mask(systemPrompt), counts }
 }
+
+/**
+ * 伏せる対象になる本文を、重複なく集める。
+ *
+ * **第 2 層のために要る。** 第 2 層の判定は非同期なので、`maskConversation` を呼ぶ前に
+ * 済ませておく必要がある。そのためには、どの本文が伏せられるかを先に知らねばならない。
+ *
+ * **`maskConversation` と同じ歩き方をすること。** 片方だけが見る本文があると、そこは
+ * 第 1 層だけで伏せられ、第 2 層が効かない。しかも画面上は何も変わらないので気づけない。
+ * `maskConversation.spec.ts` が、両者の見る本文が一致することを確かめている。
+ */
+export function collectTexts(systemPrompt: string, messages: readonly AgentMessage[]): string[] {
+	const texts = new Set<string>([systemPrompt])
+
+	for (const item of messages) {
+		if (item.type === "message") {
+			if (typeof item.content === "string") {
+				texts.add(item.content)
+				continue
+			}
+			for (const part of item.content) {
+				// 画像には文字列が無い。触らない。
+				if (part.type === "input_image") continue
+				texts.add(part.text)
+			}
+			continue
+		}
+
+		if (item.type === "function_call") {
+			texts.add(item.arguments)
+			continue
+		}
+
+		if (item.type === "function_call_output") {
+			texts.add(item.output)
+		}
+		// reasoning は暗号化された不透明な値なので触らない。
+	}
+
+	return [...texts]
+}

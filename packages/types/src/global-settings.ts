@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { piiKinds } from "./pii.js"
+import { nerEntities, piiKinds } from "./pii.js"
 import { type Keys } from "./type-fu.js"
 import { autonomyModeSchema } from "./autonomy.js"
 import {
@@ -183,6 +183,29 @@ export const piiMaskingSchema = z.object({
 	dictionaryPaths: z.array(z.string()).optional(),
 	/** 鍵のラベルに足す語（`FR-PII-10g`）。社内で使う語まで先に並べておくことはできない。 */
 	secretLabels: z.array(z.string()).optional(),
+	/**
+	 * 固有名詞の検出（第 2 層）（`FR-PII-21`〜`FR-PII-23e`）。
+	 *
+	 * 辞書に無い氏名や社名を、前後の文から判定して伏せる。モデルのファイルを別に置く
+	 * 必要があるため、第 1 層とは別の切り替えを持つ。
+	 */
+	properNouns: z
+		.object({
+			/** 第 2 層を実行するか（`FR-PII-21c`）。既定は切。 */
+			enabled: z.boolean().optional(),
+			/** モデルの置き場所（`FR-PII-23a`）。省略すると既定の場所を見る。 */
+			modelPath: z.string().optional(),
+			/**
+			 * 確度の下限（`FR-PII-21d`）。省略すると 0.9。
+			 *
+			 * **下げると誤検出が入る。** 誤検出はモデルが読む内容を変えるので、取りこぼし
+			 * より害が大きい。
+			 */
+			minScore: z.number().min(0).max(1).optional(),
+			/** 伏せる区分（`FR-PII-21a`）。省略すると製品名とイベント名だけを外す。 */
+			entities: z.array(z.enum(nerEntities)).optional(),
+		})
+		.optional(),
 })
 
 export type PiiMasking = z.infer<typeof piiMaskingSchema>

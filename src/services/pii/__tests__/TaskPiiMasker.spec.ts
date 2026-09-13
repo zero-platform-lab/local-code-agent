@@ -15,7 +15,31 @@ import type { AgentMessage } from "@openai-agent/types"
 
 vi.mock("../../agent-config", () => ({ getGlobalAgentDirectory: () => "/w/存在しない" }))
 
-import { TaskPiiMasker } from "../TaskPiiMasker"
+const ner = vi.hoisted(() => ({
+	/** 読めた体にするか。`undefined` なら「モデルが無い」。 */
+	backend: undefined as unknown,
+	/** 判定した回数。同じ本文を二度判定していないかを見る。 */
+	calls: 0,
+	check: { ok: false, missing: ["SHA256SUMS"], mismatched: [] },
+}))
+
+// モデルは 265 MB あり、試験のたびに読めない。読む段だけを偽物にする。
+vi.mock("../nerBackend", () => ({
+	loadBackend: async () => ner.backend,
+	detectWith: async (_backend: unknown, text: string) => {
+		ner.calls++
+		// 「森」を人名として返す偽の判定。第 1 層には無い規則である。
+		const at = text.indexOf("森")
+		return at < 0 ? [] : [{ kind: "person", start: at, end: at + 1, value: "森" }]
+	},
+}))
+
+vi.mock("../nerModel", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	verifyModel: async () => ner.check,
+}))
+
+import { lookupOf, TaskPiiMasker } from "../TaskPiiMasker"
 
 const message = (content: string): AgentMessage => ({ type: "message", role: "user", content }) as AgentMessage
 
@@ -253,5 +277,129 @@ describe("TaskPiiMasker", () => {
 		const result = await masker.maskForRequest("", [message("担当は EMP-12345")])
 
 		expect(result.messages[0]).toMatchObject({ content: "担当は {{term-001}}" })
+	})
+})
+
+describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
+	beforeEach(() => {
+		ner.backend = {}
+		ner.calls = 0
+		ner.check = { ok: false, missing: ["SHA256SUMS"], mismatched: [] }
+	})
+
+	it("切のままなら実行しない", async () => {
+		const masker = new TaskPiiMasker({ enabled: true })
+
+		const result = await masker.maskForRequest("", [message("森さんへ")])
+
+		expect(ner.calls).toBe(0)
+		expect(result.messages[0]).toMatchObject({ content: "森さんへ" })
+	})
+
+	it("入れると、辞書に無い名前も伏せる", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
+
+		const result = await masker.maskForRequest("", [message("森さんへ")])
+
+		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}さんへ" })
+	})
+
+	it("同じ本文を二度判定しない", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
+
+		await masker.maskForRequest("", [message("森さんへ")])
+		const before = ner.calls
+		await masker.maskForRequest("", [message("森さんへ")])
+
+		expect(ner.calls).toBe(before)
+	})
+
+	it("モデルが無ければ、第 1 層は動かしたうえでその旨を出す（FR-PII-22a・FR-PII-23b）", async () => {
+		// 黙って第 1 層だけにすると、画面の見た目が変わらないので気づけない。
+		ner.backend = undefined
+		const masker = new TaskPiiMasker({
+			enabled: true,
+			kinds: ["email", "person"],
+			properNouns: { enabled: true },
+		})
+
+		const result = await masker.maskForRequest("", [message("森さんと taro@corp.example")])
+
+		expect(result.messages[0]).toMatchObject({ content: "森さんと {{email-001}}" })
+		expect(result.troubles.join()).toContain("固有名詞の検出を実行できない")
+		expect(result.troubles.join()).toContain("SHA256SUMS")
+	})
+
+	it("読めなかったことを毎回は言わない", async () => {
+		ner.backend = undefined
+		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
+
+		await masker.maskForRequest("", [message("森")])
+		const second = await masker.maskForRequest("", [message("森")])
+
+		expect(second.troubles).toEqual([])
+	})
+
+	it("種類を切れば、第 2 層の結果も伏せない（FR-PII-21a）", async () => {
+		// 種類の切り替えは第 1 層と第 2 層の両方に効く。
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"], properNouns: { enabled: true } })
+
+		const result = await masker.maskForRequest("", [message("森さんへ")])
+
+		expect(result.messages[0]).toMatchObject({ content: "森さんへ" })
+	})
+
+	it("置き場所を変えたら読み直す", async () => {
+		const settings = { enabled: true, properNouns: { enabled: true, modelPath: "/w/a" } }
+		const masker = new TaskPiiMasker(() => settings as never)
+		await masker.maskForRequest("", [message("森")])
+
+		ner.backend = undefined
+		settings.properNouns = { enabled: true, modelPath: "/w/b" }
+		const result = await masker.maskForRequest("", [message("森")])
+
+		// 読み直さなければ、前のモデルを使い続けて伏せてしまう。
+		expect(result.messages[0]).toMatchObject({ content: "森" })
+	})
+})
+
+describe("lookupOf", () => {
+	it("判定した本文は、その結果を返す", () => {
+		const found = new Map([["森", [{ kind: "person" as const, start: 0, end: 1, value: "森" }]]])
+
+		expect(lookupOf(found)("森")).toHaveLength(1)
+	})
+
+	it("判定していない本文は、第 2 層の対象外として扱う", () => {
+		// 推測で伏せるより、第 1 層だけで伏せるほうが害が小さい。
+		expect(lookupOf(new Map())("知らない文")).toEqual([])
+	})
+})
+
+describe("覆っていなかった経路", () => {
+	it("文の手直しでも第 2 層を通す（FR-PII-01）", async () => {
+		// ここを通さないと、送る 3 つの呼び出しのうち 1 つだけが素通りする。
+		ner.backend = {}
+		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } })
+
+		const result = await masker.maskPrompt("森さんへ連絡")
+
+		expect(result.text).toBe("{{person-001}}さんへ連絡")
+		expect(result.restore(result.text)).toBe("森さんへ連絡")
+	})
+
+	it("空白だけの辞書の指定は、時刻を見に行かない", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"], dictionaryPaths: ["   "] })
+
+		const result = await masker.maskForRequest("", [message("taro@corp.example")])
+
+		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
+	})
+
+	it("番号を振る係を渡せる", () => {
+		// ファイルの置き換えと同じ係を使う。分けると同じ形の伏せ字が別の値を指す。
+		const masker = new TaskPiiMasker({ enabled: true })
+
+		expect(masker.allocator).toBe(masker.allocator)
 	})
 })

@@ -13,6 +13,7 @@ import {
 	detectTerms,
 	detectZipCodes,
 } from "./detectors"
+import { dropOverlapping } from "./nerDetector"
 import { PII_KINDS, type PiiKind, type PiiMatch, type PiiTerm } from "./types"
 
 /**
@@ -47,6 +48,15 @@ export type MaskOptions = {
 	kinds?: readonly PiiKind[]
 	/** 鍵のラベルに足す語（`FR-PII-10g`）。既定の一覧へ重ねる。 */
 	secretLabels?: readonly string[]
+	/**
+	 * 第 2 層が見つけた固有名詞（`FR-PII-21`）。本文から引ける形で渡す。
+	 *
+	 * **なぜ関数で渡すのか。** 第 2 層の判定は非同期だが、ここから下は同期である。
+	 * 呼ぶ側が先に判定を済ませ、その結果を引けるようにして渡す。
+	 *
+	 * 渡されなければ第 2 層は無いものとして扱う。第 1 層はそのまま動く。
+	 */
+	properNouns?: (text: string) => readonly PiiMatch[]
 }
 
 export type MaskResult = {
@@ -155,6 +165,13 @@ export function findPii(text: string, options: MaskOptions = {}): PiiMatch[] {
 	if (wants("phone")) found.push(...detectPhones(text))
 	if (wants("zip")) found.push(...detectZipCodes(text))
 	if (wants("address")) found.push(...detectAddresses(text))
+
+	// **第 1 層を優先する（`FR-PII-21f`）。** 第 1 層は形で判定していて確実なので、
+	// 重なったときに推定側を採る理由が無い。種類の切り替えは第 2 層にも効かせる。
+	if (options.properNouns) {
+		const guessed = options.properNouns(text).filter((match) => wants(match.kind))
+		found.push(...dropOverlapping(guessed, found))
+	}
 
 	return resolveOverlaps(found)
 }

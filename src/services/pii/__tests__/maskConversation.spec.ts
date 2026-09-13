@@ -9,7 +9,7 @@
 
 import type { AgentMessage } from "@openai-agent/types"
 
-import { PiiVault, maskConversation, type MaskMemo } from "../maskConversation"
+import { collectTexts, PiiVault, maskConversation, type MaskMemo } from "../maskConversation"
 
 const message = (role: "user" | "assistant", content: string): AgentMessage =>
 	({ type: "message", role, content }) as AgentMessage
@@ -245,5 +245,41 @@ describe("PiiVault", () => {
 		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault)
 
 		expect([...vault.entries.values()]).toEqual(["taro@corp.example"])
+	})
+})
+
+describe("collectTexts が maskConversation と同じ本文を見る（FR-PII-21）", () => {
+	/**
+	 * **この試験がいちばん大事である。** 片方だけが見る本文があると、そこは第 1 層だけで
+	 * 伏せられ、第 2 層が効かない。しかも画面上は何も変わらないので気づけない。
+	 */
+	it("伏せる側が触った本文と、集める側が返す本文が一致する", () => {
+		const messages = [
+			{ type: "message", role: "user", content: "文字列の content" },
+			{
+				type: "message",
+				role: "user",
+				content: [
+					{ type: "input_text", text: "部品の 1 つ目" },
+					{ type: "input_text", text: "部品の 2 つ目" },
+					{ type: "input_image", image_url: "data:image/png;base64,xxx" },
+				],
+			},
+			{ type: "function_call", call_id: "1", name: "read", arguments: '{"path":"a.txt"}' },
+			{ type: "function_call_output", call_id: "1", output: "ツールの出力" },
+			{ type: "reasoning", encrypted_content: "触らない" },
+		] as unknown as AgentMessage[]
+		const systemPrompt = "system の文"
+
+		// 伏せる側が実際に渡してきた本文を控える。
+		const seen: string[] = []
+		maskConversation(systemPrompt, messages, {
+			properNouns: (text) => {
+				seen.push(text)
+				return []
+			},
+		})
+
+		expect([...new Set(seen)].sort()).toEqual(collectTexts(systemPrompt, messages).sort())
 	})
 })

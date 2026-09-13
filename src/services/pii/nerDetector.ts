@@ -1,3 +1,5 @@
+import { nerEntities, type NerEntity } from "@openai-agent/types"
+
 import type { PiiKind, PiiMatch } from "./types"
 
 import type { EntitySpan } from "./nerSpans"
@@ -20,10 +22,14 @@ import type { EntitySpan } from "./nerSpans"
  * 挙げて補えるが、誤検出は補えない。迷う場面では採らない側へ倒す。
  */
 
-/** 判定が返す区分。 */
-export const NER_ENTITIES = ["PER", "ORG", "ORG-P", "ORG-O", "LOC", "INS", "PRD", "EVT"] as const
-
-export type NerEntity = (typeof NER_ENTITIES)[number]
+/**
+ * 判定が返す区分。
+ *
+ * 一覧そのものは `@openai-agent/types` が持ち、ここでは再輸出するだけにする。設定に
+ * 書ける値と検出の層が別の一覧を持つと、**設定に書けるのに効かない区分**が生まれる。
+ */
+export { nerEntities as NER_ENTITIES } from "@openai-agent/types"
+export type { NerEntity } from "@openai-agent/types"
 
 /**
  * 区分を伏せ字の種類へ対応させる。
@@ -67,7 +73,7 @@ export type NerOptions = {
 
 /** 区分が判定の返す 8 つのどれかであること。 */
 function isKnown(entity: string): entity is NerEntity {
-	return (NER_ENTITIES as readonly string[]).includes(entity)
+	return (nerEntities as readonly string[]).includes(entity)
 }
 
 /**

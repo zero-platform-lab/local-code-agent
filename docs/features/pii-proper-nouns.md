@@ -172,19 +172,21 @@ int8 を既定とする。**速いうえに、確度の低い誤りがより低�
 
 ## 確かめ方
 
-| 何を                                | どこで                                                       |
-| ----------------------------------- | ------------------------------------------------------------ |
-| 断片から本文の位置を求めること      | `src/services/pii/__tests__/nerSpans.spec.ts`                |
-| 区切りをまたいで繋げないこと        | `src/services/pii/__tests__/nerSpans.spec.ts`                |
-| 確度の閾値で絞ること                | `src/services/pii/__tests__/nerDetector.spec.ts`             |
-| 区分ごとの切り替えと既定            | `src/services/pii/__tests__/nerDetector.spec.ts`             |
-| 第 1 層と重なったときの優先         | `src/services/pii/__tests__/nerDetector.spec.ts`             |
-| モデルが無いときに第 1 層が動くこと | `src/services/pii/__tests__/nerModel.spec.ts`                |
-| ファイルの同一性の確認              | `src/services/pii/__tests__/nerModel.spec.ts`                |
-| 判定の実行と、読み込みの設定        | `src/services/pii/__tests__/nerBackend.spec.ts`              |
-| 特殊な印を数に入れること            | `src/services/pii/__tests__/nerBackend.spec.ts`              |
-| 判定できなかったときの件数の提示    | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`           |
-| 本文を外部へ送らないこと            | `src/services/pii/__tests__/maskingSeams.invariants.spec.ts` |
+| 何を                                 | どこで                                                       |
+| ------------------------------------ | ------------------------------------------------------------ |
+| 断片から本文の位置を求めること       | `src/services/pii/__tests__/nerSpans.spec.ts`                |
+| 区切りをまたいで繋げないこと         | `src/services/pii/__tests__/nerSpans.spec.ts`                |
+| 確度の閾値で絞ること                 | `src/services/pii/__tests__/nerDetector.spec.ts`             |
+| 区分ごとの切り替えと既定             | `src/services/pii/__tests__/nerDetector.spec.ts`             |
+| 第 1 層と重なったときの優先          | `src/services/pii/__tests__/nerDetector.spec.ts`             |
+| モデルが無いときに第 1 層が動くこと  | `src/services/pii/__tests__/nerModel.spec.ts`                |
+| ファイルの同一性の確認               | `src/services/pii/__tests__/nerModel.spec.ts`                |
+| 判定の実行と、読み込みの設定         | `src/services/pii/__tests__/nerBackend.spec.ts`              |
+| 特殊な印を数に入れること             | `src/services/pii/__tests__/nerBackend.spec.ts`              |
+| 判定できなかったときの件数の提示     | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`           |
+| 集める本文と伏せる本文が一致すること | `src/services/pii/__tests__/maskConversation.spec.ts`        |
+| 文の手直しの経路も通ること           | `src/services/pii/__tests__/TaskPiiMasker.spec.ts`           |
+| 本文を外部へ送らないこと             | `src/services/pii/__tests__/maskingSeams.invariants.spec.ts` |
 
 ### 手で確かめること
 

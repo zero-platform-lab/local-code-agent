@@ -3,9 +3,11 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 import { promises as fs } from "fs"
 
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
-import { maskConversation, PiiVault, type MaskMemo } from "./maskConversation"
+import { collectTexts, maskConversation, PiiVault, type MaskMemo } from "./maskConversation"
+import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
+import { defaultModelDirectory, describeCheck, verifyModel } from "./nerModel"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
-import type { PiiKind, PiiTerm } from "./types"
+import type { PiiKind, PiiMatch, PiiTerm } from "./types"
 
 /**
  * タスク 1 つ分の伏せ字。
@@ -38,6 +40,17 @@ async function stamps(paths: readonly string[]): Promise<string[]> {
 	)
 }
 
+/**
+ * 判定の結果を、本文から引ける形にする。
+ *
+ * **判定していない本文は、第 2 層の対象外として扱う。** 推測で伏せるより、第 1 層だけで
+ * 伏せるほうが害が小さい。判定を先に済ませる作りなので、ここへ来るのは判定の対象から
+ * 漏れた本文だけである。
+ */
+export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string) => readonly PiiMatch[] {
+	return (text) => found.get(text) ?? []
+}
+
 export class TaskPiiMasker {
 	private readonly vault = new PiiVault()
 	private terms: PiiTerm[] | undefined
@@ -48,6 +61,11 @@ export class TaskPiiMasker {
 	private lastKnown: PiiMasking = {}
 	/** 伏せた結果の覚え書き。設定が変わったら捨てる。 */
 	private readonly memo: MaskMemo = new Map()
+	/** 第 2 層。読むのは 1 度だけで、失敗しても第 1 層は動かし続ける（`FR-PII-23b`）。 */
+	private backend: NerBackend | undefined
+	private backendTried = false
+	/** 本文ごとの第 2 層の結果。同じ本文を毎回判定し直さない。 */
+	private nerMemo = new Map<string, PiiMatch[]>()
 
 	/**
 	 * **設定は要求のたびに読み直す。** 会話の途中で切り替えられるボタンを画面に置いた以上
@@ -99,6 +117,8 @@ export class TaskPiiMasker {
 			settings.terms ?? [],
 			settings.kinds ?? [],
 			settings.secretLabels ?? [],
+			// 第 2 層の設定も鍵に含める。含めないと、切り替えても覚えていた結果を返す。
+			settings.properNouns ?? {},
 			// 既定の辞書も見る。右クリックで足す先がここになることがある。
 			await stamps([...(settings.dictionaryPaths ?? []), defaultDictionaryPath()]),
 		])
@@ -106,6 +126,10 @@ export class TaskPiiMasker {
 			this.loadedFrom = key
 			// 設定が変われば、覚えていた結果はもう当てにならない。
 			this.memo.clear()
+			// 第 2 層も読み直す。置き場所を変えても効かない、という取り違えを避ける。
+			this.nerMemo = new Map()
+			this.backend = undefined
+			this.backendTried = false
 			const fromFiles = await readDictionaries(settings.dictionaryPaths ?? [])
 			this.terms = [...(settings.terms ?? []), ...fromFiles.terms]
 			// **黙らない。** 辞書が読めないと、社名も顧客名も伏せられないまま送られる。
@@ -121,6 +145,45 @@ export class TaskPiiMasker {
 			kinds: settings.kinds as readonly PiiKind[] | undefined,
 			secretLabels: settings.secretLabels,
 		}
+	}
+
+	/**
+	 * 第 2 層の判定を先に済ませ、本文から引ける形にする（`FR-PII-21`）。
+	 *
+	 * **なぜ先に済ませるのか。** 判定は非同期だが、伏せる処理は同期である。渡す前に
+	 * 全部の本文を判定しておき、あとは引くだけにする。
+	 *
+	 * **読めなくても止めない（`FR-PII-23b`）。** モデルを置いていない利用者のほうが多い。
+	 * 第 2 層が動かないだけで、第 1 層はそのまま動かす。ただし**黙らない**
+	 * （`FR-PII-22a`）。画面の見た目が変わらないので、出さないと取り違えに気づけない。
+	 */
+	private async properNouns(texts: readonly string[]): Promise<MaskOptions["properNouns"]> {
+		const settings = this.settings.properNouns
+		if (settings?.enabled !== true) return undefined
+
+		// `resolveDictionaryPath` は `~` を開き、空欄を落とす。落ちたら既定の場所を見る。
+		const directory = (settings.modelPath && resolveDictionaryPath(settings.modelPath)) || defaultModelDirectory()
+
+		if (!this.backendTried) {
+			this.backendTried = true
+			this.backend = await loadBackend(directory)
+
+			if (!this.backend) {
+				const why = describeCheck(await verifyModel(directory))
+				this.troubles = [...this.troubles, `固有名詞の検出を実行できない（${directory}）: ${why}`]
+			}
+		}
+
+		const backend = this.backend
+		if (!backend) return undefined
+
+		const options = { minScore: settings.minScore, entities: settings.entities }
+		for (const text of texts) {
+			if (this.nerMemo.has(text)) continue
+			this.nerMemo.set(text, await detectWith(backend, text, options))
+		}
+
+		return lookupOf(this.nerMemo)
 	}
 
 	/**
@@ -144,7 +207,10 @@ export class TaskPiiMasker {
 			return { systemPrompt, messages, counts: {}, troubles: [], enabled: false }
 		}
 
-		const result = maskConversation(systemPrompt, messages, await this.options(), this.vault, this.memo)
+		const options = await this.options()
+		const properNouns = await this.properNouns(collectTexts(systemPrompt, messages))
+
+		const result = maskConversation(systemPrompt, messages, { ...options, properNouns }, this.vault, this.memo)
 		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
 	}
 
@@ -162,7 +228,12 @@ export class TaskPiiMasker {
 			return { text, restore: (one) => one }
 		}
 
-		const plan = planMasking(text, await this.options(), undefined, this.vault)
+		// **ここにも第 2 層を通す。** 通さないと、文の手直しの経路だけが素通りする。
+		// 送る呼び出しは 3 つあり、1 つでも抜けると伏せているつもりで送られる。
+		const options = await this.options()
+		const properNouns = await this.properNouns([text])
+
+		const plan = planMasking(text, { ...options, properNouns }, undefined, this.vault)
 		return { text: applyPlan(text, plan.edits), restore: (one) => this.vault.restore(one) }
 	}
 

@@ -36,3 +36,30 @@ export type PiiTerm = {
 	kind?: Extract<PiiKind, "person" | "org" | "term">
 	regex?: boolean
 }
+
+/**
+ * 固有名詞の検出（第 2 層）が返す区分。
+ *
+ * 設定（`piiMasking.properNouns.entities`）と検出の層で同じ一覧を使う。別々に持つと、
+ * 設定に書けるのに効かない区分が生まれる。
+ */
+export const nerEntities = [
+	/** 人名。 */
+	"PER",
+	/** 会社などの組織。 */
+	"ORG",
+	/** 政治的な組織。 */
+	"ORG-P",
+	/** その他の組織。 */
+	"ORG-O",
+	/** 地名。 */
+	"LOC",
+	/** 施設名。 */
+	"INS",
+	/** 製品名。既定では伏せない（`FR-PII-21b`）。 */
+	"PRD",
+	/** イベント名。既定では伏せない（`FR-PII-21b`）。 */
+	"EVT",
+] as const
+
+export type NerEntity = (typeof nerEntities)[number]

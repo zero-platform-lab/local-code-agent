@@ -72,8 +72,8 @@ describe("すり抜け率と誤検出率", () => {
 
 	it("文例が痩せていない", () => {
 		// 通すために文例を削る、という直し方を塞ぐ。足すのはよい。
-		expect(layerOne.length).toBeGreaterThanOrEqual(31)
+		expect(layerOne.length).toBeGreaterThanOrEqual(39)
 		expect(layerOne.flatMap((one) => one.pii).length).toBeGreaterThanOrEqual(17)
-		expect(layerOne.flatMap((one) => one.clean ?? []).length).toBeGreaterThanOrEqual(19)
+		expect(layerOne.flatMap((one) => one.clean ?? []).length).toBeGreaterThanOrEqual(28)
 	})
 })

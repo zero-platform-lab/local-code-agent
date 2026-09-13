@@ -451,6 +451,8 @@ const NOT_NAME_BEFORE_HONORIFIC = new Set([
 	"皆",
 	"神",
 	"王",
+	"王子",
+	"王女",
 	"殿",
 	"奥",
 	"兄",
@@ -529,6 +531,31 @@ const HONORIFIC_PATTERNS = [
 	[NAME_BEFORE(TITLES), NOT_NAME_BEFORE_TITLE],
 ] as const
 
+/**
+ * 敬称の `様` は、普通の語の一部でもある。
+ *
+ * `仕様` `多様` `同様` `模様` のように、1 文字＋`様` で別の意味になる語が多い。実データで
+ * 測ったところ、誤検出のほとんどがこの形だった。**`様` のときだけ 2 文字以上を要求する。**
+ * `森様` のような 1 文字の姓は採れなくなるが、`〜さん` のほうが普通に使われる。
+ */
+const SHORT_NAME_BEFORE_SAMA = /^.様$/
+
+/**
+ * `様` の直前に来ると、普通の語になる文字。
+ *
+ * `仕様` `多様` `同様` `模様` のたぐいである。長い語の一部になることもあるので
+ * （`要求仕様`）、長さではなく直前の 1 文字で見る。実データで測って挙げた。
+ */
+const NOT_NAME_END_BEFORE_SAMA = new Set(["仕", "多", "同", "模", "異", "一", "態", "有", "各", "様", "殿", "奥", "神"])
+
+/**
+ * 肩書きの手前に来ても人名でない語を、含んでいるかで見る。
+ *
+ * `初代事務局長` の `初代事務` や `同社代表取締役` の `同社代表` は、そのままの形では
+ * 一覧に載せきれない。役目を表す語を**含んでいれば**人名でないと見なす。
+ */
+const ROLE_WORDS = ["事務", "代表", "担当", "初代", "同社", "各省", "指導", "副", "総括", "統括", "首席", "主席"]
+
 export function detectHonorificNames(text: string): PiiMatch[] {
 	const matches: PiiMatch[] = []
 
@@ -561,6 +588,13 @@ export function detectHonorificNames(text: string): PiiMatch[] {
 			// **除く語は両方を見る。** `営業部長さん` は敬称の側で当たるが、除きたい理由は
 			// 肩書きの側にある。片方だけ見ると、部署が人名になる。
 			if (NOT_NAME_BEFORE_HONORIFIC.has(name) || NOT_NAME_BEFORE_TITLE.has(name) || deny.has(name)) continue
+
+			// `仕様` `多様` のような、`様` が付いた普通の語を人名にしない。
+			if (SHORT_NAME_BEFORE_SAMA.test(found[0])) continue
+			if (found[0].endsWith("様") && NOT_NAME_END_BEFORE_SAMA.has(name.slice(-1))) continue
+
+			// 役目を表す語を含むものは人名でない（`初代事務` `同社代表`）。
+			if (ROLE_WORDS.some((word) => name.includes(word))) continue
 
 			// **敬称と肩書きは範囲へ入れない。** モデルが役職を読めなくなる。
 			matches.push({ kind: "person", start: found.index, end: found.index + name.length, value: name })

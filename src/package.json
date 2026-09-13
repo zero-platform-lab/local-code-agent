@@ -480,8 +480,8 @@
 		"watch:bundle": "pnpm bundle --watch",
 		"watch:tsc": "cd .. && tsc --noEmit --watch --project src/tsconfig.json",
 		"clean": "rimraf README.md LICENSE dist logs mock .turbo",
-		"vsix:linux-x64": "pnpm bundle --production --target=linux-x64 && mkdirp ../bin && vsce package --no-dependencies --target linux-x64 --out ../bin",
-		"vsix:win32-x64": "pnpm bundle --production --target=win32-x64 && mkdirp ../bin && vsce package --no-dependencies --target win32-x64 --out ../bin"
+		"vsix:linux-x64": "node package-vsix.mjs linux-x64",
+		"vsix:win32-x64": "node package-vsix.mjs win32-x64"
 	},
 	"dependencies": {
 		"@huggingface/transformers": "^4.2.0",

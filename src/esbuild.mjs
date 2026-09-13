@@ -33,7 +33,10 @@ async function main() {
 	const production = process.argv.includes("--production")
 	const watch = process.argv.includes("--watch")
 	// 配る先。`--target=linux-x64` の形。環境変数だと Windows で書き方が変わるので引数で受ける。
-	const target = process.argv.find((one) => one.startsWith("--target="))?.slice("--target=".length)
+	// **環境変数も見る。** `vsce` が `vscode:prepublish` を実行し直すため、引数だけだと
+	// 束ね直しで指定が失われ、いま動いている機械の platform のものが入る。
+	const target =
+		process.argv.find((one) => one.startsWith("--target="))?.slice("--target=".length) || process.env.VSIX_TARGET
 	const minify = production
 	const sourcemap = true // Always generate source maps for error handling.
 

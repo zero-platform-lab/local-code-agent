@@ -188,12 +188,12 @@ describe("maskSecretsInActiveEditor", () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-editor-"))
 		const dictionary = path.join(dir, "dict.txt")
 		await fs.writeFile(dictionary, "田中太郎\tperson\n", "utf8")
-		mocks.activeTextEditor = editorWith("株式会社アクメの田中太郎")
+		mocks.activeTextEditor = editorWith("株式会社サンプルの田中太郎")
 		answerConfirm()
 
 		await maskSecretsInActiveEditor({
 			kinds: ["org", "person"],
-			terms: [{ value: "株式会社アクメ", kind: "org" }],
+			terms: [{ value: "株式会社サンプル", kind: "org" }],
 			dictionaryPaths: [dictionary],
 		})
 

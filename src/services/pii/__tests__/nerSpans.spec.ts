@@ -75,15 +75,15 @@ describe("groupEntities（FR-PII-21）", () => {
 	})
 
 	it("種類が変われば切る", () => {
-		const text = "田中アクメ"
+		const text = "田中サンプル"
 		const spans: TokenSpan[] = [
 			{ start: 0, end: 2 },
-			{ start: 2, end: 5 },
+			{ start: 2, end: 6 },
 		]
 
 		const groups = groupEntities(text, spans, [token(0, "PER"), token(1, "ORG")])
 
-		expect(groups.map((one) => one.value)).toEqual(["田中", "アクメ"])
+		expect(groups.map((one) => one.value)).toEqual(["田中", "サンプル"])
 	})
 
 	it("本文の上で離れていれば切る", () => {

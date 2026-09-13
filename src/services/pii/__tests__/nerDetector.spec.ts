@@ -26,7 +26,7 @@ describe("toPiiMatches（FR-PII-21）", () => {
 		["INS", "org"],
 		["LOC", "address"],
 	])("%s は %s になる", (entity, kind) => {
-		expect(toPiiMatches([span(entity, "アクメ")])).toEqual([{ kind, start: 0, end: 3, value: "アクメ" }])
+		expect(toPiiMatches([span(entity, "サンプル")])).toEqual([{ kind, start: 0, end: 4, value: "サンプル" }])
 	})
 
 	it("確度が下限に満たなければ採らない（FR-PII-21d）", () => {
@@ -53,7 +53,7 @@ describe("toPiiMatches（FR-PII-21）", () => {
 	})
 
 	it("区分を絞れば、外したものは採らない", () => {
-		const spans = [span("PER", "森"), span("ORG", "アクメ", 0.99, 2)]
+		const spans = [span("PER", "森"), span("ORG", "サンプル", 0.99, 2)]
 
 		expect(toPiiMatches(spans, { entities: ["PER"] })).toEqual([{ kind: "person", start: 0, end: 1, value: "森" }])
 	})

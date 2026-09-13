@@ -383,10 +383,10 @@ describe("住所（FR-PII-13）", () => {
 
 describe("挙げた語（FR-PII-03）", () => {
 	it("種類を指定すると伏せ字に出る", () => {
-		const result = maskText("株式会社アクメの田中太郎", {
+		const result = maskText("株式会社サンプルの田中太郎", {
 			kinds: ["org", "person"],
 			terms: [
-				{ value: "株式会社アクメ", kind: "org" },
+				{ value: "株式会社サンプル", kind: "org" },
 				{ value: "田中太郎", kind: "person" },
 			],
 		})

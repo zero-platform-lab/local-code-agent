@@ -68,7 +68,7 @@ async function drain(stream: AsyncIterable<unknown>): Promise<void> {
 const SECRETS = {
 	email: "taro@corp.example",
 	address: "東京都渋谷区神南1-2-3",
-	org: "株式会社アクメ",
+	org: "株式会社サンプル",
 	card: "4111 1111 1111 1111",
 }
 

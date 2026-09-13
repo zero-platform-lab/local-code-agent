@@ -67,7 +67,7 @@ const read = (target: string) => fs.readFile(target, "utf8")
 
 describe("dictionaryLine", () => {
 	it.each([
-		[{ value: "アクメ", kind: "org" as const }, "アクメ\torg\n"],
+		[{ value: "サンプル", kind: "org" as const }, "サンプル\torg\n"],
 		[{ value: "田中太郎", kind: "person" as const }, "田中太郎\tperson\n"],
 		// term は既定なので書かない。読むほうも書かなければ term として扱う。
 		[{ value: "プロジェクト葵", kind: "term" as const }, "プロジェクト葵\n"],
@@ -84,7 +84,7 @@ describe("canAppend（FR-PII-15c）", () => {
 
 	it("UTF-8 の辞書には書ける", async () => {
 		const target = path.join(dir, "utf8.txt")
-		await fs.writeFile(target, "アクメ\n", "utf8")
+		await fs.writeFile(target, "サンプル\n", "utf8")
 
 		expect(await canAppend(target)).toBe(true)
 	})
@@ -115,7 +115,7 @@ describe("addSelectionToDictionary", () => {
 	})
 
 	it("辞書が無ければ既定の場所に作り、説明を先頭へ置く（FR-PII-15b）", async () => {
-		mocks.activeTextEditor = editorWith("株式会社アクメ")
+		mocks.activeTextEditor = editorWith("株式会社サンプル")
 		pickKind("org")
 
 		await addSelectionToDictionary()
@@ -123,11 +123,11 @@ describe("addSelectionToDictionary", () => {
 		const written = await read(defaultDictionaryPath())
 		// 書き方が分からないまま空のファイルを渡さない。
 		expect(written).toContain("# マスクの辞書")
-		expect(written).toContain("株式会社アクメ\torg\n")
+		expect(written).toContain("株式会社サンプル\torg\n")
 	})
 
 	it("2 回目は説明を重ねない", async () => {
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 		pickKind("org")
 		await addSelectionToDictionary()
 		mocks.activeTextEditor = editorWith("田中太郎")
@@ -142,30 +142,30 @@ describe("addSelectionToDictionary", () => {
 	it("辞書が 1 つなら、選ばせずにそこへ足す", async () => {
 		const target = path.join(dir, "team.txt")
 		await fs.writeFile(target, "既存\n", "utf8")
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 		pickKind("org")
 
 		await addSelectionToDictionary({ dictionaryPaths: [target] })
 
-		expect(await read(target)).toBe("既存\nアクメ\torg\n")
+		expect(await read(target)).toBe("既存\nサンプル\torg\n")
 	})
 
 	it("前の行が改行で終わっていなければ、改行を足す", async () => {
 		const target = path.join(dir, "team.txt")
 		// 手で編集した辞書は、末尾に改行が無いことがある。
-		await fs.writeFile(target, "株式会社アクメ", "utf8")
+		await fs.writeFile(target, "株式会社サンプル", "utf8")
 		mocks.activeTextEditor = editorWith("田中太郎")
 		pickKind("person")
 
 		await addSelectionToDictionary({ dictionaryPaths: [target] })
 
 		// 足さないと 1 つの語に繋がり、どちらも二度と一致しない。
-		expect(await read(target)).toBe("株式会社アクメ\n田中太郎\tperson\n")
+		expect(await read(target)).toBe("株式会社サンプル\n田中太郎\tperson\n")
 	})
 
 	it.each([
-		["2 行", "株式会社アクメ\n田中太郎"],
-		["タブ入り", "株式会社\tアクメ"],
+		["2 行", "株式会社サンプル\n田中太郎"],
+		["タブ入り", "株式会社\tサンプル"],
 	])("%s の選択は受け付けない", async (_label, selected) => {
 		const target = path.join(dir, "team.txt")
 		await fs.writeFile(target, "既存\n", "utf8")
@@ -180,17 +180,17 @@ describe("addSelectionToDictionary", () => {
 	it("辞書が複数なら選ばせる（FR-PII-15a）", async () => {
 		const chosen = path.join(dir, "b.txt")
 		await fs.writeFile(chosen, "", "utf8")
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 		mocks.showQuickPick.mockResolvedValueOnce(chosen)
 		pickKind("org")
 
 		await addSelectionToDictionary({ dictionaryPaths: [path.join(dir, "a.txt"), chosen] })
 
-		expect(await read(chosen)).toContain("アクメ\torg\n")
+		expect(await read(chosen)).toContain("サンプル\torg\n")
 	})
 
 	it("辞書を選ばずに閉じたら何もしない", async () => {
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 		mocks.showQuickPick.mockResolvedValueOnce(undefined)
 
 		await addSelectionToDictionary({ dictionaryPaths: [path.join(dir, "a.txt"), path.join(dir, "b.txt")] })
@@ -201,7 +201,7 @@ describe("addSelectionToDictionary", () => {
 	it("種類を選ばずに閉じたら足さない", async () => {
 		const target = path.join(dir, "a.txt")
 		await fs.writeFile(target, "既存\n", "utf8")
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 		mocks.showQuickPick.mockResolvedValueOnce(undefined)
 
 		await addSelectionToDictionary({ dictionaryPaths: [target] })
@@ -212,7 +212,7 @@ describe("addSelectionToDictionary", () => {
 	it("Shift_JIS の辞書へは書かず、その旨を出す（FR-PII-15c）", async () => {
 		const target = path.join(dir, "sjis.txt")
 		await fs.writeFile(target, SJIS_TANAKA)
-		mocks.activeTextEditor = editorWith("アクメ")
+		mocks.activeTextEditor = editorWith("サンプル")
 
 		await addSelectionToDictionary({ dictionaryPaths: [target] })
 
@@ -229,22 +229,22 @@ describe("exportDictionary（FR-PII-17）", () => {
 		const out = path.join(dir, "out.txt")
 		mocks.showSaveDialog.mockResolvedValueOnce({ fsPath: out })
 
-		await exportDictionary({ terms: [{ value: "アクメ", kind: "org" }], dictionaryPaths: [source] })
+		await exportDictionary({ terms: [{ value: "サンプル", kind: "org" }], dictionaryPaths: [source] })
 
 		const written = await read(out)
-		expect(written).toContain("アクメ\torg\n")
+		expect(written).toContain("サンプル\torg\n")
 		expect(written).toContain("田中太郎\tperson\n")
 	})
 
 	it("同じ語は 1 つにまとめる（FR-PII-17b）", async () => {
 		const source = path.join(dir, "team.txt")
-		await fs.writeFile(source, "アクメ\torg\n", "utf8")
+		await fs.writeFile(source, "サンプル\torg\n", "utf8")
 		const out = path.join(dir, "out.txt")
 		mocks.showSaveDialog.mockResolvedValueOnce({ fsPath: out })
 
-		await exportDictionary({ terms: [{ value: "アクメ", kind: "org" }], dictionaryPaths: [source] })
+		await exportDictionary({ terms: [{ value: "サンプル", kind: "org" }], dictionaryPaths: [source] })
 
-		expect((await read(out)).match(/アクメ/g)).toHaveLength(1)
+		expect((await read(out)).match(/サンプル/g)).toHaveLength(1)
 	})
 
 	it("正規表現はスラッシュで囲み直す。読み戻せる形にする", async () => {
@@ -266,7 +266,7 @@ describe("exportDictionary（FR-PII-17）", () => {
 	it("保存先を選ばずに閉じたら書かない", async () => {
 		mocks.showSaveDialog.mockResolvedValueOnce(undefined)
 
-		await exportDictionary({ terms: [{ value: "アクメ" }] })
+		await exportDictionary({ terms: [{ value: "サンプル" }] })
 
 		expect(mocks.showInformationMessage).not.toHaveBeenCalled()
 	})

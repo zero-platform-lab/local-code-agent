@@ -893,12 +893,12 @@ Output only the summary of the conversation so far, without any additional comme
 			// 扱いが違う。除くと、設定を移したときに伏せているつもりで一致しなくなる。
 			await proxy.updateGlobalState("piiMasking", {
 				enabled: true,
-				terms: [{ value: "株式会社アクメ", kind: "org" }],
+				terms: [{ value: "株式会社サンプル", kind: "org" }],
 			})
 
 			const exported = await proxy.export()
 
-			expect(exported?.piiMasking?.terms).toEqual([{ value: "株式会社アクメ", kind: "org" }])
+			expect(exported?.piiMasking?.terms).toEqual([{ value: "株式会社サンプル", kind: "org" }])
 		})
 
 		it("returns undefined when export parsing fails", async () => {

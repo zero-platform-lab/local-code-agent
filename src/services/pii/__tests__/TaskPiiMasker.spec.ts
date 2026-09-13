@@ -178,7 +178,7 @@ describe("TaskPiiMasker", () => {
 	it("辞書の指す先が変わったら読み直す", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-masker-"))
 		const dictionary = path.join(dir, "dict.txt")
-		await fs.writeFile(dictionary, "アクメ\torg\n", "utf8")
+		await fs.writeFile(dictionary, "サンプル\torg\n", "utf8")
 		const settings: { enabled: boolean; kinds: string[]; dictionaryPaths: string[] } = {
 			enabled: true,
 			kinds: ["org"],
@@ -186,13 +186,13 @@ describe("TaskPiiMasker", () => {
 		}
 		const masker = new TaskPiiMasker(() => settings as never)
 
-		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
-			content: "アクメの件",
+		expect((await masker.maskForRequest("", [message("サンプルの件")])).messages[0]).toMatchObject({
+			content: "サンプルの件",
 		})
 
 		settings.dictionaryPaths = [dictionary]
 
-		expect((await masker.maskForRequest("", [message("アクメの件")])).messages[0]).toMatchObject({
+		expect((await masker.maskForRequest("", [message("サンプルの件")])).messages[0]).toMatchObject({
 			content: "{{org-001}}の件",
 		})
 
@@ -202,10 +202,10 @@ describe("TaskPiiMasker", () => {
 	it("辞書へ語を足したら、次の要求から効く", async () => {
 		const dir = await fs.mkdtemp(path.join(os.tmpdir(), "pii-masker-"))
 		const dictionary = path.join(dir, "dict.txt")
-		await fs.writeFile(dictionary, "アクメ\torg\n", "utf8")
+		await fs.writeFile(dictionary, "サンプル\torg\n", "utf8")
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["org"], dictionaryPaths: [dictionary] })
 
-		expect((await masker.maskForRequest("", [message("アクメと葵")])).messages[0]).toMatchObject({
+		expect((await masker.maskForRequest("", [message("サンプルと葵")])).messages[0]).toMatchObject({
 			content: "{{org-001}}と葵",
 		})
 
@@ -214,7 +214,7 @@ describe("TaskPiiMasker", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10))
 		await fs.appendFile(dictionary, "葵\torg\n", "utf8")
 
-		expect((await masker.maskForRequest("", [message("アクメと葵")])).messages[0]).toMatchObject({
+		expect((await masker.maskForRequest("", [message("サンプルと葵")])).messages[0]).toMatchObject({
 			content: "{{org-001}}と{{org-002}}",
 		})
 

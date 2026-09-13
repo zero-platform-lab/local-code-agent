@@ -35,10 +35,10 @@ describe("decodeText（FR-PII-03e）", () => {
 	})
 
 	it("BOM は本文に含めない", () => {
-		const withBom = Uint8Array.from([0xef, 0xbb, 0xbf, ...new TextEncoder().encode("アクメ")])
+		const withBom = Uint8Array.from([0xef, 0xbb, 0xbf, ...new TextEncoder().encode("サンプル")])
 
 		// 1 語目の先頭に付くと一致しなくなる。
-		expect(decodeText(withBom)).toBe("アクメ")
+		expect(decodeText(withBom)).toBe("サンプル")
 	})
 
 	it("ASCII はどちらで読んでも同じになる", () => {
@@ -48,29 +48,29 @@ describe("decodeText（FR-PII-03e）", () => {
 
 describe("parseDictionary（FR-PII-03c）", () => {
 	it("1 行 1 語で読む", () => {
-		expect(parseDictionary("アクメ\n田中太郎\n")).toEqual([
-			{ value: "アクメ", kind: "term" },
+		expect(parseDictionary("サンプル\n田中太郎\n")).toEqual([
+			{ value: "サンプル", kind: "term" },
 			{ value: "田中太郎", kind: "term" },
 		])
 	})
 
 	it("# で始まる行と空行を読み飛ばす", () => {
-		expect(parseDictionary("# 顧客\n\nアクメ\n\n# ここまで\n")).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(parseDictionary("# 顧客\n\nサンプル\n\n# ここまで\n")).toEqual([{ value: "サンプル", kind: "term" }])
 	})
 
 	it("タブの後ろの種類を読む", () => {
-		expect(parseDictionary("田中太郎\tperson\n株式会社アクメ\torg\n")).toEqual([
+		expect(parseDictionary("田中太郎\tperson\n株式会社サンプル\torg\n")).toEqual([
 			{ value: "田中太郎", kind: "person" },
-			{ value: "株式会社アクメ", kind: "org" },
+			{ value: "株式会社サンプル", kind: "org" },
 		])
 	})
 
 	it("知らない種類は term として扱う", () => {
-		expect(parseDictionary("アクメ\tなにか\n")).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(parseDictionary("サンプル\tなにか\n")).toEqual([{ value: "サンプル", kind: "term" }])
 	})
 
 	it("前後の空白を落とす", () => {
-		expect(parseDictionary("  アクメ  \n")).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(parseDictionary("  サンプル  \n")).toEqual([{ value: "サンプル", kind: "term" }])
 	})
 
 	it("値が空白だけの行は読み飛ばす", () => {
@@ -78,7 +78,7 @@ describe("parseDictionary（FR-PII-03c）", () => {
 	})
 
 	it("CRLF の改行も読む", () => {
-		expect(parseDictionary("アクメ\r\n田中太郎\r\n")).toHaveLength(2)
+		expect(parseDictionary("サンプル\r\n田中太郎\r\n")).toHaveLength(2)
 	})
 })
 
@@ -122,25 +122,25 @@ describe("readDictionaries", () => {
 	})
 
 	it("複数の辞書をまとめて読む", async () => {
-		await fs.writeFile(path.join(dir, "a.txt"), "アクメ\torg\n", "utf8")
+		await fs.writeFile(path.join(dir, "a.txt"), "サンプル\torg\n", "utf8")
 		await fs.writeFile(path.join(dir, "b.txt"), SJIS_TANAKA)
 
 		const result = await readDictionaries([path.join(dir, "a.txt"), path.join(dir, "b.txt")])
 
 		expect(result.terms).toEqual([
-			{ value: "アクメ", kind: "org" },
+			{ value: "サンプル", kind: "org" },
 			{ value: "田中太郎", kind: "term" },
 		])
 		expect(result.failures).toEqual([])
 	})
 
 	it("読めない辞書があっても、読めたものは返す（FR-PII-03d）", async () => {
-		await fs.writeFile(path.join(dir, "a.txt"), "アクメ\n", "utf8")
+		await fs.writeFile(path.join(dir, "a.txt"), "サンプル\n", "utf8")
 
 		const result = await readDictionaries([path.join(dir, "a.txt"), path.join(dir, "無い.txt")])
 
 		// 辞書が無いことを理由に、ほかの種類の置き換えまで止めない。
-		expect(result.terms).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(result.terms).toEqual([{ value: "サンプル", kind: "term" }])
 		expect(result.failures).toHaveLength(1)
 		expect(result.failures[0].path).toContain("無い.txt")
 	})
@@ -150,11 +150,11 @@ describe("readDictionaries", () => {
 	})
 
 	it("使えない行は、どの辞書のどの行かを添えて返す（FR-PII-03g）", async () => {
-		await fs.writeFile(path.join(dir, "a.txt"), "アクメ\n/EMP-[/\n", "utf8")
+		await fs.writeFile(path.join(dir, "a.txt"), "サンプル\n/EMP-[/\n", "utf8")
 
 		const result = await readDictionaries([path.join(dir, "a.txt")])
 
-		expect(result.terms).toEqual([{ value: "アクメ", kind: "term" }])
+		expect(result.terms).toEqual([{ value: "サンプル", kind: "term" }])
 		expect(result.problems).toHaveLength(1)
 		expect(result.problems[0]).toMatchObject({ line: 2, value: "/EMP-[/" })
 		expect(result.problems[0].path).toContain("a.txt")
@@ -191,12 +191,12 @@ describe("既定の辞書（FR-PII-15b）", () => {
 	})
 
 	it("設定に無くても、あれば読む", async () => {
-		await fs.writeFile(defaultDictionaryPath(), "アクメ\torg\n", "utf8")
+		await fs.writeFile(defaultDictionaryPath(), "サンプル\torg\n", "utf8")
 
 		// 右クリックで足した先を読まなければ、足した語は二度と効かない。
 		const result = await readDictionaries([])
 
-		expect(result.terms).toEqual([{ value: "アクメ", kind: "org" }])
+		expect(result.terms).toEqual([{ value: "サンプル", kind: "org" }])
 	})
 
 	it("無いときは足さない。読めない旨も出さない", async () => {
@@ -207,7 +207,7 @@ describe("既定の辞書（FR-PII-15b）", () => {
 	})
 
 	it("二重には読まない", async () => {
-		await fs.writeFile(defaultDictionaryPath(), "アクメ\n", "utf8")
+		await fs.writeFile(defaultDictionaryPath(), "サンプル\n", "utf8")
 
 		const result = await readDictionaries([defaultDictionaryPath()])
 

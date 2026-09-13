@@ -1198,13 +1198,13 @@ describe("伏せ字の辞書", () => {
 
 	it("書き出しは設定の語と辞書をまとめて渡す（FR-PII-17a）", async () => {
 		const h = setup({
-			storedValues: { piiMasking: { terms: [{ value: "アクメ" }], dictionaryPaths: ["/w/d.txt"] } },
+			storedValues: { piiMasking: { terms: [{ value: "サンプル" }], dictionaryPaths: ["/w/d.txt"] } },
 		})
 
 		await call("exportPiiDictionary", h.provider, {})
 
 		expect(exportDictionaryMock).toHaveBeenCalledExactlyOnceWith({
-			terms: [{ value: "アクメ" }],
+			terms: [{ value: "サンプル" }],
 			dictionaryPaths: ["/w/d.txt"],
 		})
 	})

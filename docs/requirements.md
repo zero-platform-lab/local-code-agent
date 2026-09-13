@@ -692,6 +692,22 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-PII-20`  | 右クリックから、開いているファイルの伏せ字を元の値へ戻せる                             | **独自** |
 | `FR-PII-20a` | 戻せるのは、そのタスクで割り当てた伏せ字だけとする                                     | **独自** |
 | `FR-PII-20b` | タスクが終わると対応表は消え、以後は戻せない。その旨を操作の前に示す                   | **独自** |
+| `FR-PII-21`  | 固有名詞を、前後の文から判定して伏せる（第 2 層）                                      | **独自** |
+| `FR-PII-21a` | 判定した固有名詞は、種類ごとに伏せるかを切り替えられる（`FR-PII-07`）                  | **独自** |
+| `FR-PII-21b` | 製品名とイベント名は、既定では伏せない                                                 | **独自** |
+| `FR-PII-21c` | 第 2 層は、既定では実行しない                                                          | **独自** |
+| `FR-PII-21d` | 確度が閾値に満たない判定は採らない。閾値は設定できる                                   | **独自** |
+| `FR-PII-21e` | 本文中の位置を特定できない判定は採らない                                               | **独自** |
+| `FR-PII-21f` | 第 1 層が伏せた範囲と重なる判定は、第 1 層を優先する                                   | **独自** |
+| `FR-PII-22`  | 判定は利用者の機械の中で実行し、本文を外部へ送らない                                   | **独自** |
+| `FR-PII-22a` | 判定を実行できなかった場合は、その旨を件数と併せて示す                                 | **独自** |
+| `FR-PII-22b` | 判定に要する時間を、送信の待ち時間として体感させない                                   | **独自** |
+| `FR-PII-23`  | 判定に使うモデルのファイルは、配布物に同梱しない                                       | **独自** |
+| `FR-PII-23a` | モデルの置き場所は設定で指せる                                                         | **独自** |
+| `FR-PII-23b` | モデルが無い場合、第 2 層は動かず、第 1 層はそのまま動く                               | **独自** |
+| `FR-PII-23c` | モデルの取得は、利用者が明示的に指示したときだけ行う                                   | **独自** |
+| `FR-PII-23d` | 網に繋がらない環境では、ファイルを置くだけで使える                                     | **独自** |
+| `FR-PII-23e` | 読み込む前に、モデルのファイルが壊れていないことを確かめる                             | **独自** |
 
 ### 3.3 使用性要件
 
@@ -1271,6 +1287,22 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-PII-20`   | 試験 |                                                                                                                                                                                               |
 | `FR-PII-20a`  | 試験 |                                                                                                                                                                                               |
 | `FR-PII-20b`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21`   | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21a`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21b`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21c`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21d`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21e`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-21f`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-22`   | 試験 |                                                                                                                                                                                               |
+| `FR-PII-22a`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-22b`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23`   | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23a`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23b`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23c`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23d`  | 試験 |                                                                                                                                                                                               |
+| `FR-PII-23e`  | 試験 |                                                                                                                                                                                               |
 | `FR-PII-07`   | 試験 |                                                                                                                                                                                               |
 | `FR-PII-08`   | 試験 |                                                                                                                                                                                               |
 | `FR-PII-08a`  | 試験 |                                                                                                                                                                                               |
@@ -1307,26 +1339,27 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 
 各要件を満たす仕組みは `docs/features/` に置く。1 つのファイルが 1 つの領域を扱う。
 
-| 機能仕様                                              | 対応する要件           |
-| ----------------------------------------------------- | ---------------------- |
-| [agent-loop.md](features/agent-loop.md)               | `FR-LOOP-*`            |
-| [pii-masking.md](features/pii-masking.md)             | `FR-PII-*`             |
-| [tools.md](features/tools.md)                         | `FR-TOOL-*`            |
-| [file-access.md](features/file-access.md)             | `FR-FILE-*`            |
-| [editing.md](features/editing.md)                     | `FR-EDIT-*`            |
-| [command-execution.md](features/command-execution.md) | `FR-CMD-*`             |
-| [approval.md](features/approval.md)                   | `FR-APRV-*`            |
-| [modes.md](features/modes.md)                         | `FR-MODE-*`            |
-| [context.md](features/context.md)                     | `FR-CTX-*`             |
-| [checkpoints.md](features/checkpoints.md)             | `FR-CKPT-*`            |
-| [mcp-servers.md](features/mcp-servers.md)             | `FR-MCP-*`             |
-| [code-index.md](features/code-index.md)               | `FR-IDX-*`             |
-| [extension-points.md](features/extension-points.md)   | `FR-EXT-*`             |
-| [provider.md](features/provider.md)                   | `FR-PROV-*`            |
-| [network.md](features/network.md)                     | `FR-NET-*`             |
-| [vscode-ui.md](features/vscode-ui.md)                 | `FR-UI-*`              |
-| [tasks.md](features/tasks.md)                         | `FR-TASK-*` `FR-DAT-*` |
-| [i18n.md](features/i18n.md)                           | `FR-I18N-*`            |
+| 機能仕様                                              | 対応する要件              |
+| ----------------------------------------------------- | ------------------------- |
+| [agent-loop.md](features/agent-loop.md)               | `FR-LOOP-*`               |
+| [pii-masking.md](features/pii-masking.md)             | `FR-PII-*`                |
+| [pii-proper-nouns.md](features/pii-proper-nouns.md)   | `FR-PII-21`〜`FR-PII-23e` |
+| [tools.md](features/tools.md)                         | `FR-TOOL-*`               |
+| [file-access.md](features/file-access.md)             | `FR-FILE-*`               |
+| [editing.md](features/editing.md)                     | `FR-EDIT-*`               |
+| [command-execution.md](features/command-execution.md) | `FR-CMD-*`                |
+| [approval.md](features/approval.md)                   | `FR-APRV-*`               |
+| [modes.md](features/modes.md)                         | `FR-MODE-*`               |
+| [context.md](features/context.md)                     | `FR-CTX-*`                |
+| [checkpoints.md](features/checkpoints.md)             | `FR-CKPT-*`               |
+| [mcp-servers.md](features/mcp-servers.md)             | `FR-MCP-*`                |
+| [code-index.md](features/code-index.md)               | `FR-IDX-*`                |
+| [extension-points.md](features/extension-points.md)   | `FR-EXT-*`                |
+| [provider.md](features/provider.md)                   | `FR-PROV-*`               |
+| [network.md](features/network.md)                     | `FR-NET-*`                |
+| [vscode-ui.md](features/vscode-ui.md)                 | `FR-UI-*`                 |
+| [tasks.md](features/tasks.md)                         | `FR-TASK-*` `FR-DAT-*`    |
+| [i18n.md](features/i18n.md)                           | `FR-I18N-*`               |
 
 非機能要件は、上記のいずれか 1 つ以上の機能仕様が満たす。どの機能仕様も対応しない
 非機能要件は、品質ゲート（`NFR-MNT-*`）と文書の規約が満たす。

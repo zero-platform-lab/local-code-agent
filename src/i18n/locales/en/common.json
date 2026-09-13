@@ -259,6 +259,10 @@
 		"nothingToRestore": "No placeholder to restore was found.",
 		"restored": "Restored the original values.",
 		"documentChanged": "The file changed while the command was running. Nothing was modified, because the offsets no longer match. Please try again.",
-		"selectionNotOneTerm": "The selection contains a newline or a tab. A dictionary holds one term per line, so select a single term."
+		"selectionNotOneTerm": "The selection contains a newline or a tab. A dictionary holds one term per line, so select a single term.",
+		"fetchingModel": "Fetching the proper noun detection model",
+		"fetchFailed": "Could not fetch the model: {{error}}",
+		"modelIncomplete": "The model is incomplete: {{detail}}",
+		"modelReady": "Placed the model at {{path}}."
 	}
 }

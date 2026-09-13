@@ -260,6 +260,10 @@
 		"nothingToRestore": "戻す伏せ字は見つかりませんでした。",
 		"restored": "伏せ字を元の値へ戻しました。",
 		"documentChanged": "操作の間にファイルが変わりました。位置がずれるため、何もしていません。もう一度お試しください。",
-		"selectionNotOneTerm": "選んだ範囲に改行かタブが含まれています。辞書は 1 行 1 語なので、1 つの語を選んでください。"
+		"selectionNotOneTerm": "選んだ範囲に改行かタブが含まれています。辞書は 1 行 1 語なので、1 つの語を選んでください。",
+		"fetchingModel": "固有名詞の検出のモデルを取得しています",
+		"fetchFailed": "モデルを取得できませんでした: {{error}}",
+		"modelIncomplete": "モデルが揃っていません: {{detail}}",
+		"modelReady": "モデルを {{path}} へ置きました。"
 	}
 }

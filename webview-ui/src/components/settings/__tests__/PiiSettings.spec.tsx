@@ -159,3 +159,58 @@ describe("書き出し（FR-PII-17）", () => {
 		expect(postMessage).toHaveBeenCalledWith({ type: "exportPiiDictionary" })
 	})
 })
+
+describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
+	it("既定では切で、製品名とイベント名は外れている（FR-PII-21b・FR-PII-21c）", () => {
+		renderWith()
+
+		// React が伏せ字になると、モデルは何の話か判断できなくなる。
+		expect(screen.getByTestId("pii-proper-nouns-enabled")).not.toBeChecked()
+		expect(screen.getByTestId("pii-entity-PER")).toBeChecked()
+		expect(screen.getByTestId("pii-entity-ORG")).toBeChecked()
+		expect(screen.getByTestId("pii-entity-PRD")).not.toBeChecked()
+		expect(screen.getByTestId("pii-entity-EVT")).not.toBeChecked()
+	})
+
+	it("入切は第 1 層とは別に持つ", () => {
+		// モデルを置いていない利用者のほうが多い。同じ切り替えにすると、入れたつもりで動かない。
+		const set = renderWith({ enabled: true })
+
+		fireEvent.click(screen.getByTestId("pii-proper-nouns-enabled"))
+
+		expect(set).toHaveBeenCalledWith({ enabled: true, properNouns: { enabled: true } })
+	})
+
+	it("区分を外すと、外した一覧を書く（FR-PII-21a）", () => {
+		const set = renderWith({ properNouns: { enabled: true } })
+
+		fireEvent.click(screen.getByTestId("pii-entity-LOC"))
+
+		expect(set.mock.calls[0][0].properNouns.entities).toEqual(["PER", "ORG", "ORG-P", "ORG-O", "INS"])
+	})
+
+	it("区分を足せる", () => {
+		const set = renderWith({ properNouns: { enabled: true, entities: ["PER"] } })
+
+		fireEvent.click(screen.getByTestId("pii-entity-ORG"))
+
+		expect(set.mock.calls[0][0].properNouns.entities).toEqual(["PER", "ORG"])
+	})
+
+	it("置き場所を書ける", () => {
+		const set = renderWith({ properNouns: { enabled: true } })
+
+		fireEvent.change(screen.getByTestId("pii-model-path"), { target: { value: "~/models/ner" } })
+
+		expect(set.mock.calls[0][0].properNouns.modelPath).toBe("~/models/ner")
+	})
+
+	it("取得は押した時点で拡張ホストへ送る（FR-PII-23c）", () => {
+		// 設定ではなく操作なので、保存を待たない。
+		renderWith({ properNouns: { enabled: true } })
+
+		fireEvent.click(screen.getByTestId("pii-model-fetch"))
+
+		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel" })
+	})
+})

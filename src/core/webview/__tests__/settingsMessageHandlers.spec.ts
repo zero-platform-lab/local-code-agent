@@ -30,6 +30,7 @@ import type { WebviewMessageHost } from "../webviewMessageHost"
 const {
 	showWarningMessageMock,
 	showInformationMessageMock,
+	fetchModelMock,
 	showInputBoxMock,
 	fetchSkillSourceMock,
 	openFileMock,
@@ -64,6 +65,7 @@ const {
 	exportSettingsMock: vi.fn(async () => undefined),
 	showWarningMessageMock: vi.fn(),
 	showInformationMessageMock: vi.fn(),
+	fetchModelMock: vi.fn(),
 	showInputBoxMock: vi.fn(async (..._args: unknown[]): Promise<string | undefined> => undefined),
 	fetchSkillSourceMock: vi.fn(),
 	openFileMock: vi.fn(),
@@ -85,8 +87,12 @@ vi.mock("vscode", () => ({
 		showWarningMessage: showWarningMessageMock,
 		showInformationMessage: showInformationMessageMock,
 		showInputBox: showInputBoxMock,
+		// 進み具合の窓は、中の処理をそのまま実行するだけの偽物にする。
+		withProgress: (_options: unknown, run: (progress: { report: (v: unknown) => void }) => unknown) =>
+			run({ report: () => {} }),
 	},
 	ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
+	ProgressLocation: { Notification: 15 },
 }))
 
 // t は鍵をそのまま返す。文言ではなく「どの鍵を出したか」を見る。
@@ -98,6 +104,9 @@ vi.mock("../../../i18n", () => ({
 vi.mock("../../../services/skills/skillSourceFetcher", () => ({ fetchSkillSource: fetchSkillSourceMock }))
 
 vi.mock("../../../integrations/misc/open-file", () => ({ openFile: openFileMock }))
+
+// 282 MB を取りに行かせない。取得の段だけを偽物にする。
+vi.mock("../../../services/pii/nerFetch", () => ({ fetchModel: fetchModelMock }))
 
 vi.mock("../../../services/pii/dictionaryEditor", () => ({
 	exportDictionary: exportDictionaryMock,
@@ -1207,5 +1216,59 @@ describe("伏せ字の辞書", () => {
 			terms: [{ value: "サンプル" }],
 			dictionaryPaths: ["/w/d.txt"],
 		})
+	})
+})
+
+describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
+	const ok = { ok: true, missing: [], mismatched: [] }
+
+	beforeEach(() => {
+		fetchModelMock.mockReset()
+		showErrorMessageMock.mockReset()
+		showInformationMessageMock.mockReset()
+	})
+
+	it("設定した置き場所へ取りに行く（`~` は展開する）", async () => {
+		fetchModelMock.mockResolvedValue(ok)
+		const h = setup({
+			storedValues: { piiMasking: { properNouns: { modelPath: "~/models/ner" } } },
+		})
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		const [directory] = fetchModelMock.mock.calls[0]
+		expect(directory).not.toContain("~")
+		expect(directory).toContain("models/ner")
+		expect(showInformationMessageMock.mock.calls[0][0]).toContain("common:pii.modelReady")
+	})
+
+	it("置き場所が無ければ既定の場所へ取る", async () => {
+		fetchModelMock.mockResolvedValue(ok)
+		const h = setup({ storedValues: { piiMasking: {} } })
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		expect(fetchModelMock.mock.calls[0][0]).toContain("pii-ner")
+	})
+
+	it("取れなければ、その旨を出す", async () => {
+		fetchModelMock.mockRejectedValue(new Error("404"))
+		const h = setup()
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		expect(showErrorMessageMock.mock.calls[0][0]).toContain("common:pii.fetchFailed")
+		expect(showInformationMessageMock).not.toHaveBeenCalled()
+	})
+
+	it("取れても揃っていなければ、揃った扱いにしない", async () => {
+		// 欠けたまま入にすると、第 2 層が静かに動かず画面の見た目も変わらない。
+		fetchModelMock.mockResolvedValue({ ok: false, missing: ["tokenizer.json"], mismatched: [] })
+		const h = setup()
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		expect(showErrorMessageMock.mock.calls[0][0]).toContain("common:pii.modelIncomplete")
+		expect(showInformationMessageMock).not.toHaveBeenCalled()
 	})
 })

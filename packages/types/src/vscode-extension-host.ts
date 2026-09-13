@@ -361,6 +361,7 @@ export interface WebviewMessage {
 		| "saveSkillSourceCredentials"
 		| "exportPiiDictionary"
 		| "openPiiDictionary"
+		| "fetchPiiNerModel"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

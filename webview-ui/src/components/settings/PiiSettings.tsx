@@ -3,7 +3,7 @@ import { Shield, Plus, Trash2, FileText, Download } from "lucide-react"
 import { Checkbox } from "vscrui"
 import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 
-import { piiKinds, type PiiKind, type PiiMasking } from "@openai-agent/types"
+import { nerEntities, piiKinds, type NerEntity, type PiiKind, type PiiMasking } from "@openai-agent/types"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { Button, StandardTooltip } from "@/components/ui"
@@ -51,6 +51,28 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 		(kind: PiiKind, checked: boolean) =>
 			update({ kinds: checked ? [...kinds, kind] : kinds.filter((one) => one !== kind) }),
 		[kinds, update],
+	)
+
+	const properNouns = useMemo(() => masking.properNouns ?? {}, [masking.properNouns])
+	// 未指定は「製品名とイベント名だけ伏せない」（`FR-PII-21b`）。React が伏せ字になると、
+	// モデルは何の話か判断できなくなる。
+	const entities = useMemo(
+		() => properNouns.entities ?? nerEntities.filter((one) => one !== "PRD" && one !== "EVT"),
+		[properNouns.entities],
+	)
+
+	const updateProperNouns = useCallback(
+		(patch: Partial<NonNullable<PiiMasking["properNouns"]>>) =>
+			update({ properNouns: { ...properNouns, ...patch } }),
+		[properNouns, update],
+	)
+
+	const toggleEntity = useCallback(
+		(entity: NerEntity, checked: boolean) =>
+			updateProperNouns({
+				entities: checked ? [...entities, entity] : entities.filter((one) => one !== entity),
+			}),
+		[entities, updateProperNouns],
 	)
 
 	return (
@@ -165,6 +187,71 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 							</div>
 						))
 					)}
+				</div>
+
+				{/*
+				 * 第 2 層（`FR-PII-21`）。辞書に無い固有名詞を、前後の文から判定して伏せる。
+				 *
+				 * **第 1 層とは別の切り替えを持つ。** モデルのファイルを別に置く必要があり、
+				 * 置いていない利用者のほうが多い。第 1 層と同じ切り替えにすると、
+				 * 入れたつもりで動かない状態になる。
+				 */}
+				<div className="flex flex-col gap-2 mt-4 pt-4 border-t border-vscode-panel-border">
+					<label className="block font-medium">{t("settings:pii.properNouns.title")}</label>
+					<div className="text-sm text-vscode-descriptionForeground">
+						{t("settings:pii.properNouns.description")}
+					</div>
+
+					<Checkbox
+						checked={properNouns.enabled === true}
+						onChange={(checked: boolean) => updateProperNouns({ enabled: checked })}
+						data-testid="pii-proper-nouns-enabled">
+						{t("settings:pii.properNouns.enable")}
+					</Checkbox>
+
+					<label className="block mt-2">{t("settings:pii.properNouns.entities")}</label>
+					<div className="grid grid-cols-2 gap-1">
+						{nerEntities.map((entity) => (
+							<Checkbox
+								key={entity}
+								checked={entities.includes(entity)}
+								onChange={(checked: boolean) => toggleEntity(entity, checked)}
+								data-testid={`pii-entity-${entity}`}>
+								{t(`settings:pii.properNouns.entity.${entity}`)}
+							</Checkbox>
+						))}
+					</div>
+
+					<label className="block mt-2">{t("settings:pii.properNouns.modelPath")}</label>
+					<div className="flex gap-1 items-center">
+						<VSCodeTextField
+							className="grow"
+							value={properNouns.modelPath ?? ""}
+							placeholder={t("settings:pii.properNouns.modelPathPlaceholder")}
+							data-testid="pii-model-path"
+							onInput={(event: unknown) =>
+								updateProperNouns({
+									modelPath:
+										typeof event === "object" && event !== null && "target" in event
+											? (event as { target: { value: string } }).target.value
+											: "",
+								})
+							}
+						/>
+						<StandardTooltip content={t("settings:pii.properNouns.fetch")}>
+							<Button
+								variant="secondary"
+								className="py-1"
+								// 取得は操作なので、押した時点で拡張ホストへ送る。
+								onClick={() => vscode.postMessage({ type: "fetchPiiNerModel" })}
+								data-testid="pii-model-fetch">
+								<Download />
+							</Button>
+						</StandardTooltip>
+					</div>
+					<div className="text-sm text-vscode-descriptionForeground">
+						{t("settings:pii.properNouns.offline")}
+					</div>
 				</div>
 			</Section>
 		</div>

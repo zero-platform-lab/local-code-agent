@@ -714,6 +714,26 @@
 			"mynumber": "My Number"
 		},
 		"stateOn": "Currently on. Toggle it with the button at the bottom right of the chat view.",
-		"stateOff": "Currently off. Toggle it with the button at the bottom right of the chat view."
+		"stateOff": "Currently off. Toggle it with the button at the bottom right of the chat view.",
+		"properNouns": {
+			"title": "Proper noun detection (layer 2)",
+			"description": "Masks names and companies that are not in the dictionary, judged from the surrounding text. Requires model files to be placed separately (about 282 MB).",
+			"enable": "Use proper noun detection",
+			"entities": "Categories to mask",
+			"entity": {
+				"PER": "Person",
+				"ORG": "Company",
+				"ORG-P": "Political organization",
+				"ORG-O": "Other organization",
+				"LOC": "Place",
+				"INS": "Facility",
+				"PRD": "Product (makes technical text unreadable)",
+				"EVT": "Event"
+			},
+			"modelPath": "Model directory",
+			"modelPathPlaceholder": "Leave empty to use the default location",
+			"fetch": "Fetch the model",
+			"offline": "On a closed network, fetch the files on another machine and place them here."
+		}
 	}
 }

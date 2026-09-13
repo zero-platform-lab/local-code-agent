@@ -20,6 +20,8 @@ import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../servi
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
 import { DICTIONARY_HEADER, exportDictionary } from "../../services/pii/dictionaryEditor"
 import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
+import { fetchModel } from "../../services/pii/nerFetch"
+import { defaultModelDirectory, describeCheck } from "../../services/pii/nerModel"
 import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
@@ -327,6 +329,44 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		// 無ければ作る。**書き方も一緒に入れる**（`FR-PII-16`）。空のファイルを渡されても、
 		// タブが種類を表すことも `/.../` が正規表現になることも分からない。
 		await openFile(target, { create: true, content: DICTIONARY_HEADER })
+	},
+
+	fetchPiiNerModel: async (provider, _message) => {
+		// **利用者が押したときだけ取りに行く（`FR-PII-23c`）。** 282 MB を勝手に取らない。
+		const masking = provider.contextProxy.getValue("piiMasking")
+		const raw = masking?.properNouns?.modelPath
+		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
+
+		// 282 MB を待たせるので、何を取っているかを出す。
+		const check = await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: t("common:pii.fetchingModel"),
+				cancellable: false,
+			},
+			async (progress) => {
+				try {
+					return await fetchModel(directory, { report: (one) => progress.report({ message: one }) })
+				} catch (error) {
+					await vscode.window.showErrorMessage(
+						t("common:pii.fetchFailed", { error: error instanceof Error ? error.message : String(error) }),
+					)
+					return undefined
+				}
+			},
+		)
+
+		if (check === undefined) return
+
+		// **取れたつもりで欠けている状態を作らない。** 欠けたまま入にすると、第 2 層が
+		// 静かに動かず、画面の見た目も変わらない。
+		const why = describeCheck(check)
+		if (why) {
+			await vscode.window.showErrorMessage(t("common:pii.modelIncomplete", { detail: why }))
+			return
+		}
+
+		await vscode.window.showInformationMessage(t("common:pii.modelReady", { path: directory }))
 	},
 
 	updateVSCodeSetting: async (_provider, message) => {

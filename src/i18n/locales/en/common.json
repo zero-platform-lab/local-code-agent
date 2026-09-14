@@ -263,6 +263,7 @@
 		"fetchingModel": "Fetching the proper noun detection model",
 		"fetchFailed": "Could not fetch the model: {{error}}",
 		"modelIncomplete": "The model is incomplete: {{detail}}",
-		"modelReady": "Placed the model at {{path}}."
+		"modelReady": "Placed the model at {{path}}.",
+		"noModelUrl": "No fetch destination is set. Enter the model URL in Settings → General → Proper nouns, or place the files in the model location by hand."
 	}
 }

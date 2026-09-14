@@ -734,7 +734,10 @@
 			"modelPathPlaceholder": "Leave empty to use the default location",
 			"fetch": "Fetch the model",
 			"offline": "On a closed network, fetch the files on another machine and place them here.",
-			"noEntities": "No category is selected, so nothing will be masked — only the model load happens."
+			"noEntities": "No category is selected, so nothing will be masked — only the model load happens.",
+			"lookingAt": "Looking at:",
+			"placed": "Placed ({{size}} MB)",
+			"notPlaced": "Not placed ({{count}} files missing). Put them in the directory above, or press fetch."
 		}
 	}
 }

@@ -1,9 +1,17 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
+import { useEvent, useMount } from "react-use"
 import { Shield, Plus, Trash2, FileText, Download } from "lucide-react"
 import { Checkbox } from "vscrui"
 import { VSCodeTextField } from "@vscode/webview-ui-toolkit/react"
 
-import { nerEntities, piiKinds, type NerEntity, type PiiKind, type PiiMasking } from "@openai-agent/types"
+import {
+	nerEntities,
+	piiKinds,
+	type ExtensionMessage,
+	type NerEntity,
+	type PiiKind,
+	type PiiMasking,
+} from "@openai-agent/types"
 
 import { useAppTranslation } from "@/i18n/TranslationContext"
 import { Button, StandardTooltip } from "@/components/ui"
@@ -54,6 +62,30 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 	)
 
 	const properNouns = useMemo(() => masking.properNouns ?? {}, [masking.properNouns])
+
+	/**
+	 * モデルの置き場所の様子。
+	 *
+	 * **どこを見ているかを画面へ出すために持つ。** 出さないと、閉鎖環境の利用者は
+	 * どこへファイルを運べばよいか分からない。欄が空なら既定の場所を見るが、その場所は
+	 * 画面のどこにも書いていなかった。
+	 */
+	const [model, setModel] = useState<ExtensionMessage["piiNerModel"]>()
+
+	const askModel = useCallback(
+		(path?: string) => vscode.postMessage({ type: "requestPiiNerModelStatus", text: path ?? "" }),
+		[],
+	)
+
+	useEvent(
+		"message",
+		useCallback((event: MessageEvent) => {
+			const message = event.data as ExtensionMessage
+			if (message.type === "piiNerModelStatus") setModel(message.piiNerModel)
+		}, []),
+	)
+
+	useMount(() => askModel(properNouns.modelPath))
 	// 未指定は「製品名とイベント名だけ伏せない」（`FR-PII-21b`）。React が伏せ字になると、
 	// モデルは何の話か判断できなくなる。
 	const entities = useMemo(
@@ -242,14 +274,15 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 							value={properNouns.modelPath ?? ""}
 							placeholder={t("settings:pii.properNouns.modelPathPlaceholder")}
 							data-testid="pii-model-path"
-							onInput={(event: unknown) =>
-								updateProperNouns({
-									modelPath:
-										typeof event === "object" && event !== null && "target" in event
-											? (event as { target: { value: string } }).target.value
-											: "",
-								})
-							}
+							onInput={(event: unknown) => {
+								const value =
+									typeof event === "object" && event !== null && "target" in event
+										? (event as { target: { value: string } }).target.value
+										: ""
+								updateProperNouns({ modelPath: value })
+								// 書き換えたら、その場所を見に行き直す。
+								askModel(value)
+							}}
 						/>
 						<StandardTooltip content={t("settings:pii.properNouns.fetch")}>
 							<Button
@@ -266,6 +299,27 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 							</Button>
 						</StandardTooltip>
 					</div>
+					{/*
+					 * **どこを見ているかを出す。** 出さないと、閉鎖環境の利用者はどこへ
+					 * ファイルを運べばよいか分からない。欄が空なら既定の場所を見るが、
+					 * その場所は画面のどこにも書いていなかった。
+					 */}
+					{model ? (
+						<div className="text-sm text-vscode-descriptionForeground" data-testid="pii-model-status">
+							<div>
+								{t("settings:pii.properNouns.lookingAt")}
+								<code className="ml-1">{model.directory}</code>
+							</div>
+							<div className={model.present ? "" : "text-vscode-errorForeground"}>
+								{model.present
+									? t("settings:pii.properNouns.placed", {
+											size: Math.round(model.bytes / 1024 / 1024),
+										})
+									: t("settings:pii.properNouns.notPlaced", { count: model.missing.length })}
+							</div>
+						</div>
+					) : null}
+
 					<div className="text-sm text-vscode-descriptionForeground">
 						{t("settings:pii.properNouns.offline")}
 					</div>

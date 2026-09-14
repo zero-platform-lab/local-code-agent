@@ -125,6 +125,20 @@ model-ner-ja-v1
 
 置き場所は設定で指す（`FR-PII-23a`）。
 
+**どこを見ているかを画面に出す。** 出さないと、閉鎖環境の利用者はどこへファイルを運べば
+よいか分からない。欄を空にすると既定の場所を見るが、その場所は画面のどこにも書いていな
+かった。いまは実際に見ている場所と、置かれているかどうかを出す。
+
+```
+モデルの置き場所
+[                    ] [⤓ 取得]
+見ている場所: /home/…/.agent/pii-ner
+置かれていません（6 ファイルが足りません）
+```
+
+**照合はしない。** `SHA256SUMS` との突き合わせは 265 MB を読み直すので、画面を出すたびに
+は実行できない。あるかどうかだけを見る。読み込む前の照合は別に行う（`FR-PII-23e`）。
+
 | 環境     | どう置くか                                             |
 | -------- | ------------------------------------------------------ |
 | 網がある | 利用者が指示したときだけ取得する（`FR-PII-23c`）       |
@@ -210,6 +224,7 @@ int8 を既定とする。**速いうえに、確度の低い誤りがより低�
 | 区分ごとの切り替えと既定             | `src/services/pii/__tests__/nerDetector.spec.ts`                    |
 | 第 1 層と重なったときの優先          | `src/services/pii/__tests__/nerDetector.spec.ts`                    |
 | モデルが無いときに第 1 層が動くこと  | `src/services/pii/__tests__/nerModel.spec.ts`                       |
+| 置き場所の様子を返すこと             | `src/services/pii/__tests__/nerModel.spec.ts`                       |
 | ファイルの同一性の確認               | `src/services/pii/__tests__/nerModel.spec.ts`                       |
 | 判定の実行と、読み込みの設定         | `src/services/pii/__tests__/nerBackend.spec.ts`                     |
 | 特殊な印を数に入れること             | `src/services/pii/__tests__/nerBackend.spec.ts`                     |

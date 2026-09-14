@@ -22,7 +22,7 @@ import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../..
 import { DICTIONARY_HEADER, exportDictionary } from "../../services/pii/dictionaryEditor"
 import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
 import { fetchModel } from "../../services/pii/nerFetch"
-import { defaultModelDirectory, describeCheck } from "../../services/pii/nerModel"
+import { defaultModelDirectory, describeCheck, locateModel } from "../../services/pii/nerModel"
 import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
 
@@ -339,6 +339,22 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		// 無ければ作る。**書き方も一緒に入れる**（`FR-PII-16`）。空のファイルを渡されても、
 		// タブが種類を表すことも `/.../` が正規表現になることも分からない。
 		await openFile(target, { create: true, content: DICTIONARY_HEADER })
+	},
+
+	requestPiiNerModelStatus: async (provider, message) => {
+		// **どこを見ているかを画面へ返す。** 出さないと、閉鎖環境の利用者はどこへ
+		// ファイルを運べばよいか分からない。既定の場所を使う設定だと欄が空なので、
+		// 手がかりが 1 つも無い。
+		//
+		// **照合はしない。** 265 MB を読み直すことになり、画面を出すたびには実行できない。
+		const saved = provider.contextProxy.getValue("piiMasking")
+		const raw = typeof message.text === "string" ? message.text : saved?.properNouns?.modelPath
+		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
+
+		await provider.postMessageToWebview({
+			type: "piiNerModelStatus",
+			piiNerModel: await locateModel(directory),
+		})
 	},
 
 	fetchPiiNerModel: async (provider, message) => {

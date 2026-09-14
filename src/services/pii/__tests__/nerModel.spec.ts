@@ -21,6 +21,7 @@ import {
 	CHECKSUM_FILE,
 	defaultModelDirectory,
 	describeCheck,
+	locateModel,
 	parseChecksums,
 	REQUIRED_FILES,
 	verifyModel,
@@ -138,5 +139,35 @@ describe("describeCheck（FR-PII-22a）", () => {
 		[{ ok: false, missing: ["a"], mismatched: ["b"] }, "置かれていない: a / 値が違う: b"],
 	])("%o は %j になる", (check, expected) => {
 		expect(describeCheck(check)).toBe(expected)
+	})
+})
+
+describe("locateModel（FR-PII-23a）", () => {
+	it("置いてあれば、場所と大きさを返す", async () => {
+		// 照合はしない。265 MB を読み直すと、画面を出すたびに待たされる。
+		await placeModel()
+
+		const found = await locateModel(dir)
+
+		expect(found).toMatchObject({ directory: dir, present: true, missing: [] })
+		expect(found.bytes).toBeGreaterThan(0)
+	})
+
+	it("足りなければ、その名前を返す", async () => {
+		const found = await locateModel(dir)
+
+		expect(found.present).toBe(false)
+		expect(found.missing).toContain(CHECKSUM_FILE)
+		expect(found.missing).toContain("onnx/model_quantized.onnx")
+	})
+
+	it("一部だけ置かれている場合も分かる", async () => {
+		await placeModel()
+		await fs.rm(path.join(dir, "tokenizer.json"))
+
+		const found = await locateModel(dir)
+
+		expect(found.present).toBe(false)
+		expect(found.missing).toEqual(["tokenizer.json"])
 	})
 })

@@ -57,6 +57,7 @@ export interface ExtensionMessage {
 		| "codebaseIndexConfig"
 		| "codeIndexSettingsSaved"
 		| "codeIndexSecretStatus"
+		| "piiNerModelStatus"
 		| "showDeleteMessageDialog"
 		| "showEditMessageDialog"
 		| "commands"
@@ -117,6 +118,8 @@ export interface ExtensionMessage {
 	/** Generic payload for extension messages that use `values` */
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	values?: Record<string, any>
+	/** 第 2 層のモデルの置き場所の様子（`FR-PII-23a`）。 */
+	piiNerModel?: { directory: string; present: boolean; missing: string[]; bytes: number }
 	requestId?: string
 	promptText?: string
 	results?:
@@ -362,6 +365,7 @@ export interface WebviewMessage {
 		| "exportPiiDictionary"
 		| "openPiiDictionary"
 		| "fetchPiiNerModel"
+		| "requestPiiNerModelStatus"
 		| "setAutonomyMode"
 		| "openImage"
 		| "saveImage"

@@ -94,6 +94,11 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		maxOpenTabsContext: stateValues.maxOpenTabsContext ?? DEFAULT_MAX_OPEN_TABS_CONTEXT,
 		maxWorkspaceFiles: stateValues.maxWorkspaceFiles ?? DEFAULT_MAX_WORKSPACE_FILES,
 		disabledTools: stateValues.disabledTools,
+		// **画面へ渡し忘れない。** これらは省略できる型なので、書き落としても型は通る。
+		// 渡さないと画面は常に `undefined` を見る。切り替えが効かない、設定が戻る、と
+		// いう形で表に出る（`buildState.invariants.spec.ts` が数を固定している）。
+		skillSources: stateValues.skillSources,
+		piiMasking: stateValues.piiMasking,
 		showAgentIgnoredFiles: stateValues.showAgentIgnoredFiles ?? DEFAULT_SHOW_AGENT_IGNORED_FILES,
 		enableSubfolderRules: stateValues.enableSubfolderRules ?? false,
 		maxImageFileSize: stateValues.maxImageFileSize ?? DEFAULT_MAX_IMAGE_FILE_SIZE_MB,

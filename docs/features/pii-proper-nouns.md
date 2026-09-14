@@ -160,6 +160,11 @@ SentencePiece なので、MeCab や Juman++ を要求せず、Node だけで実�
 `webgpu` だけだった。したがって native の実行の仕組みを同梱することになり、**配布物は
 platform ごとに分かれる**。
 
+**動かせない配布物では、切り替えを出さない**（`FR-PII-23g`）。`universal` 版には native が
+入っていない。切り替えだけ出すと、入れても何も起きない。**画面に変化が無いので、利用者は
+設定が壊れていると思う。** 実際にそう報告を受けた。出すのは理由と、どの配布物を入れれば
+よいかである。
+
 **配るのは Windows と Linux の x64 だけとする。** 利用者は自分の platform のぶんだけを
 取るので、1 人あたりの大きさは変わらない。増えるのは版を出すときの手順である。
 
@@ -224,6 +229,7 @@ int8 を既定とする。**速いうえに、確度の低い誤りがより低�
 | 区分ごとの切り替えと既定             | `src/services/pii/__tests__/nerDetector.spec.ts`                    |
 | 第 1 層と重なったときの優先          | `src/services/pii/__tests__/nerDetector.spec.ts`                    |
 | モデルが無いときに第 1 層が動くこと  | `src/services/pii/__tests__/nerModel.spec.ts`                       |
+| 動かせない配布物での見え方           | `webview-ui/src/components/settings/__tests__/PiiSettings.spec.tsx` |
 | 置き場所の様子を返すこと             | `src/services/pii/__tests__/nerModel.spec.ts`                       |
 | ファイルの同一性の確認               | `src/services/pii/__tests__/nerModel.spec.ts`                       |
 | 判定の実行と、読み込みの設定         | `src/services/pii/__tests__/nerBackend.spec.ts`                     |

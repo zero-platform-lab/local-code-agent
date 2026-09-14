@@ -119,7 +119,7 @@ export interface ExtensionMessage {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	values?: Record<string, any>
 	/** 第 2 層のモデルの置き場所の様子（`FR-PII-23a`）。 */
-	piiNerModel?: { directory: string; present: boolean; missing: string[]; bytes: number }
+	piiNerModel?: { runtime: boolean; directory: string; present: boolean; missing: string[]; bytes: number }
 	requestId?: string
 	promptText?: string
 	results?:

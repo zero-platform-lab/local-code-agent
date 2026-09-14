@@ -1,6 +1,6 @@
 import * as path from "path"
 import { createHash } from "crypto"
-import { createReadStream, promises as fs } from "fs"
+import { createReadStream, existsSync, promises as fs } from "fs"
 
 import { getGlobalAgentDirectory } from "../agent-config"
 
@@ -129,6 +129,8 @@ export function describeCheck(check: ModelCheck): string | undefined {
 
 /** 置き場所の様子。画面へ出すためのもので、照合はしない。 */
 export type ModelLocation = {
+	/** この配布物が第 2 層を動かせるか。`universal` 版は動かせない。 */
+	runtime: boolean
 	/** 実際に見ている場所。利用者はここへファイルを置く。 */
 	directory: string
 	/** 要るファイルが全部あるか。 */
@@ -160,5 +162,31 @@ export async function locateModel(directory: string): Promise<ModelLocation> {
 		}
 	}
 
-	return { directory, present: missing.length === 0, missing, bytes }
+	return { runtime: hasNerRuntime(), directory, present: missing.length === 0, missing, bytes }
+}
+
+/**
+ * この配布物が第 2 層を動かせるか（`FR-PII-23g`）。
+ *
+ * **配布物は platform ごとに分かれる。** native を含まない `universal` 版もあり、そちらでは
+ * 第 2 層が動かない。**動かせないのに切り替えだけ出すと、入れても何も起きない。** 画面には
+ * 何の変化も無いので、利用者は設定が壊れていると思う。実際にそう報告を受けた。
+ *
+ * 判定は「native が同梱されているか」で行う。読み込みまではしない。読み込むと 265 MB の
+ * モデルまで要るうえ、画面を出すたびに走ることになる。
+ */
+export function hasNerRuntime(): boolean {
+	// `dist/extension.js` から見た `dist/node_modules/onnxruntime-node/bin/napi-v6/<platform>/<arch>`。
+	// 束ねる側が platform を指して写す（`packages/build` の `copyOnnxRuntime`）。
+	const binding = path.join(
+		__dirname,
+		"node_modules",
+		"onnxruntime-node",
+		"bin",
+		"napi-v6",
+		process.platform,
+		process.arch,
+	)
+
+	return existsSync(binding)
 }

@@ -5,7 +5,7 @@ import { promises as fs } from "fs"
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
 import { collectTexts, maskConversation, MEMO_LIMIT, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
 import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
-import { defaultModelDirectory, describeCheck } from "./nerModel"
+import { defaultModelDirectory, describeCheck, hasNerRuntime } from "./nerModel"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
 import type { PiiKind, PiiMatch, PiiTerm } from "./types"
 
@@ -205,6 +205,20 @@ export class TaskPiiMasker {
 
 		// **先に上限を見る。** 判定したあとに捨てると、いま判定したぶんまで消える。
 		this.capNerMemo()
+
+		// **この配布物で動かせるかを先に見る（`FR-PII-23g`）。** `universal` 版には native が
+		// 入っていない。読み込みに行くと例外になるだけなので、理由を名指しで出す。
+		if (!hasNerRuntime()) {
+			this.noteLayerTwo(false)
+			if (!this.backendTried) {
+				this.backendTried = true
+				this.troubles = [
+					...this.troubles,
+					`この配布物では固有名詞の検出を動かせない（platform 別の配布物を入れる）`,
+				]
+			}
+			return undefined
+		}
 
 		if (!this.backendTried) {
 			this.backendTried = true

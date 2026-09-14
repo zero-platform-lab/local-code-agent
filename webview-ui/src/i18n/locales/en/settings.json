@@ -738,7 +738,10 @@
 			"lookingAt": "Looking at:",
 			"placed": "Placed ({{size}} MB)",
 			"notPlaced": "Not placed ({{count}} files missing). Put them in the directory above, or press fetch.",
-			"noRuntime": "This package cannot run proper noun detection. Install a platform-specific package (linux-x64 / win32-x64). Layer 1 works as is."
+			"noRuntime": "This package cannot run proper noun detection. Install a platform-specific package (linux-x64 / win32-x64). Layer 1 works as is.",
+			"modelUrl": "Fetch destination",
+			"modelUrlPlaceholder": "Leave empty to disable fetching",
+			"modelUrlHelp": "There is no built-in destination. Fetching only runs against the URL you enter here. In a closed network, leave this empty and place the files in the model location by hand."
 		}
 	}
 }

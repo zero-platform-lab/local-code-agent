@@ -217,18 +217,38 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 		fireEvent.click(screen.getByTestId("pii-model-fetch"))
 
 		// **保存前の置き場所を渡す。** 渡さないと、別の場所へ 282 MB を取ってしまう。
-		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel", text: "" })
+		// **取得先も渡す。** 既定の取得先を持たないので、渡さなければ何も取れない
+		// （`FR-PII-23h`）。
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "fetchPiiNerModel",
+			text: "",
+			values: { modelUrl: "" },
+		})
 	})
 })
 
 describe("保存前の値を渡す", () => {
 	it("書き込んだ置き場所をそのまま送る（FR-PII-23c）", () => {
 		// 保存を待たずに押せてしまうので、押した時点の値を渡す。
-		renderWith({ properNouns: { enabled: true, modelPath: "~/models/ner" } })
+		renderWith({ properNouns: { enabled: true, modelPath: "~/models/ner", modelUrl: "https://例/v1" } })
 
 		fireEvent.click(screen.getByTestId("pii-model-fetch"))
 
-		expect(postMessage).toHaveBeenCalledWith({ type: "fetchPiiNerModel", text: "~/models/ner" })
+		expect(postMessage).toHaveBeenCalledWith({
+			type: "fetchPiiNerModel",
+			text: "~/models/ner",
+			values: { modelUrl: "https://例/v1" },
+		})
+	})
+
+	it("書き込んだ取得先をそのまま送る（FR-PII-23h）", () => {
+		// 押した時点の取得先を渡す。保存済みだけを読むと、書き換えたばかりの取得先が
+		// 無視され、古い場所から 282 MB を取ってしまう。
+		const set = renderWith({ properNouns: { enabled: true } })
+
+		fireEvent.change(screen.getByTestId("pii-model-url"), { target: { value: "https://社内/ner" } })
+
+		expect(set.mock.calls[0][0].properNouns.modelUrl).toBe("https://社内/ner")
 	})
 
 	it("書き込んだ辞書をそのまま送る（FR-PII-17a）", () => {

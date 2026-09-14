@@ -264,6 +264,7 @@
 		"fetchingModel": "固有名詞の検出のモデルを取得しています",
 		"fetchFailed": "モデルを取得できませんでした: {{error}}",
 		"modelIncomplete": "モデルが揃っていません: {{detail}}",
-		"modelReady": "モデルを {{path}} へ置きました。"
+		"modelReady": "モデルを {{path}} へ置きました。",
+		"noModelUrl": "取得先が設定されていません。設定 → 一般 → 固有名詞の検出の「取得先」に URL を書くか、置き場所へ手でファイルを置いてください。"
 	}
 }

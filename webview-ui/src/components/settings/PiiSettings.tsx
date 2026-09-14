@@ -306,10 +306,13 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 										// 取得は操作なので、押した時点で拡張ホストへ送る。
 										// **保存前の置き場所を渡す。** 渡さないと、書いたばかりの場所ではなく
 										// 保存済みの場所へ 282 MB を取ってしまう。
+										// **取得先も一緒に送る（`FR-PII-23h`）。** 既定の取得先は
+										// 持たないので、送らなければ何も取れない。
 										onClick={() =>
 											vscode.postMessage({
 												type: "fetchPiiNerModel",
 												text: properNouns.modelPath ?? "",
+												values: { modelUrl: properNouns.modelUrl ?? "" },
 											})
 										}
 										data-testid="pii-model-fetch">
@@ -317,6 +320,29 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 									</Button>
 								</StandardTooltip>
 							</div>
+							{/*
+							 * **取得先の欄（`FR-PII-23h`）。** 既定の取得先を持たないので、
+							 * 書いた人だけが取得できる。書いていなければ上のボタンは理由を
+							 * 出して止まる。閉鎖環境では空のままにする。
+							 */}
+							<label className="block mt-2">{t("settings:pii.properNouns.modelUrl")}</label>
+							<VSCodeTextField
+								className="w-full"
+								value={properNouns.modelUrl ?? ""}
+								placeholder={t("settings:pii.properNouns.modelUrlPlaceholder")}
+								data-testid="pii-model-url"
+								onInput={(event: unknown) => {
+									const value =
+										typeof event === "object" && event !== null && "target" in event
+											? (event as { target: { value: string } }).target.value
+											: ""
+									updateProperNouns({ modelUrl: value })
+								}}
+							/>
+							<div className="text-sm text-vscode-descriptionForeground">
+								{t("settings:pii.properNouns.modelUrlHelp")}
+							</div>
+
 							{/*
 							 * **どこを見ているかを出す。** 出さないと、閉鎖環境の利用者はどこへ
 							 * ファイルを運べばよいか分からない。欄が空なら既定の場所を見るが、

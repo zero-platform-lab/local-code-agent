@@ -21,7 +21,7 @@ import { credentialTargetForUrl, storeSkillSourceCredentials } from "../../servi
 import { clearCopiedMarker, copySkillsToShared, removeCopiedSkills } from "../../services/skills/skillSourceCopy"
 import { DICTIONARY_HEADER, exportDictionary } from "../../services/pii/dictionaryEditor"
 import { defaultDictionaryPath, resolveDictionaryPath } from "../../services/pii/dictionary"
-import { fetchModel } from "../../services/pii/nerFetch"
+import { fetchModel, resolveBase } from "../../services/pii/nerFetch"
 import { defaultModelDirectory, describeCheck, locateModel } from "../../services/pii/nerModel"
 import { openFile } from "../../integrations/misc/open-file"
 import { sharedSkillsDir, skillSourcesBaseDir } from "../../services/skills/skillSourcePaths"
@@ -368,6 +368,19 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 		const raw = typeof message.text === "string" ? message.text : masking?.properNouns?.modelPath
 		const directory = (raw && resolveDictionaryPath(raw)) || defaultModelDirectory()
 
+		// **取得先は設定に書いた人だけが持つ（`FR-PII-23h`）。** 直書きの取得先は持たない。
+		// 画面が渡してきた値を優先するのは置き場所と同じ理由で、保存前でも押した人は
+		// そこから取りたい。
+		const sentUrl = (message.values as { modelUrl?: string } | undefined)?.modelUrl
+		const url = (typeof sentUrl === "string" ? sentUrl : masking?.properNouns?.modelUrl) ?? ""
+
+		// **進み具合を出す前に断る。** 出してから断ると、取りに行ったのに失敗したように
+		// 見える。実際には 1 度も外へ出ていない。
+		if (!resolveBase(url)) {
+			await vscode.window.showErrorMessage(t("common:pii.noModelUrl"))
+			return
+		}
+
 		// 282 MB を待たせるので、何を取っているかを出す。
 		const check = await vscode.window.withProgress(
 			{
@@ -377,7 +390,10 @@ export const settingsMessageHandlers: Partial<Record<WebviewMessage["type"], Set
 			},
 			async (progress) => {
 				try {
-					return await fetchModel(directory, { report: (one) => progress.report({ message: one }) })
+					return await fetchModel(directory, {
+						baseUrl: url,
+						report: (one) => progress.report({ message: one }),
+					})
 				} catch (error) {
 					await vscode.window.showErrorMessage(
 						t("common:pii.fetchFailed", { error: error instanceof Error ? error.message : String(error) }),

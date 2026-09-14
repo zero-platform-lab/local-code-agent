@@ -160,7 +160,13 @@ let standalone: TaskPiiMasker | undefined
  */
 let standaloneFor: WeakRef<WebviewMessageHost> | undefined
 
-function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
+/**
+ * その provider で使う伏せ字を返す。会話が動いていればそれを、無ければその場限りのものを。
+ *
+ * **会話の外からも呼ぶ。** 右クリックのファイルの置き換えも、会話が無いときはここを使う。
+ * 使わないと第 2 層が渡らず、辞書に書いていない人名がファイルに残る。
+ */
+export function piiMaskerFor(provider: WebviewMessageHost): TaskPiiMasker {
 	const current = provider.getCurrentTask()?.piiMasker
 	if (current) return current
 

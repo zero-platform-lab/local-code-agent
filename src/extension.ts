@@ -40,6 +40,7 @@ import {
 } from "./activate"
 import { initializeI18n } from "./i18n"
 import { sessionVault } from "./services/pii/maskConversation"
+import { piiMaskerFor } from "./core/webview/promptMessageHandlers"
 
 /**
  * Built using https://github.com/microsoft/vscode-webview-ui-toolkit
@@ -244,10 +245,12 @@ export async function activate(context: vscode.ExtensionContext) {
 		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
 		// 別の値を指す。
 		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
-		// 第 2 層は会話から借りる。会話が無ければ第 1 層だけで伏せる。
+		// **会話が無くても第 2 層を実行する（`FR-PII-11e`）。** 会話が動いているときだけに
+		// すると、右クリックのファイルの置き換えでは人名がほとんど残る。第 1 層は敬称から
+		// 人名を当てる規則を持たないので、辞書に書いた名前しか消えない。
 		() => {
-			const masker = provider.getCurrentTask()?.piiMasker
-			return masker ? (texts) => masker.properNounsFor(texts) : undefined
+			const masker = piiMaskerFor(provider)
+			return (texts) => masker.properNounsFor(texts)
 		},
 	)
 

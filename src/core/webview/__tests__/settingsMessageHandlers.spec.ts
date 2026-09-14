@@ -105,8 +105,14 @@ vi.mock("../../../services/skills/skillSourceFetcher", () => ({ fetchSkillSource
 
 vi.mock("../../../integrations/misc/open-file", () => ({ openFile: openFileMock }))
 
-// 282 MB を取りに行かせない。取得の段だけを偽物にする。
-vi.mock("../../../services/pii/nerFetch", () => ({ fetchModel: fetchModelMock }))
+// 282 MB を取りに行かせない。**取りに行く段だけを偽物にする。**
+//
+// `resolveBase` は本物のまま使う。偽物にすると「取得先が無ければ外へ出ない」という
+// 判断まで偽物になり、その試験が何も確かめなくなる（`FR-PII-23h`）。
+vi.mock("../../../services/pii/nerFetch", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../../services/pii/nerFetch")>()),
+	fetchModel: fetchModelMock,
+}))
 
 vi.mock("../../../services/pii/dictionaryEditor", () => ({
 	exportDictionary: exportDictionaryMock,
@@ -1231,7 +1237,9 @@ describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
 	it("設定した置き場所へ取りに行く（`~` は展開する）", async () => {
 		fetchModelMock.mockResolvedValue(ok)
 		const h = setup({
-			storedValues: { piiMasking: { properNouns: { modelPath: "~/models/ner" } } },
+			storedValues: {
+				piiMasking: { properNouns: { modelPath: "~/models/ner", modelUrl: "https://例/v1" } },
+			},
 		})
 
 		await call("fetchPiiNerModel", h.provider, {})
@@ -1244,7 +1252,7 @@ describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
 
 	it("置き場所が無ければ既定の場所へ取る", async () => {
 		fetchModelMock.mockResolvedValue(ok)
-		const h = setup({ storedValues: { piiMasking: {} } })
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelUrl: "https://例/v1" } } } })
 
 		await call("fetchPiiNerModel", h.provider, {})
 
@@ -1253,7 +1261,7 @@ describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
 
 	it("取れなければ、その旨を出す", async () => {
 		fetchModelMock.mockRejectedValue(new Error("404"))
-		const h = setup()
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelUrl: "https://例/v1" } } } })
 
 		await call("fetchPiiNerModel", h.provider, {})
 
@@ -1261,10 +1269,43 @@ describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
 		expect(showInformationMessageMock).not.toHaveBeenCalled()
 	})
 
+	it("取得先が無ければ、1 度も外へ出ない（FR-PII-23h）", async () => {
+		// **既定の取得先を持たない。** 持つと、誰の指示も無く特定の場所へ 282 MB を
+		// 取りに行く経路を抱えることになる。
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelPath: "~/models/ner" } } } })
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		expect(fetchModelMock).not.toHaveBeenCalled()
+		expect(showErrorMessageMock.mock.calls[0][0]).toContain("common:pii.noModelUrl")
+	})
+
+	it("取得先が空白だけでも、外へ出ない（FR-PII-23h）", async () => {
+		// 空白を取得先にすると `/SHA256SUMS` という場所へ取りに行き、理由の分からない
+		// 失敗になる。書いていないものとして扱う。
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelUrl: "   " } } } })
+
+		await call("fetchPiiNerModel", h.provider, {})
+
+		expect(fetchModelMock).not.toHaveBeenCalled()
+		expect(showErrorMessageMock.mock.calls[0][0]).toContain("common:pii.noModelUrl")
+	})
+
+	it("画面が渡してきた取得先を優先する（FR-PII-23h）", async () => {
+		// 保存前でも、押した人はその取得先から取りたい。保存済みだけを読むと、
+		// 書き換えたばかりの取得先が無視される。
+		fetchModelMock.mockResolvedValue(ok)
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelUrl: "https://古い" } } } })
+
+		await call("fetchPiiNerModel", h.provider, { values: { modelUrl: "https://新しい" } } as never)
+
+		expect(fetchModelMock.mock.calls[0][1]).toMatchObject({ baseUrl: "https://新しい" })
+	})
+
 	it("取れても揃っていなければ、揃った扱いにしない", async () => {
 		// 欠けたまま入にすると、第 2 層が静かに動かず画面の見た目も変わらない。
 		fetchModelMock.mockResolvedValue({ ok: false, missing: ["tokenizer.json"], mismatched: [] })
-		const h = setup()
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelUrl: "https://例/v1" } } } })
 
 		await call("fetchPiiNerModel", h.provider, {})
 

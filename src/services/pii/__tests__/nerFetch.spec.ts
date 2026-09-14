@@ -18,7 +18,7 @@ vi.mock("../../agent-config", () => ({ getGlobalAgentDirectory: () => "/w/存在
 
 import { allowNetConnect } from "../../../vitest.setup"
 import { CHECKSUM_FILE, REQUIRED_FILES } from "../nerModel"
-import { DEFAULT_MODEL_URL, fetchModel, resolveBase } from "../nerFetch"
+import { NO_URL, fetchModel, resolveBase } from "../nerFetch"
 
 const body = (relative: string) => `${relative} の中身`
 const sha = (text: string) => createHash("sha256").update(text).digest("hex")
@@ -132,19 +132,31 @@ describe("fetchModel（FR-PII-23c）", () => {
 		}
 	})
 
-	it("既定の取得先は、版ごとのタグを指す", () => {
-		// 拡張の版を上げるたびに 282 MB を取り直さないため、別のタグにしてある。
-		expect(DEFAULT_MODEL_URL).toContain("/releases/download/model-ner-ja-")
+	it("取得先が無ければ、何も取りに行かずに落ちる（FR-PII-23h）", async () => {
+		// **既定の取得先へ落とさない。** 落とすと、設定を空にした人の意思に反して外へ出る。
+		await expect(fetchModel(dir, {})).rejects.toThrow(NO_URL)
+		await expect(fetchModel(dir, { baseUrl: "   " })).rejects.toThrow(NO_URL)
+
+		// 置き場所に何も作っていないことまで見る。落ちる前に取りに行っていれば残る。
+		await expect(fs.readdir(dir)).resolves.toEqual([])
 	})
 })
 
 describe("resolveBase", () => {
-	it("指定が無ければ既定の取得先を使う", () => {
-		expect(resolveBase()).toBe(DEFAULT_MODEL_URL)
+	it("書かれていなければ undefined（FR-PII-23h）", () => {
+		// **直書きの取得先を持たない。** 誰の指示も無く外へ出る経路を作らないため。
+		expect(resolveBase()).toBeUndefined()
+		expect(resolveBase("")).toBeUndefined()
+		expect(resolveBase("  \t ")).toBeUndefined()
 	})
 
 	it("末尾の斜線を落とす", () => {
 		// `.../v1/` のまま繋ぐと `//SHA256SUMS` になる。
 		expect(resolveBase("https://例/v1//")).toBe("https://例/v1")
+	})
+
+	it("前後の空白を落とす", () => {
+		// 貼り付けた URL の前後に空白が付くことがある。そのまま繋ぐと取りに行けない。
+		expect(resolveBase("  https://例/v1  ")).toBe("https://例/v1")
 	})
 })

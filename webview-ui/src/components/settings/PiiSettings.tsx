@@ -241,88 +241,110 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 						{t("settings:pii.properNouns.description")}
 					</div>
 
-					<Checkbox
-						checked={properNouns.enabled === true}
-						onChange={(checked: boolean) => updateProperNouns({ enabled: checked })}
-						data-testid="pii-proper-nouns-enabled">
-						{t("settings:pii.properNouns.enable")}
-					</Checkbox>
-
-					<label className="block mt-2">{t("settings:pii.properNouns.entities")}</label>
-					<div className="grid grid-cols-2 gap-1">
-						{nerEntities.map((entity) => (
-							<Checkbox
-								key={entity}
-								checked={entities.includes(entity)}
-								onChange={(checked: boolean) => toggleEntity(entity, checked)}
-								data-testid={`pii-entity-${entity}`}>
-								{t(`settings:pii.properNouns.entity.${entity}`)}
-							</Checkbox>
-						))}
-					</div>
-
-					{entities.length === 0 ? (
-						<div className="text-sm text-vscode-errorForeground" data-testid="pii-no-entities">
-							{t("settings:pii.properNouns.noEntities")}
-						</div>
-					) : null}
-
-					<label className="block mt-2">{t("settings:pii.properNouns.modelPath")}</label>
-					<div className="flex gap-1 items-center">
-						<VSCodeTextField
-							className="grow"
-							value={properNouns.modelPath ?? ""}
-							placeholder={t("settings:pii.properNouns.modelPathPlaceholder")}
-							data-testid="pii-model-path"
-							onInput={(event: unknown) => {
-								const value =
-									typeof event === "object" && event !== null && "target" in event
-										? (event as { target: { value: string } }).target.value
-										: ""
-								updateProperNouns({ modelPath: value })
-								// 書き換えたら、その場所を見に行き直す。
-								askModel(value)
-							}}
-						/>
-						<StandardTooltip content={t("settings:pii.properNouns.fetch")}>
-							<Button
-								variant="secondary"
-								className="py-1"
-								// 取得は操作なので、押した時点で拡張ホストへ送る。
-								// **保存前の置き場所を渡す。** 渡さないと、書いたばかりの場所ではなく
-								// 保存済みの場所へ 282 MB を取ってしまう。
-								onClick={() =>
-									vscode.postMessage({ type: "fetchPiiNerModel", text: properNouns.modelPath ?? "" })
-								}
-								data-testid="pii-model-fetch">
-								<Download />
-							</Button>
-						</StandardTooltip>
-					</div>
 					{/*
-					 * **どこを見ているかを出す。** 出さないと、閉鎖環境の利用者はどこへ
-					 * ファイルを運べばよいか分からない。欄が空なら既定の場所を見るが、
-					 * その場所は画面のどこにも書いていなかった。
+					 * **動かせない配布物では、切り替えを出さない。**
+					 *
+					 * 配布物は platform ごとに分かれ、`universal` 版には native が入っていない。
+					 * 切り替えだけ出すと、入れても何も起きない。画面に変化が無いので、利用者は
+					 * 設定が壊れていると思う。実際にそう報告を受けた。
 					 */}
-					{model ? (
-						<div className="text-sm text-vscode-descriptionForeground" data-testid="pii-model-status">
-							<div>
-								{t("settings:pii.properNouns.lookingAt")}
-								<code className="ml-1">{model.directory}</code>
-							</div>
-							<div className={model.present ? "" : "text-vscode-errorForeground"}>
-								{model.present
-									? t("settings:pii.properNouns.placed", {
-											size: Math.round(model.bytes / 1024 / 1024),
-										})
-									: t("settings:pii.properNouns.notPlaced", { count: model.missing.length })}
-							</div>
+					{model && !model.runtime ? (
+						<div className="text-sm text-vscode-errorForeground" data-testid="pii-no-runtime">
+							{t("settings:pii.properNouns.noRuntime")}
 						</div>
-					) : null}
+					) : (
+						<Checkbox
+							checked={properNouns.enabled === true}
+							onChange={(checked: boolean) => updateProperNouns({ enabled: checked })}
+							data-testid="pii-proper-nouns-enabled">
+							{t("settings:pii.properNouns.enable")}
+						</Checkbox>
+					)}
 
-					<div className="text-sm text-vscode-descriptionForeground">
-						{t("settings:pii.properNouns.offline")}
-					</div>
+					{model && !model.runtime ? null : (
+						<>
+							<label className="block mt-2">{t("settings:pii.properNouns.entities")}</label>
+							<div className="grid grid-cols-2 gap-1">
+								{nerEntities.map((entity) => (
+									<Checkbox
+										key={entity}
+										checked={entities.includes(entity)}
+										onChange={(checked: boolean) => toggleEntity(entity, checked)}
+										data-testid={`pii-entity-${entity}`}>
+										{t(`settings:pii.properNouns.entity.${entity}`)}
+									</Checkbox>
+								))}
+							</div>
+
+							{entities.length === 0 ? (
+								<div className="text-sm text-vscode-errorForeground" data-testid="pii-no-entities">
+									{t("settings:pii.properNouns.noEntities")}
+								</div>
+							) : null}
+
+							<label className="block mt-2">{t("settings:pii.properNouns.modelPath")}</label>
+							<div className="flex gap-1 items-center">
+								<VSCodeTextField
+									className="grow"
+									value={properNouns.modelPath ?? ""}
+									placeholder={t("settings:pii.properNouns.modelPathPlaceholder")}
+									data-testid="pii-model-path"
+									onInput={(event: unknown) => {
+										const value =
+											typeof event === "object" && event !== null && "target" in event
+												? (event as { target: { value: string } }).target.value
+												: ""
+										updateProperNouns({ modelPath: value })
+										// 書き換えたら、その場所を見に行き直す。
+										askModel(value)
+									}}
+								/>
+								<StandardTooltip content={t("settings:pii.properNouns.fetch")}>
+									<Button
+										variant="secondary"
+										className="py-1"
+										// 取得は操作なので、押した時点で拡張ホストへ送る。
+										// **保存前の置き場所を渡す。** 渡さないと、書いたばかりの場所ではなく
+										// 保存済みの場所へ 282 MB を取ってしまう。
+										onClick={() =>
+											vscode.postMessage({
+												type: "fetchPiiNerModel",
+												text: properNouns.modelPath ?? "",
+											})
+										}
+										data-testid="pii-model-fetch">
+										<Download />
+									</Button>
+								</StandardTooltip>
+							</div>
+							{/*
+							 * **どこを見ているかを出す。** 出さないと、閉鎖環境の利用者はどこへ
+							 * ファイルを運べばよいか分からない。欄が空なら既定の場所を見るが、
+							 * その場所は画面のどこにも書いていなかった。
+							 */}
+							{model ? (
+								<div
+									className="text-sm text-vscode-descriptionForeground"
+									data-testid="pii-model-status">
+									<div>
+										{t("settings:pii.properNouns.lookingAt")}
+										<code className="ml-1">{model.directory}</code>
+									</div>
+									<div className={model.present ? "" : "text-vscode-errorForeground"}>
+										{model.present
+											? t("settings:pii.properNouns.placed", {
+													size: Math.round(model.bytes / 1024 / 1024),
+												})
+											: t("settings:pii.properNouns.notPlaced", { count: model.missing.length })}
+									</div>
+								</div>
+							) : null}
+
+							<div className="text-sm text-vscode-descriptionForeground">
+								{t("settings:pii.properNouns.offline")}
+							</div>
+						</>
+					)}
 				</div>
 			</Section>
 		</div>

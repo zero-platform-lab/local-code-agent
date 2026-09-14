@@ -261,8 +261,13 @@ describe("区分を 1 つも選んでいない状態（FR-PII-21a）", () => {
 
 describe("モデルの置き場所を画面へ出す（FR-PII-23a）", () => {
 	/** 拡張から返ってきた体にする。 */
-	const reply = (piiNerModel: unknown) =>
-		fireEvent(window, new MessageEvent("message", { data: { type: "piiNerModelStatus", piiNerModel } }))
+	const reply = (piiNerModel: Record<string, unknown>) =>
+		fireEvent(
+			window,
+			new MessageEvent("message", {
+				data: { type: "piiNerModelStatus", piiNerModel: { runtime: true, ...piiNerModel } },
+			}),
+		)
 
 	it("描画したら、どこを見ているかを尋ねる", () => {
 		renderWith({ properNouns: { enabled: true, modelPath: "~/models/ner" } })
@@ -293,5 +298,43 @@ describe("モデルの置き場所を画面へ出す（FR-PII-23a）", () => {
 		renderWith({ properNouns: { enabled: true } })
 
 		expect(screen.queryByTestId("pii-model-status")).not.toBeInTheDocument()
+	})
+})
+
+describe("動かせない配布物（FR-PII-23g）", () => {
+	const reply = (piiNerModel: Record<string, unknown>) =>
+		fireEvent(window, new MessageEvent("message", { data: { type: "piiNerModelStatus", piiNerModel } }))
+
+	const location = { directory: "/home/x/.agent/pii-ner", present: false, missing: ["SHA256SUMS"], bytes: 0 }
+
+	it("native が無ければ、切り替えを出さずに理由を出す", () => {
+		// **切り替えだけ出すと、入れても何も起きない。** 画面に変化が無いので、利用者は
+		// 設定が壊れていると思う。実際にそう報告を受けた。
+		renderWith({ properNouns: {} })
+
+		reply({ ...location, runtime: false })
+
+		expect(screen.getByTestId("pii-no-runtime")).toBeInTheDocument()
+		expect(screen.queryByTestId("pii-proper-nouns-enabled")).not.toBeInTheDocument()
+	})
+
+	it("動かせない配布物では、区分も置き場所も出さない", () => {
+		// 触っても効かないものを並べない。
+		renderWith({ properNouns: {} })
+
+		reply({ ...location, runtime: false })
+
+		expect(screen.queryByTestId("pii-entity-PER")).not.toBeInTheDocument()
+		expect(screen.queryByTestId("pii-model-path")).not.toBeInTheDocument()
+	})
+
+	it("native があれば、いつもどおり出す", () => {
+		renderWith({ properNouns: {} })
+
+		reply({ ...location, runtime: true })
+
+		expect(screen.queryByTestId("pii-no-runtime")).not.toBeInTheDocument()
+		expect(screen.getByTestId("pii-proper-nouns-enabled")).toBeInTheDocument()
+		expect(screen.getByTestId("pii-entity-PER")).toBeInTheDocument()
 	})
 })

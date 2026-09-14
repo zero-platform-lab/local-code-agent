@@ -737,7 +737,8 @@
 			"noEntities": "No category is selected, so nothing will be masked — only the model load happens.",
 			"lookingAt": "Looking at:",
 			"placed": "Placed ({{size}} MB)",
-			"notPlaced": "Not placed ({{count}} files missing). Put them in the directory above, or press fetch."
+			"notPlaced": "Not placed ({{count}} files missing). Put them in the directory above, or press fetch.",
+			"noRuntime": "This package cannot run proper noun detection. Install a platform-specific package (linux-x64 / win32-x64). Layer 1 works as is."
 		}
 	}
 }

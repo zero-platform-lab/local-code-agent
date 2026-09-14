@@ -23,6 +23,7 @@ const ner = vi.hoisted(() => ({
 	check: { ok: false, missing: ["SHA256SUMS"], mismatched: [] },
 	loadThrows: false,
 	detectThrows: false,
+	runtime: true,
 	beforeDetect: undefined as (() => void) | undefined,
 }))
 
@@ -45,6 +46,8 @@ vi.mock("../nerBackend", () => ({
 vi.mock("../nerModel", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	verifyModel: async () => ner.check,
+	// 試験では `dist/node_modules` が無いので、本物は必ず偽になる。既定は「動かせる」。
+	hasNerRuntime: () => ner.runtime,
 }))
 
 import { lookupOf, NER_AT_ONCE, TaskPiiMasker } from "../TaskPiiMasker"
@@ -298,6 +301,7 @@ describe("固有名詞の検出（第 2 層）（FR-PII-21）", () => {
 		ner.backend = {}
 		ner.calls = 0
 		ner.check = { ok: false, missing: ["SHA256SUMS"], mismatched: [] }
+		ner.runtime = true
 		ner.loadThrows = false
 		ner.detectThrows = false
 	})
@@ -475,6 +479,7 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		ner.loadThrows = false
 		ner.detectThrows = false
 		ner.beforeDetect = undefined
+		ner.runtime = true
 	})
 
 	const settings = { enabled: true, kinds: ["email", "person"] as const, properNouns: { enabled: true } }
@@ -538,6 +543,7 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		ner.loadThrows = false
 		ner.detectThrows = false
 		ner.beforeDetect = undefined
+		ner.runtime = true
 	})
 
 	it("上限を超えたら、そこまでの結果で先へ進む", async () => {
@@ -572,5 +578,40 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 
 		expect(result.troubles).toEqual([])
 		expect(result.messages[NER_AT_ONCE + 1]).toMatchObject({ content: `{{person-001}}が担当 ${NER_AT_ONCE + 1}` })
+	})
+})
+
+describe("動かせない配布物（FR-PII-23g）", () => {
+	beforeEach(() => {
+		ner.backend = {}
+		ner.calls = 0
+		ner.loadThrows = false
+		ner.detectThrows = false
+		ner.beforeDetect = undefined
+		ner.runtime = false
+	})
+
+	it("native が無ければ、判定へ行かずにその旨を出す", async () => {
+		// **読み込みに行くと例外になるだけである。** 理由を名指しで出す。
+		const masker = new TaskPiiMasker({
+			enabled: true,
+			kinds: ["email", "person"],
+			properNouns: { enabled: true },
+		} as never)
+
+		const result = await masker.maskForRequest("", [message("森が担当 taro@corp.example")])
+
+		expect(ner.calls).toBe(0)
+		expect(result.messages[0]).toMatchObject({ content: "森が担当 {{email-001}}" })
+		expect(result.troubles.join()).toContain("この配布物では固有名詞の検出を動かせない")
+	})
+
+	it("毎回は言わない", async () => {
+		const masker = new TaskPiiMasker({ enabled: true, properNouns: { enabled: true } } as never)
+		await masker.maskForRequest("", [message("森")])
+
+		const second = await masker.maskForRequest("", [message("森")])
+
+		expect(second.troubles).toEqual([])
 	})
 })

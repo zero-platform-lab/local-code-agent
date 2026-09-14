@@ -151,11 +151,12 @@ describe("書き出し（FR-PII-17）", () => {
 	it("押したときだけ送る", () => {
 		renderWith()
 
-		expect(postMessage).not.toHaveBeenCalled()
+		// 描画のときはモデルの場所を尋ねるだけで、書き出しは送らない。
+		expect(postMessage.mock.calls.map(([one]) => one.type)).toEqual(["requestPiiNerModelStatus"])
 
 		fireEvent.click(screen.getByTestId("pii-export"))
 
-		expect(postMessage).toHaveBeenCalledTimes(1)
+		expect(postMessage.mock.calls.filter(([one]) => one.type === "exportPiiDictionary")).toHaveLength(1)
 		// **保存前の値を渡す。** 渡さないと、足したばかりの辞書が書き出しに入らない。
 		expect(postMessage).toHaveBeenCalledWith({
 			type: "exportPiiDictionary",
@@ -255,5 +256,42 @@ describe("区分を 1 つも選んでいない状態（FR-PII-21a）", () => {
 		renderWith({ properNouns: { enabled: true, entities: [] } })
 
 		expect(screen.getByTestId("pii-no-entities")).toBeInTheDocument()
+	})
+})
+
+describe("モデルの置き場所を画面へ出す（FR-PII-23a）", () => {
+	/** 拡張から返ってきた体にする。 */
+	const reply = (piiNerModel: unknown) =>
+		fireEvent(window, new MessageEvent("message", { data: { type: "piiNerModelStatus", piiNerModel } }))
+
+	it("描画したら、どこを見ているかを尋ねる", () => {
+		renderWith({ properNouns: { enabled: true, modelPath: "~/models/ner" } })
+
+		expect(postMessage).toHaveBeenCalledWith({ type: "requestPiiNerModelStatus", text: "~/models/ner" })
+	})
+
+	it("返ってきたら、場所と状態を出す", () => {
+		// **場所を出さないと、閉鎖環境の利用者はどこへ運べばよいか分からない。**
+		renderWith({ properNouns: { enabled: true } })
+
+		reply({ directory: "/home/x/.agent/pii-ner", present: true, missing: [], bytes: 295_000_000 })
+
+		const status = screen.getByTestId("pii-model-status")
+		expect(status).toHaveTextContent("/home/x/.agent/pii-ner")
+		expect(status).toHaveTextContent("settings:pii.properNouns.placed")
+	})
+
+	it("足りなければ、その旨を出す", () => {
+		renderWith({ properNouns: { enabled: true } })
+
+		reply({ directory: "/home/x/.agent/pii-ner", present: false, missing: ["SHA256SUMS", "config.json"], bytes: 0 })
+
+		expect(screen.getByTestId("pii-model-status")).toHaveTextContent("settings:pii.properNouns.notPlaced")
+	})
+
+	it("返ってくるまでは何も出さない", () => {
+		renderWith({ properNouns: { enabled: true } })
+
+		expect(screen.queryByTestId("pii-model-status")).not.toBeInTheDocument()
 	})
 })

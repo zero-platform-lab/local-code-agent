@@ -126,3 +126,39 @@ export function describeCheck(check: ModelCheck): string | undefined {
 
 	return parts.join(" / ")
 }
+
+/** 置き場所の様子。画面へ出すためのもので、照合はしない。 */
+export type ModelLocation = {
+	/** 実際に見ている場所。利用者はここへファイルを置く。 */
+	directory: string
+	/** 要るファイルが全部あるか。 */
+	present: boolean
+	/** 足りないファイル。 */
+	missing: string[]
+	/** 置いてあるファイルの合計。 */
+	bytes: number
+}
+
+/**
+ * 置き場所の様子を返す（`FR-PII-23a`）。
+ *
+ * **照合はしない。** `verifyModel` は 265 MB を読み直すので、画面を出すたびには実行
+ * できない。ここは「どこを見ているか」と「あるかどうか」だけを返す。
+ *
+ * **場所を画面に出すために要る。** 出さないと、閉鎖環境の利用者はどこへ運べばよいか
+ * 分からない。既定の場所を使う設定にしていると、欄が空なので手がかりが無い。
+ */
+export async function locateModel(directory: string): Promise<ModelLocation> {
+	const missing: string[] = []
+	let bytes = 0
+
+	for (const name of [CHECKSUM_FILE, ...REQUIRED_FILES]) {
+		try {
+			bytes += (await fs.stat(path.join(directory, name))).size
+		} catch {
+			missing.push(name)
+		}
+	}
+
+	return { directory, present: missing.length === 0, missing, bytes }
+}

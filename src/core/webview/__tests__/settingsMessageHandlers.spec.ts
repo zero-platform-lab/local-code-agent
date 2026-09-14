@@ -184,7 +184,7 @@ function setup(options: SetupOptions = {}) {
 	const getValue = vi.fn((key: string): unknown => options.storedValues?.[key])
 	const log = vi.fn()
 	const postStateToWebview = vi.fn(async () => {})
-	const postMessageToWebview = vi.fn(async () => undefined)
+	const postMessageToWebview = vi.fn(async (_message?: Record<string, unknown>) => undefined)
 	const updateCustomInstructions = vi.fn(async () => undefined)
 	const resetState = vi.fn(async () => {})
 	const getCurrentTask = vi.fn(() => options.currentTask)
@@ -1270,5 +1270,67 @@ describe("固有名詞の検出のモデルの取得（FR-PII-23c）", () => {
 
 		expect(showErrorMessageMock.mock.calls[0][0]).toContain("common:pii.modelIncomplete")
 		expect(showInformationMessageMock).not.toHaveBeenCalled()
+	})
+})
+
+describe("伏せ字の設定が往復する（FR-PII-21c）", () => {
+	it("第 2 層の入切が、そのまま保存へ渡る", async () => {
+		// **画面で入にしても戻る、という報告があった。** 受け口で落ちていないことを固定する。
+		const h = setup()
+
+		await call("updateSettings", h.provider, {
+			updatedSettings: {
+				piiMasking: { enabled: true, properNouns: { enabled: true, entities: ["PER"] } },
+			},
+		} as never)
+
+		expect(h.written.get("piiMasking")).toEqual({
+			enabled: true,
+			properNouns: { enabled: true, entities: ["PER"] },
+		})
+	})
+
+	it("知らないキーとして捨てられない", async () => {
+		const h = setup()
+
+		await call("updateSettings", h.provider, {
+			updatedSettings: { piiMasking: { properNouns: { modelPath: "~/models/ner" } } },
+		} as never)
+
+		expect(h.log).not.toHaveBeenCalledWith(expect.stringContaining("piiMasking"))
+		expect(h.written.has("piiMasking")).toBe(true)
+	})
+})
+
+describe("モデルの置き場所を返す（FR-PII-23a）", () => {
+	it("画面が送ってきた場所を見る", async () => {
+		const h = setup({ storedValues: { piiMasking: { properNouns: { modelPath: "/w/saved" } } } })
+
+		await call("requestPiiNerModelStatus", h.provider, { text: "/w/typed" } as never)
+
+		const message = h.postMessageToWebview.mock.calls[0]?.[0]
+		expect(message?.type).toBe("piiNerModelStatus")
+		expect((message?.piiNerModel as { directory: string }).directory).toBe("/w/typed")
+	})
+
+	it("空なら既定の場所を見る", async () => {
+		// **欄が空でも、どこを見ているかを返す。** 返さないと画面に出しようがない。
+		const h = setup({ storedValues: { piiMasking: {} } })
+
+		await call("requestPiiNerModelStatus", h.provider, { text: "" } as never)
+
+		const sent = h.postMessageToWebview.mock.calls[0]?.[0]
+		expect((sent?.piiNerModel as { directory: string }).directory).toContain("pii-ner")
+	})
+
+	it("置かれていなければ、足りないものを返す", async () => {
+		const h = setup()
+
+		await call("requestPiiNerModelStatus", h.provider, { text: "/w/存在しない" } as never)
+
+		const status = h.postMessageToWebview.mock.calls[0]?.[0]
+		const { present, missing } = status?.piiNerModel as { present: boolean; missing: string[] }
+		expect(present).toBe(false)
+		expect(missing).toContain("SHA256SUMS")
 	})
 })

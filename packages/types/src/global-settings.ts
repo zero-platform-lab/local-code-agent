@@ -212,6 +212,14 @@ export const piiMaskingSchema = z.object({
 			minScore: z.number().min(0).max(1).optional(),
 			/** 伏せる区分（`FR-PII-21a`）。省略すると製品名とイベント名だけを外す。 */
 			entities: z.array(z.enum(nerEntities)).optional(),
+			/**
+			 * 判定にかけてよい時間（ミリ秒）（`FR-PII-23f`）。省略すると 3000。
+			 *
+			 * **0 なら待ち続ける。** 長い履歴を全部判定させたい人は、時間で切られると
+			 * いつまでも取りこぼしが残る。切られたことは警告で出るが、出たところで
+			 * 利用者にできることが無かった。
+			 */
+			timeBudgetMs: z.number().min(0).optional(),
 		})
 		.optional(),
 })

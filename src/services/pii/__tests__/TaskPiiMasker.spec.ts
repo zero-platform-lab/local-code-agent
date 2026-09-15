@@ -570,6 +570,53 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		vi.restoreAllMocks()
 	})
 
+	it("0 なら切らずに待つ（FR-PII-23f）", async () => {
+		// **長い履歴を全部判定させたい人がいる。** 3 秒で切られると取りこぼしが残り続け、
+		// 警告を出したところで利用者にできることが無かった。
+		const started = Date.now()
+		let call = 0
+		// 時計は最初のまとまりの直後から大きく進む。上限があれば必ず切れる進み方である。
+		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 10_000 : 0))
+
+		const masker = new TaskPiiMasker({
+			enabled: true,
+			kinds: ["person"],
+			properNouns: { enabled: true, timeBudgetMs: 0 },
+		} as never)
+		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
+
+		const result = await masker.maskForRequest("", many)
+
+		expect(result.troubles).toEqual([])
+		// 最後のまとまりまで判定できている。切れていれば、ここは生のまま残る。
+		expect(result.messages[NER_AT_ONCE * 3 - 1]).toMatchObject({
+			content: `{{person-001}}が担当 ${NER_AT_ONCE * 3 - 1}`,
+		})
+
+		vi.restoreAllMocks()
+	})
+
+	it("設定した時間で切る（FR-PII-23f）", async () => {
+		// 既定より短くもできる。上限そのものが設定から来ていることを見る。
+		const started = Date.now()
+		let call = 0
+		// 1 つ目のまとまりの後で 5 秒進む。既定の 3000 なら切れ、10000 なら切れない。
+		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 5_000 : 0))
+
+		const masker = new TaskPiiMasker({
+			enabled: true,
+			kinds: ["person"],
+			properNouns: { enabled: true, timeBudgetMs: 10_000 },
+		} as never)
+		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
+
+		const result = await masker.maskForRequest("", many)
+
+		expect(result.troubles).toEqual([])
+
+		vi.restoreAllMocks()
+	})
+
 	it("上限に収まれば、全部判定する", async () => {
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
 		const many = Array.from({ length: NER_AT_ONCE + 2 }, (_, at) => message(`森が担当 ${at}`))

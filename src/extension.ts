@@ -38,7 +38,7 @@ import {
 	registerTerminalActions,
 	CodeActionProvider,
 } from "./activate"
-import { initializeI18n } from "./i18n"
+import { initializeI18n, t } from "./i18n"
 import { sessionVault } from "./services/pii/maskConversation"
 import { piiMaskerFor } from "./core/webview/promptMessageHandlers"
 
@@ -250,7 +250,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		// 人名を当てる規則を持たないので、辞書に書いた名前しか消えない。
 		() => {
 			const masker = piiMaskerFor(provider)
-			return (texts) => masker.properNounsFor(texts)
+			return async (texts) => {
+				const properNouns = await masker.properNounsFor(texts)
+				// **理由をそのまま出す。** ここへ集まるのは辞書の失敗だけではない。第 2 層を
+				// 動かせない配布物、読み込みの失敗、時間で切られたこと、の 3 つも来る。
+				// 「辞書を読めませんでした」で包むと、辞書が正しいのに辞書を疑わせる。
+				for (const trouble of masker.takeDictionaryTroubles()) {
+					await vscode.window.showWarningMessage(t("common:pii.maskingTrouble", { detail: trouble }))
+				}
+				return properNouns
+			}
 		},
 	)
 

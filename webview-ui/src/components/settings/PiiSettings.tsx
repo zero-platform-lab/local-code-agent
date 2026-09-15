@@ -282,6 +282,33 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 								</div>
 							) : null}
 
+							{/*
+							 * **判定にかけてよい時間（`FR-PII-23f`）。** 既定の 3 秒では
+							 * 足りない使い方がある。切られたことは警告で出るが、設定が無いと
+							 * 利用者にできることが無かった。
+							 */}
+							<label className="block mt-2">{t("settings:pii.properNouns.timeBudget")}</label>
+							<VSCodeTextField
+								className="w-full"
+								value={String(properNouns.timeBudgetMs ?? 3000)}
+								data-testid="pii-time-budget"
+								onInput={(event: unknown) => {
+									const value =
+										typeof event === "object" && event !== null && "target" in event
+											? (event as { target: { value: string } }).target.value
+											: ""
+									// **数でないものは捨てる。** 途中まで書いた値で設定を壊さない。
+									// 空欄も捨てる。捨てないと `NaN` が保存され、既定にも
+									// 戻らないまま第 2 層が毎回すぐ切られる。
+									const ms = Number(value)
+									if (value.trim() === "" || !Number.isFinite(ms) || ms < 0) return
+									updateProperNouns({ timeBudgetMs: ms })
+								}}
+							/>
+							<div className="text-sm text-vscode-descriptionForeground">
+								{t("settings:pii.properNouns.timeBudgetHelp")}
+							</div>
+
 							<label className="block mt-2">{t("settings:pii.properNouns.modelPath")}</label>
 							<div className="flex gap-1 items-center">
 								<VSCodeTextField

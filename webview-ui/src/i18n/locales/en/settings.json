@@ -741,7 +741,9 @@
 			"noRuntime": "This package cannot run proper noun detection. Install a platform-specific package (linux-x64 / win32-x64). Layer 1 works as is.",
 			"modelUrl": "Fetch destination",
 			"modelUrlPlaceholder": "Leave empty to disable fetching",
-			"modelUrlHelp": "There is no built-in destination. Fetching only runs against the URL you enter here. In a closed network, leave this empty and place the files in the model location by hand."
+			"modelUrlHelp": "There is no built-in destination. Fetching only runs against the URL you enter here. In a closed network, leave this empty and place the files in the model location by hand.",
+			"timeBudget": "Time limit for detection (ms)",
+			"timeBudgetHelp": "Detection stops once this much time has passed, and the rest of the text is masked by layer 1 alone. Enter 0 to wait as long as it takes. Default is 3000."
 		}
 	}
 }

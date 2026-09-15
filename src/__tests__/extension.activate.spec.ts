@@ -19,17 +19,22 @@ const mocks = vi.hoisted(() => ({
 	terminalCleanup: vi.fn(),
 	mcpCleanup: vi.fn(async () => undefined),
 	codeIndexGetInstance: vi.fn((..._a: unknown[]) => null as unknown),
-	contextProxyGetInstance: vi.fn(async () => ({ proxy: true })),
+	contextProxyGetInstance: vi.fn(async () => ({
+		proxy: true,
+		getValue: vi.fn((_key: string) => undefined as unknown),
+	})),
+	nerBackend: undefined as unknown,
 	autoImportSettings: vi.fn(async () => undefined),
 	registerCommands: vi.fn(),
 	registerCodeActions: vi.fn(),
 	registerTerminalActions: vi.fn(),
-	registerPiiCommands: vi.fn(),
+	registerPiiCommands: vi.fn((..._args: unknown[]) => {}),
 	API: vi.fn().mockImplementation((...args: unknown[]) => ({ api: true, args })),
 	providerInstance: {
 		resolveWebviewView: vi.fn(),
 		providerSettingsManager: { psm: true },
-		contextProxy: { cp: true },
+		contextProxy: { cp: true, getValue: vi.fn((_key: string) => undefined as unknown) },
+		getCurrentTask: vi.fn(() => undefined as unknown),
 		customModesManager: { cmm: true },
 	},
 }))
@@ -47,6 +52,7 @@ vi.mock("vscode", () => ({
 	window: {
 		createOutputChannel: vi.fn(() => ({ appendLine: vi.fn(), dispose: vi.fn() })),
 		registerWebviewViewProvider: vi.fn(() => ({ dispose: vi.fn() })),
+		showWarningMessage: vi.fn(async (..._args: unknown[]) => undefined),
 		visibleTextEditors: [],
 	},
 	workspace: {
@@ -68,7 +74,10 @@ vi.mock("vscode", () => ({
 
 vi.mock("../utils/networkProxy", () => ({ initializeNetworkProxy: mocks.initializeNetworkProxy }))
 vi.mock("../utils/autoImportSettings", () => ({ autoImportSettings: mocks.autoImportSettings }))
-vi.mock("../i18n", () => ({ initializeI18n: mocks.initializeI18n, t: (k: string) => k }))
+vi.mock("../i18n", () => ({
+	initializeI18n: mocks.initializeI18n,
+	t: (k: string, args?: Record<string, unknown>) => (args ? `${k}:${JSON.stringify(args)}` : k),
+}))
 vi.mock("../shared/package", () => ({
 	Package: { name: "test-extension", outputChannel: "Test Output", version: "1.0.0" },
 }))
@@ -100,6 +109,18 @@ vi.mock("../core/webview/ClineProvider", () => {
 	return { ClineProvider: MockClineProvider }
 })
 
+vi.mock("../services/pii/nerBackend", () => ({
+	detectWith: async () => [{ kind: "person", start: 0, end: 1, value: "森" }],
+	loadBackend: async () => ({
+		backend: mocks.nerBackend,
+		check: { ok: false, missing: ["SHA256SUMS"], mismatched: [] },
+	}),
+}))
+vi.mock("../services/pii/nerModel", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	hasNerRuntime: () => true,
+}))
+
 import { activate, deactivate } from "../extension"
 
 type GlobalStateData = Record<string, unknown>
@@ -130,6 +151,9 @@ const ORIGINAL_SOCKET = process.env.ROO_CODE_IPC_SOCKET_PATH
 
 beforeEach(() => {
 	vi.clearAllMocks()
+	mocks.nerBackend = undefined
+	mocks.providerInstance.getCurrentTask.mockReturnValue(undefined)
+	mocks.providerInstance.contextProxy.getValue.mockReturnValue(undefined)
 	vi.spyOn(console, "log").mockImplementation(() => {})
 	vi.spyOn(console, "warn").mockImplementation(() => {})
 	;(vscode.workspace as { workspaceFolders: unknown }).workspaceFolders = undefined
@@ -485,4 +509,79 @@ describe("deactivate", () => {
 		expect(mocks.mcpCleanup).toHaveBeenCalledTimes(1)
 		expect(mocks.terminalCleanup).toHaveBeenCalledTimes(1)
 	})
+})
+
+describe("右クリックの第 2 層の警告", () => {
+	it("会話なしでモデルを読めないとき、理由を表示してから結果を返す", async () => {
+		mocks.providerInstance.getCurrentTask.mockReturnValue(undefined)
+		mocks.providerInstance.contextProxy.getValue.mockReturnValue({
+			properNouns: { enabled: true, modelPath: "/tmp/missing-review-model" },
+		})
+		await activate(makeContext())
+		const getProperNouns = mocks.registerPiiCommands.mock.calls[0][4] as () => (
+			texts: readonly string[],
+		) => Promise<unknown>
+		const detect = getProperNouns()
+		await expect(detect(["森さん"])).resolves.toBeUndefined()
+		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining("SHA256SUMS"))
+		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+			expect.stringContaining("/tmp/missing-review-model"),
+		)
+		await detect(["森さん"])
+		expect(vscode.window.showWarningMessage).toHaveBeenCalledTimes(1)
+		// **「辞書を読めませんでした」で包まない。** ここへ集まるのは辞書の失敗だけでは
+		// ない。第 2 層の理由まで辞書のせいにすると、辞書が正しいのに辞書を疑わせる。
+		expect(vscode.window.showWarningMessage).not.toHaveBeenCalledWith(expect.stringContaining("dictionaryFailed"))
+		expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining("maskingTrouble"))
+	})
+
+	it("第 2 層を切っていれば、失敗の警告を出さない", async () => {
+		mocks.providerInstance.getCurrentTask.mockReturnValue(undefined)
+		mocks.providerInstance.contextProxy.getValue.mockReturnValue({ properNouns: { enabled: false } })
+		await activate(makeContext())
+		const getProperNouns = mocks.registerPiiCommands.mock.calls[0][4] as () => (
+			texts: readonly string[],
+		) => Promise<unknown>
+		await expect(getProperNouns()(["森さん"])).resolves.toBeUndefined()
+		expect(vscode.window.showWarningMessage).not.toHaveBeenCalled()
+	})
+})
+
+it("第 2 層の成功結果をファイルの処理へ渡す", async () => {
+	mocks.nerBackend = {}
+	mocks.providerInstance.contextProxy.getValue.mockReturnValue({
+		properNouns: { enabled: true, modelPath: "/tmp/success-model" },
+	})
+	await activate(makeContext())
+	const getProperNouns = mocks.registerPiiCommands.mock.calls[0][4] as () => (
+		texts: readonly string[],
+	) => Promise<(text: string) => unknown>
+	const lookup = await getProperNouns()(["森さん"])
+	expect(lookup("森さん")).toEqual([{ kind: "person", start: 0, end: 1, value: "森" }])
+	expect(vscode.window.showWarningMessage).not.toHaveBeenCalled()
+})
+
+it("ファイルの復元はタスクのメソッドを束縛して呼ぶ", async () => {
+	class Task {
+		readonly value = "restored text"
+		readonly piiMasker = { allocator: { shared: true } }
+		restoreExplicitly(_text: string) {
+			return this.value
+		}
+	}
+	const task = new Task()
+	mocks.providerInstance.getCurrentTask.mockReturnValue(task)
+	await activate(makeContext())
+	const [, readSettings, getRestore, getAllocator] = mocks.registerPiiCommands.mock.calls[0] as [
+		unknown,
+		() => unknown,
+		() => (text: string) => string,
+		() => unknown,
+	]
+	expect(readSettings()).toEqual({})
+	expect(getRestore()("masked text")).toBe(task.value)
+	expect(getAllocator()).toBe(task.piiMasker.allocator)
+	mocks.providerInstance.getCurrentTask.mockReturnValue(undefined)
+	expect(getRestore()("plain text")).toBe("plain text")
+	expect(getAllocator()).toBeDefined()
 })

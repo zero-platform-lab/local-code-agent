@@ -66,12 +66,12 @@ export const NER_AT_ONCE = 8
  * 秒単位の待ちが出る。超えたぶんは第 1 層だけで伏せ、次の要求へ持ち越す。覚えたぶんは
  * 残るので、会話が進むにつれて判定は行き渡る。
  */
-export const NER_TIME_BUDGET = 3_000
+export const NER_TIME_BUDGET = 10_000
 
 /**
  * この要求で判定にかけてよい終わりの時刻。**0 なら切らない。**
  *
- * 3 秒では足りない使い方がある。長い履歴を一度に判定させたい、機械が遅い、といった場合、
+ * 10 秒でも足りない使い方がある。長い履歴を一度に判定させたい、機械が遅い、といった場合、
  * 切られたことを警告で出しても利用者にできることが無かった。
  */
 function deadline(budget: number | undefined): number | undefined {

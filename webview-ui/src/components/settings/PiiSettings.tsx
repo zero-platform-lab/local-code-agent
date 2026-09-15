@@ -283,14 +283,14 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 							) : null}
 
 							{/*
-							 * **判定にかけてよい時間（`FR-PII-23f`）。** 既定の 3 秒では
+							 * **判定にかけてよい時間（`FR-PII-23f`）。** 既定の 10 秒では
 							 * 足りない使い方がある。切られたことは警告で出るが、設定が無いと
 							 * 利用者にできることが無かった。
 							 */}
 							<label className="block mt-2">{t("settings:pii.properNouns.timeBudget")}</label>
 							<VSCodeTextField
 								className="w-full"
-								value={String(properNouns.timeBudgetMs ?? 3000)}
+								value={String(properNouns.timeBudgetMs ?? 10000)}
 								data-testid="pii-time-budget"
 								onInput={(event: unknown) => {
 									const value =

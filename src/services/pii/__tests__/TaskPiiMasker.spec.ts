@@ -551,7 +551,7 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		// 時計を進めて、2 つ目のまとまりへ入る前に上限を超えさせる。
 		const started = Date.now()
 		let call = 0
-		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 10_000 : 0))
+		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 11_000 : 0))
 
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
 		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
@@ -600,13 +600,13 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		// 既定より短くもできる。上限そのものが設定から来ていることを見る。
 		const started = Date.now()
 		let call = 0
-		// 1 つ目のまとまりの後で 5 秒進む。既定の 3000 なら切れ、10000 なら切れない。
+		// 1 つ目のまとまりの後で 5 秒進む。既定の 10 秒なら切れない。
 		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 5_000 : 0))
 
 		const masker = new TaskPiiMasker({
 			enabled: true,
 			kinds: ["person"],
-			properNouns: { enabled: true, timeBudgetMs: 10_000 },
+			properNouns: { enabled: true },
 		} as never)
 		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
 

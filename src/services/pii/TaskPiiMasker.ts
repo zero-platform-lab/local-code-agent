@@ -60,13 +60,24 @@ export function lookupOf(found: ReadonlyMap<string, PiiMatch[]>): (text: string)
 export const NER_AT_ONCE = 8
 
 /**
- * 判定にかけてよい時間（`FR-PII-23f`）。
+ * 判定にかけてよい時間の既定（`FR-PII-23f`）。設定で変えられる。
  *
  * **第 2 層は取りこぼしてよい層である。** 長い履歴を全部判定しようとすると、送信の手前で
  * 秒単位の待ちが出る。超えたぶんは第 1 層だけで伏せ、次の要求へ持ち越す。覚えたぶんは
  * 残るので、会話が進むにつれて判定は行き渡る。
  */
-const NER_TIME_BUDGET = 3_000
+export const NER_TIME_BUDGET = 3_000
+
+/**
+ * この要求で判定にかけてよい終わりの時刻。**0 なら切らない。**
+ *
+ * 3 秒では足りない使い方がある。長い履歴を一度に判定させたい、機械が遅い、といった場合、
+ * 切られたことを警告で出しても利用者にできることが無かった。
+ */
+function deadline(budget: number | undefined): number | undefined {
+	const ms = budget ?? NER_TIME_BUDGET
+	return ms === 0 ? undefined : Date.now() + ms
+}
 
 export class TaskPiiMasker {
 	/**
@@ -89,6 +100,8 @@ export class TaskPiiMasker {
 	private backendTried = false
 	/** 本文ごとの第 2 層の結果。同じ本文を毎回判定し直さない。 */
 	private nerMemo = new Map<string, PiiMatch[]>()
+	/** 会話以外の判定でも、設定変更時にモデルと判定結果を読み直す。 */
+	private nerSettings: string | undefined
 	/** 前の要求で第 2 層が使えたか。変わったら伏せた結果の記憶を捨てる。 */
 	private lastLayerTwo: boolean | undefined
 
@@ -198,6 +211,14 @@ export class TaskPiiMasker {
 
 	private async properNouns(texts: readonly string[]): Promise<MaskOptions["properNouns"]> {
 		const settings = this.settings.properNouns
+		// ファイルの置き換えは options() を通らない。第 2 層自身で設定の変更を検知する。
+		const key = JSON.stringify(settings ?? {})
+		if (this.nerSettings !== key) {
+			this.nerSettings = key
+			this.nerMemo = new Map()
+			this.backend = undefined
+			this.backendTried = false
+		}
 		if (settings?.enabled !== true) return undefined
 
 		// `resolveDictionaryPath` は `~` を開き、空欄を落とす。落ちたら既定の場所を見る。
@@ -243,14 +264,14 @@ export class TaskPiiMasker {
 
 		const options = { minScore: settings.minScore, entities: settings.entities }
 		const pending = texts.filter((text) => !this.nerMemo.has(text))
-		const until = Date.now() + NER_TIME_BUDGET
+		const until = deadline(settings.timeBudgetMs)
 
 		// **まとめて走らせる。** 1 つずつ待つと、初回の長い履歴で本文の数だけ待ち時間が
 		// 積み上がる。数を抑えるのは、全部同時に投げると記憶が膨らむためである。
 		for (let at = 0; at < pending.length; at += NER_AT_ONCE) {
 			// **時間で打ち切る（`FR-PII-23f`）。** 第 2 層は取りこぼしてよい層である。
 			// 全部を拾おうとして送信を待たせるほうが害が大きい。**ただし黙らない。**
-			if (Date.now() > until) {
+			if (until !== undefined && Date.now() > until) {
 				this.trouble(directory, `時間内に終わらなかった（残り ${pending.length - at} 件は第 1 層だけ）`)
 				break
 			}

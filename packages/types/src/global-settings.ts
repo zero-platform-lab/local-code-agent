@@ -220,6 +220,14 @@ export const piiMaskingSchema = z.object({
 			 * 利用者にできることが無かった。
 			 */
 			timeBudgetMs: z.number().min(0).optional(),
+			/**
+			 * 時間切れや一時的な失敗のあとに試し直す回数（`FR-PII-23i`）。省略すると 3。
+			 *
+			 * **0 なら試し直さない。** 一度の不調でその要求ぶんが第 1 層だけになるが、
+			 * 待ち時間は短くなる。ファイルの欠けのように繰り返しても直らない失敗は、
+			 * この回数に関係なく 1 度で諦める。
+			 */
+			retryCount: z.number().min(0).optional(),
 		})
 		.optional(),
 })

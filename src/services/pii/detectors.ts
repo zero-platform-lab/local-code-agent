@@ -465,7 +465,12 @@ export function detectAddresses(text: string): PiiMatch[] {
 			continue
 		}
 
-		// 日付は番地ではない。
+		// 日付は番地ではない。住所だと読むと日付ごと伏せてしまい、前後の文の意味が変わる。
+		//
+		// **`?? ""` は実行されない。** `ADDRESS_TAIL` はどちらの枝にも名前付きの組を持つ
+		// ので、一致したのに両方とも空になることはない。型を通すためだけに置いてある
+		// （網羅率の分岐が 1 つ残るのはこのためである。同名の組を 2 つ持てれば消せるが、
+		// この Node では使えない）。
 		const banchi = tail.groups?.b1 ?? tail.groups?.b2 ?? ""
 		if (DATE_LIKE.test(banchi)) {
 			PLACE_HEAD.lastIndex = start + name.length

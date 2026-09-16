@@ -24,19 +24,22 @@ const ner = vi.hoisted(() => ({
 	loadThrows: false,
 	detectThrows: false,
 	runtime: true,
-	beforeDetect: undefined as (() => void) | undefined,
+	beforeDetect: undefined as ((text: string) => void) | undefined,
+	/** 読み込みを試した回数。試し直しの回数を数えるために使う。 */
+	beforeLoad: undefined as (() => void) | undefined,
 }))
 
 // モデルは 265 MB あり、試験のたびに読めない。読む段だけを偽物にする。
 vi.mock("../nerBackend", () => ({
 	loadBackend: async () => {
+		ner.beforeLoad?.()
 		if (ner.loadThrows) throw new Error("native を読めない")
 		return { backend: ner.backend, check: ner.check }
 	},
 	detectWith: async (_backend: unknown, text: string) => {
 		ner.calls++
 		if (ner.detectThrows) throw new Error("判定に失敗した")
-		ner.beforeDetect?.()
+		ner.beforeDetect?.(text)
 		// 「森」を人名として返す偽の判定。第 1 層には無い規則である。
 		const at = text.indexOf("森")
 		return at < 0 ? [] : [{ kind: "person", start: at, end: at + 1, value: "森" }]
@@ -479,6 +482,7 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		ner.loadThrows = false
 		ner.detectThrows = false
 		ner.beforeDetect = undefined
+		ner.beforeLoad = undefined
 		ner.runtime = true
 	})
 
@@ -522,9 +526,9 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 		// 残り、この会話の間ずっと効かなくなる。
 		const masker = new TaskPiiMasker(settings as never)
 		let seen = 0
-		ner.beforeDetect = () => {
-			// 9 件目（2 つ目のまとまりの 1 件目）で投げる。
-			if (++seen === NER_AT_ONCE + 1) throw new Error("途中で失敗した")
+		ner.beforeDetect = (text) => {
+			// 2 つ目のまとまりへ入ったところで、1 度だけ投げる。
+			if (text.includes("担当") && ++seen === NER_AT_ONCE + 1) throw new Error("途中で失敗した")
 		}
 		const many = Array.from({ length: NER_AT_ONCE + 2 }, (_, at) => message(`森が担当 ${at}`))
 
@@ -532,7 +536,61 @@ describe("第 2 層が投げても、第 1 層は動かす（FR-PII-23b）", () 
 
 		// 1 つ目のまとまりは判定できている。
 		expect(result.messages[0]).toMatchObject({ content: "{{person-001}}が担当 0" })
-		expect(result.troubles.join()).toContain("途中で失敗した")
+		// **試し直して回復する（`FR-PII-23i`）。** 一度の不調でその要求ぶんを第 1 層だけに
+		// 落とさない。済んだぶんは記憶に残るので、試し直しても同じ本文を判定し直さない。
+		expect(result.troubles).toEqual([])
+		expect(result.messages[NER_AT_ONCE + 1]).toMatchObject({
+			content: `{{person-001}}が担当 ${NER_AT_ONCE + 1}`,
+		})
+	})
+
+	it("試し直しても駄目なら、その旨を出す（FR-PII-23i）", async () => {
+		// **黙らない。** 画面は変わらないので、出さないと第 1 層だけで送ったことに
+		// 気づけない。
+		const masker = new TaskPiiMasker(settings as never)
+		ner.beforeDetect = (text) => {
+			if (text.includes("森")) throw new Error("ずっと失敗する")
+		}
+
+		const result = await masker.maskForRequest("", [message("森が担当")])
+
+		expect(result.troubles.join()).toContain("ずっと失敗する")
+		expect(result.messages[0]).toMatchObject({ content: "森が担当" })
+	})
+
+	it("回数を 0 にすると、試し直さない（FR-PII-23i）", async () => {
+		// 待ち時間を延ばしたくない人のための逃げ道。1 度で諦める。
+		const masker = new TaskPiiMasker({
+			...settings,
+			properNouns: { ...(settings as { properNouns: object }).properNouns, retryCount: 0 },
+		} as never)
+		let thrown = 0
+		ner.beforeDetect = (text) => {
+			// **狙った本文だけで投げる。** まとまりには別の本文も入るので、回数だけで
+			// 決めると、通ってほしくない本文が通る。
+			if (text.includes("森") && thrown++ === 0) throw new Error("1 回目で失敗した")
+		}
+
+		const result = await masker.maskForRequest("", [message("森が担当")])
+
+		expect(result.troubles.join()).toContain("1 回目で失敗した")
+		// 試し直していれば 2 回目は通り、伏せられていたはずである。
+		expect(result.messages[0]).toMatchObject({ content: "森が担当" })
+	})
+
+	it("ファイルが欠けているときは、試し直さない（FR-PII-23i）", async () => {
+		// **繰り返しても直らない失敗は 1 度で諦める。** 待たせるだけである。
+		const masker = new TaskPiiMasker(settings as never)
+		ner.backend = undefined
+		let loads = 0
+		ner.beforeLoad = () => {
+			loads++
+		}
+
+		const result = await masker.maskForRequest("", [message("森が担当")])
+
+		expect(loads).toBe(1)
+		expect(result.troubles.length).toBeGreaterThan(0)
 	})
 })
 
@@ -543,15 +601,19 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		ner.loadThrows = false
 		ner.detectThrows = false
 		ner.beforeDetect = undefined
+		ner.beforeLoad = undefined
 		ner.runtime = true
 	})
 
 	it("上限を超えたら、そこまでの結果で先へ進む", async () => {
 		// **第 2 層は取りこぼしてよい層である。** 全部を拾おうとして送信を待たせない。
-		// 時計を進めて、2 つ目のまとまりへ入る前に上限を超えさせる。
+		//
+		// **時計を進め続ける。** 一度止めるだけでは、試し直しのときに上限も一緒に先へ
+		// 動くので通ってしまう（`FR-PII-23i`）。試し直しても間に合わない状況を作る。
 		const started = Date.now()
 		let call = 0
-		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? 11_000 : 0))
+		let elapsed = 0
+		vi.spyOn(Date, "now").mockImplementation(() => started + (call++ > 1 ? (elapsed += 100_000) : 0))
 
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
 		const many = Array.from({ length: NER_AT_ONCE * 3 }, (_, at) => message(`森が担当 ${at}`))
@@ -566,6 +628,42 @@ describe("時間で打ち切る（FR-PII-23f）", () => {
 		expect(result.messages[NER_AT_ONCE * 3 - 1]).toMatchObject({
 			content: `森が担当 ${NER_AT_ONCE * 3 - 1}`,
 		})
+
+		vi.restoreAllMocks()
+	})
+
+	it("初回だけ上限を厚くする（FR-PII-23i）", async () => {
+		// **初回は条件がいちばん悪い。** 265 MB を読み込み、native を初期化したうえで
+		// 長い履歴をまとめて判定する。ここで切られると、その会話でいちばん多くの本文を
+		// 取りこぼす。
+		//
+		// 1 つ目のまとまりの後から 20 秒ずつ進める。既定の 10 秒なら切れ、初回の 30 秒
+		// （10 秒 × 3）なら切れない。
+		const started = Date.now()
+		let elapsed = 0
+		let armed = false
+		vi.spyOn(Date, "now").mockImplementation(() => started + (armed ? (elapsed += 20_000) : 0))
+
+		let seen = 0
+		ner.beforeDetect = (text) => {
+			if (text.includes("担当") && ++seen === NER_AT_ONCE) armed = true
+		}
+
+		const masker = new TaskPiiMasker({ enabled: true, kinds: ["person"], properNouns: { enabled: true } } as never)
+		const first = Array.from({ length: NER_AT_ONCE * 2 }, (_, at) => message(`森が担当 ${at}`))
+
+		// 初回。30 秒あるので、20 秒の間があっても最後まで判定できる。
+		const before = await masker.maskForRequest("", first)
+		expect(before.troubles).toEqual([])
+		expect(before.messages[NER_AT_ONCE * 2 - 1]).toMatchObject({
+			content: `{{person-001}}が担当 ${NER_AT_ONCE * 2 - 1}`,
+		})
+
+		// 2 回目は読み込み済みなので 10 秒しか無い。同じ間で切れる。
+		const later = Array.from({ length: NER_AT_ONCE * 2 }, (_, at) => message(`森が対応 ${at}`))
+		const after = await masker.maskForRequest("", later)
+
+		expect(after.troubles.join()).toContain("時間内に終わらなかった")
 
 		vi.restoreAllMocks()
 	})
@@ -635,6 +733,7 @@ describe("動かせない配布物（FR-PII-23g）", () => {
 		ner.loadThrows = false
 		ner.detectThrows = false
 		ner.beforeDetect = undefined
+		ner.beforeLoad = undefined
 		ner.runtime = false
 	})
 

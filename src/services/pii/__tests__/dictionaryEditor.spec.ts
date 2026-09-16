@@ -126,6 +126,30 @@ describe("addSelectionToDictionary", () => {
 		expect(written).toContain("株式会社サンプル\torg\n")
 	})
 
+	it("種類を選ぶ間に符号化が変わっても、混ぜて書かない（FR-PII-15c）", async () => {
+		// **書く直前にもう一度読む理由がこれである。** 種類を選ぶ窓は利用者が閉じるまで
+		// 待つ。その間に誰かが Shift_JIS で保存し直すと、先に読んだ内容はもう古い。
+		// 古いままで書き足すと、1 つのファイルに 2 つの符号化が混ざり、辞書ごと読めなく
+		// なる。**混ざってから気づいても戻せない。**
+		const target = defaultDictionaryPath()
+		await fs.writeFile(target, "既存の語\n", "utf8")
+		mocks.activeTextEditor = editorWith("株式会社サンプル")
+
+		// 窓を開いている間に、別の符号化で保存し直される。
+		mocks.showQuickPick.mockImplementationOnce(async () => {
+			await fs.writeFile(target, SJIS_TANAKA)
+			return { label: "org", termKind: "org" }
+		})
+
+		await addSelectionToDictionary()
+
+		expect(mocks.showWarningMessage).toHaveBeenCalledExactlyOnceWith(
+			expect.stringContaining("common:pii.dictionaryNotUtf8"),
+		)
+		// **1 バイトも足していない。**
+		expect(await fs.readFile(target)).toEqual(Buffer.from(SJIS_TANAKA))
+	})
+
 	it("2 回目は説明を重ねない", async () => {
 		mocks.activeTextEditor = editorWith("サンプル")
 		pickKind("org")
@@ -223,6 +247,21 @@ describe("addSelectionToDictionary", () => {
 })
 
 describe("exportDictionary（FR-PII-17）", () => {
+	it("読めない辞書があれば、書き出しても黙らない（FR-PII-17b）", async () => {
+		// **欠けたまま渡さない。** 欠けた書き出しをチームへ渡すと、渡された側では
+		// その語が 1 件も伏せられない。**渡す側も受け取る側も気づけない。**
+		mocks.showSaveDialog.mockResolvedValueOnce({ fsPath: path.join(dir, "出力.txt") })
+
+		await exportDictionary({
+			terms: [{ value: "株式会社サンプル", kind: "org" }],
+			dictionaryPaths: [path.join(dir, "無い辞書.txt")],
+		})
+
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining("common:pii.dictionaryFailed"))
+		// **それでも書き出す。** 読めたぶんまで止めると、1 件の失敗で何も渡せなくなる。
+		expect(await read(path.join(dir, "出力.txt"))).toContain("株式会社サンプル")
+	})
+
 	it("設定の語と辞書の語をまとめて書き出す（FR-PII-17a）", async () => {
 		const source = path.join(dir, "team.txt")
 		await fs.writeFile(source, "田中太郎\tperson\n", "utf8")

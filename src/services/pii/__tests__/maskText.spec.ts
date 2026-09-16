@@ -349,6 +349,15 @@ describe("住所（FR-PII-13）", () => {
 		expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
 	})
 
+	it.each(["渋谷区神南 2024-10-01 の記録", "渋谷区神南 2024-1000 番の資料"])(
+		"日付や年の並びは番地として採らない: %s",
+		(text) => {
+			// **住所だと読むと、日付ごと伏せてしまう。** 日付は伏せる対象ではないうえ、
+			// 伏せると前後の文の意味が変わり、モデルが読む内容まで変わる。
+			expect(maskText(text, { kinds: ["address"] }).text).toBe(text)
+		},
+	)
+
 	it("番地との間の空白は 1 つまで許す", () => {
 		expect(maskText("東京都渋谷区神南 1-2-3", { kinds: ["address"] }).text).toBe("{{address-001}}")
 	})

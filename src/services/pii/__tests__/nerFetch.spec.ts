@@ -132,6 +132,23 @@ describe("fetchModel（FR-PII-23c）", () => {
 		}
 	})
 
+	it("本文の無い応答は、取れた扱いにしない", async () => {
+		// **黙って空のファイルを作らない。** 作ると、置き場所にはファイルが並ぶのに
+		// 中身が無い。照合で気づけはするが、理由が「壊れている」になって遠回りになる。
+		const server = http.createServer((_req, res) => {
+			res.writeHead(204)
+			res.end()
+		})
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+		const port = (server.address() as AddressInfo).port
+
+		try {
+			await expect(fetchModel(dir, { baseUrl: `http://127.0.0.1:${port}` })).rejects.toThrow("本文が無い")
+		} finally {
+			await new Promise((resolve) => server.close(resolve))
+		}
+	})
+
 	it("取得先が無ければ、何も取りに行かずに落ちる（FR-PII-23h）", async () => {
 		// **既定の取得先へ落とさない。** 落とすと、設定を空にした人の意思に反して外へ出る。
 		await expect(fetchModel(dir, {})).rejects.toThrow(NO_URL)

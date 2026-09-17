@@ -14,8 +14,6 @@ import {
 import { PiiVault } from "./maskConversation"
 import { unmaskText } from "./maskText"
 
-type FileTarget = { identity: string; label: string; uri: vscode.Uri; text: string }
-
 const DEFAULT_RETENTION_DAYS = 30
 
 export function fileVaultIdentity(uri: vscode.Uri): string | undefined {
@@ -69,7 +67,12 @@ export type FileVaultConfig = {
 	limits?: () => FileVaultLimits
 }
 
-/** 利用者操作と暗号化ストアの境界。モデルからは呼ばない。 */
+/**
+ * File Vault の実体。送信経路が保存・取り込みに使い、利用者は消去に使う。
+ *
+ * File Vault を実行するかどうか（`piiMasking.fileVault.enabled`）は呼び出し側が見る。
+ * ここは「実行するなら何をするか」だけを持つ。
+ */
 export class FileVaultController {
 	private readonly store: FileVaultStore | undefined
 	private readonly retentionDays: () => number
@@ -139,104 +142,66 @@ export class FileVaultController {
 		}
 	}
 
-	private activeTarget(): FileTarget | undefined {
-		const document = vscode.window.activeTextEditor?.document
-		if (!document) return undefined
-		const uri = document.uri
+	/** 読んだファイルの対応を保存する（`FR-PII-25`）。伏せ字が無ければ何もしない。 */
+	async record(uri: vscode.Uri, entries: readonly FileVaultEntry[]): Promise<boolean> {
 		const identity = fileVaultIdentity(uri)
-		if (!identity) return undefined
-		return { identity, label: vscode.workspace.asRelativePath(uri, true), uri, text: document.getText() }
-	}
-
-	private async requireTarget(): Promise<FileTarget | undefined> {
-		const target = this.activeTarget()
-		if (!vscode.window.activeTextEditor) {
-			await vscode.window.showInformationMessage(t("common:pii.noEditor"))
-			return undefined
-		}
-		if (!target || !this.store) {
-			await vscode.window.showWarningMessage(t("common:pii.fileVault.workspaceRequired"))
-			return undefined
-		}
-		return target
-	}
-
-	async enable(vault: PiiVault): Promise<void> {
-		const target = await this.requireTarget()
-		if (!target || !this.store) return
+		if (!identity || !this.store || entries.length === 0) return true
 		try {
 			await this.cleanup()
-			const existing = await this.store.inspect(target.identity)
-			if (existing) {
-				vault.importEntries(existing.entries)
-				await vscode.window.showInformationMessage(
-					t("common:pii.fileVault.alreadyEnabled", { file: target.label, count: existing.entries.length }),
-				)
-				return
-			}
+			await this.store.save(identity, entries)
+			return true
 		} catch (error) {
 			await vscode.window.showErrorMessage(errorMessage(error))
-			return
-		}
-		const entries = [...vault.entries].filter(([placeholder]) => target.text.includes(placeholder))
-		const confirm = t("common:pii.fileVault.enable")
-		const answer = await vscode.window.showWarningMessage(
-			t("common:pii.fileVault.confirmEnable", { file: target.label, count: entries.length }),
-			{ modal: true },
-			confirm,
-		)
-		if (answer !== confirm) return
-
-		try {
-			const record = await this.store.enable(target.identity, entries)
-			await vscode.window.showInformationMessage(
-				t("common:pii.fileVault.enabled", { file: target.label, count: record.entries.length }),
-			)
-		} catch (error) {
-			await vscode.window.showErrorMessage(errorMessage(error))
+			return false
 		}
 	}
 
-	async disable(): Promise<void> {
-		const target = await this.requireTarget()
-		if (!target || !this.store) return
+	async recordToolPath(toolPath: string, entries: readonly FileVaultEntry[]): Promise<boolean> {
+		const uri = uriForToolPath(toolPath)
+		return uri ? this.record(uri, entries) : true
+	}
+
+	/** 伏せ字を新しく割り当てる前に、保存済み番号を Session Vault へ取り込む（`FR-PII-25a`）。 */
+	async prepare(uri: vscode.Uri, vault: PiiVault): Promise<boolean> {
+		const identity = fileVaultIdentity(uri)
+		if (!identity || !this.store) return true
 		try {
 			await this.cleanup()
-			const record = await this.store.inspect(target.identity)
-			if (!record) {
-				await vscode.window.showInformationMessage(t("common:pii.fileVault.notEnabled", { file: target.label }))
-				return
-			}
-			const confirm = t("common:pii.clearVault")
-			const answer = await vscode.window.showWarningMessage(
-				t("common:pii.fileVault.confirmDisable", { file: target.label, count: record.entries.length }),
-				{ modal: true },
-				confirm,
-			)
-			if (answer !== confirm) return
-			await this.store.delete(target.identity)
-			await vscode.window.showInformationMessage(t("common:pii.fileVault.disabled", { file: target.label }))
+			const record = await this.store.load(identity)
+			if (record) vault.importEntries(record.entries)
+			return true
 		} catch (error) {
 			await vscode.window.showErrorMessage(errorMessage(error))
+			return false
 		}
 	}
 
-	async status(): Promise<void> {
-		const target = await this.requireTarget()
-		if (!target || !this.store) return
-		try {
-			await this.cleanup()
-			const record = await this.store.inspect(target.identity)
-			await vscode.window.showInformationMessage(
-				record
-					? t("common:pii.fileVault.statusEnabled", { file: target.label, count: record.entries.length })
-					: t("common:pii.fileVault.notEnabled", { file: target.label }),
-			)
-		} catch (error) {
-			await vscode.window.showErrorMessage(errorMessage(error))
-		}
+	/** ファイル道具向け。衝突した保存済み伏せ字を今回の番号へ置き換える関数を返す。 */
+	async prepareToolPath(toolPath: string, vault: PiiVault): Promise<(text: string) => string> {
+		const uri = uriForToolPath(toolPath)
+		return uri ? this.prepareReference(uri, vault) : (text) => text
 	}
 
+	/** 添付ファイルや選択範囲向け。保存済み対応を取り込み、番号衝突を置き換える。 */
+	async prepareReference(uri: vscode.Uri, vault: PiiVault): Promise<(text: string) => string> {
+		const identity = fileVaultIdentity(uri)
+		if (!identity || !this.store) return (text) => text
+		await this.cleanup()
+		const record = await this.store.load(identity)
+		if (!record) return (text) => text
+		const remapped = vault.importEntries(record.entries)
+		return (text) => unmaskText(text, remapped)
+	}
+
+	async restore(uri: vscode.Uri, text: string, restoreSession: (text: string) => string): Promise<string> {
+		const identity = fileVaultIdentity(uri)
+		if (!identity || !this.store) return restoreSession(text)
+		await this.cleanup()
+		const record = await this.store.load(identity)
+		return restoreSession(record ? unmaskText(text, new Map(record.entries)) : text)
+	}
+
+	/** 選んだファイルの保管庫を消す（`FR-PII-27`）。 */
 	async clearSelected(): Promise<void> {
 		if (!this.store) {
 			await vscode.window.showWarningMessage(t("common:pii.fileVault.workspaceRequired"))
@@ -266,6 +231,7 @@ export class FileVaultController {
 		}
 	}
 
+	/** File Vault と Session Vault をまとめて消す（`FR-PII-27`）。 */
 	async clearAll(vault?: PiiVault): Promise<void> {
 		if (!this.store) {
 			await vscode.window.showWarningMessage(t("common:pii.fileVault.workspaceRequired"))
@@ -320,68 +286,10 @@ export class FileVaultController {
 			t("common:pii.fileVault.clearedMany", { files: removed.files, count: removed.entries }),
 		)
 	}
-
-	async record(uri: vscode.Uri, entries: readonly FileVaultEntry[]): Promise<boolean> {
-		const identity = fileVaultIdentity(uri)
-		if (!identity || !this.store) return true
-		try {
-			await this.cleanup()
-			await this.store.appendIfEnabled(identity, entries)
-			return true
-		} catch (error) {
-			await vscode.window.showErrorMessage(errorMessage(error))
-			return false
-		}
-	}
-
-	async recordToolPath(toolPath: string, entries: readonly FileVaultEntry[]): Promise<boolean> {
-		const uri = uriForToolPath(toolPath)
-		return uri ? this.record(uri, entries) : true
-	}
-
-	/** 伏せ字を新しく割り当てる前に、保存済み番号を Session Vault へ予約する。 */
-	async prepare(uri: vscode.Uri, vault: PiiVault): Promise<boolean> {
-		const identity = fileVaultIdentity(uri)
-		if (!identity || !this.store) return true
-		try {
-			await this.cleanup()
-			const record = await this.store.load(identity)
-			if (record) vault.importEntries(record.entries)
-			return true
-		} catch (error) {
-			await vscode.window.showErrorMessage(errorMessage(error))
-			return false
-		}
-	}
-
-	/** ファイル道具向け。衝突した保存済み伏せ字を今回の番号へ置き換える関数を返す。 */
-	async prepareToolPath(toolPath: string, vault: PiiVault): Promise<(text: string) => string> {
-		const uri = uriForToolPath(toolPath)
-		return uri ? this.prepareReference(uri, vault) : (text) => text
-	}
-
-	/** 添付ファイルや選択範囲向け。保存済み対応を取り込み、番号衝突を置き換える。 */
-	async prepareReference(uri: vscode.Uri, vault: PiiVault): Promise<(text: string) => string> {
-		const identity = fileVaultIdentity(uri)
-		if (!identity || !this.store) return (text) => text
-		await this.cleanup()
-		const record = await this.store.load(identity)
-		if (!record) return (text) => text
-		const remapped = vault.importEntries(record.entries)
-		return (text) => unmaskText(text, remapped)
-	}
-
-	async restore(uri: vscode.Uri, text: string, restoreSession: (text: string) => string): Promise<string> {
-		const identity = fileVaultIdentity(uri)
-		if (!identity || !this.store) return restoreSession(text)
-		await this.cleanup()
-		const record = await this.store.load(identity)
-		return restoreSession(record ? unmaskText(text, new Map(record.entries)) : text)
-	}
 }
 
 /**
- * 送信経路と右クリックが使う共有のコントローラ。
+ * 送信経路と消去のコマンドが使う共有のコントローラ。
  *
  * **1 つだけ持つ。** 保存先はワークスペース固有なので、拡張の起動で 1 度だけ作る。
  * `activate` で `setFileVaultController` を呼ぶ。設定していなければ、File Vault は動かない

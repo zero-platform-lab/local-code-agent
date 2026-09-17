@@ -37,7 +37,7 @@ const readOutput = (callId: string, text: string): AgentMessage =>
 	({ type: "function_call_output", call_id: callId, output: text }) as AgentMessage
 
 const masker = (fileVault: FileVaultController | undefined) =>
-	new TaskPiiMasker({ enabled: true, kinds: ["email"] }, undefined, fileVault)
+	new TaskPiiMasker({ enabled: true, kinds: ["email"], fileVault: { enabled: true } }, undefined, fileVault)
 
 describe("TaskPiiMasker と File Vault の配線", () => {
 	it("読んだファイルを、伏せる前に取り込み、伏せた後に保存する", async () => {
@@ -109,5 +109,17 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 		])
 		const out = result.messages.find((item) => item.type === "function_call_output") as { output: string }
 		expect(out.output).toBe("{{email-001}}")
+	})
+
+	it("File Vault がオフなら、コントローラがあっても呼ばない", async () => {
+		const fake = fakeVault()
+		const off = new TaskPiiMasker(
+			{ enabled: true, kinds: ["email"], fileVault: { enabled: false } },
+			undefined,
+			fake as unknown as FileVaultController,
+		)
+		await off.maskForRequest("", [readCall("c1", { path: "note.md" }), readOutput("c1", "taro@corp.example")])
+		expect(fake.prepareToolPath).not.toHaveBeenCalled()
+		expect(fake.recordToolPath).not.toHaveBeenCalled()
 	})
 })

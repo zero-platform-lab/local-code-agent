@@ -255,7 +255,7 @@
 		"dictionaryNotUtf8": "{{path}} is Shift_JIS. Nothing was appended so the file stays readable. Add the term by hand, or save the file as UTF-8.",
 		"nothingToExport": "There are no terms to export.",
 		"exported": "Exported {{count}} term(s) to {{path}}.",
-		"noVault": "There is no mapping to restore from. Once the conversation ends, placeholders cannot be restored.",
+		"noMapping": "There is no mapping to restore from. Once the conversation ends, placeholders cannot be restored.",
 		"nothingToRestore": "No placeholder to restore was found.",
 		"restored": "Restored the original values.",
 		"documentChanged": "The file changed while the command was running. Nothing was modified, because the offsets no longer match. Please try again.",
@@ -266,22 +266,22 @@
 		"modelReady": "Placed the model at {{path}}.",
 		"noModelUrl": "No fetch destination is set. Enter the model URL in Settings → General → Proper nouns, or place the files in the model location by hand.",
 		"maskingTrouble": "Masking could not run fully: {{detail}}",
-		"clearVault": "Clear",
-		"fileVault": {
-			"workspaceRequired": "File Vault needs a saved file inside the workspace.",
-			"corrupt": "File Vault corruption was detected, so reading and writing were stopped.",
-			"unsupported": "File Vault in an unsupported format is neither read nor written.",
-			"failed": "Could not read File Vault. Existing data was left unchanged.",
-			"maxFiles": "The File Vault file count reached its configured limit, so nothing was saved.",
+		"clearMapping": "Clear",
+		"fileMapping": {
+			"workspaceRequired": "File mapping needs a saved file inside the workspace.",
+			"corrupt": "File mapping corruption was detected, so reading and writing were stopped.",
+			"unsupported": "File mapping in an unsupported format is neither read nor written.",
+			"failed": "Could not read File mapping. Existing data was left unchanged.",
+			"maxFiles": "The File mapping file count reached its configured limit, so nothing was saved.",
 			"maxEntries": "This file's mapping count reached its configured limit, so nothing was saved.",
-			"maxBytes": "The total File Vault size reached its configured limit, so nothing was saved.",
-			"none": "There is no File Vault to clear.",
+			"maxBytes": "The total File mapping size reached its configured limit, so nothing was saved.",
+			"none": "There is no File mapping to clear.",
 			"entryCount": "{{count}} mapping(s)",
-			"pickClear": "Choose the File Vault to clear.",
-			"confirmClearMany": "Clear {{files}} File Vault file(s) and {{count}} mapping(s)? They cannot be restored afterward.",
-			"clearedMany": "Cleared {{files}} File Vault file(s) and {{count}} mapping(s).",
-			"confirmClearAll": "Clear all {{files}} File Vault file(s) ({{fileCount}} mapping(s)) and the Session Vault ({{sessionCount}} mapping(s))? They cannot be restored afterward.",
-			"clearedAll": "Cleared {{files}} File Vault file(s) ({{fileCount}} mapping(s)) and the Session Vault ({{sessionCount}} mapping(s))."
+			"pickClear": "Choose the File mapping to clear.",
+			"confirmClearMany": "Clear {{files}} File mapping file(s) and {{count}} mapping(s)? They cannot be restored afterward.",
+			"clearedMany": "Cleared {{files}} File mapping file(s) and {{count}} mapping(s).",
+			"confirmClearAll": "Clear all {{files}} File mapping file(s) ({{fileCount}} mapping(s)) and the Session mapping ({{sessionCount}} mapping(s))? They cannot be restored afterward.",
+			"clearedAll": "Cleared {{files}} File mapping file(s) ({{fileCount}} mapping(s)) and the Session mapping ({{sessionCount}} mapping(s))."
 		}
 	}
 }

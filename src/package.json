@@ -201,13 +201,13 @@
 				"icon": "$(export)"
 			},
 			{
-				"command": "openai-agent.clearSelectedFileVault",
-				"title": "%command.clearSelectedFileVault.title%",
+				"command": "openai-agent.clearSelectedFileMapping",
+				"title": "%command.clearSelectedFileMapping.title%",
 				"icon": "$(clear-all)"
 			},
 			{
-				"command": "openai-agent.clearAllFileVault",
-				"title": "%command.clearAllFileVault.title%",
+				"command": "openai-agent.clearAllFileMapping",
+				"title": "%command.clearAllFileMapping.title%",
 				"icon": "$(clear-all)"
 			}
 		],

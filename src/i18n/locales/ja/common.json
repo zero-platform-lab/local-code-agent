@@ -256,7 +256,7 @@
 		"dictionaryNotUtf8": "{{path}} は Shift_JIS です。壊さないために書き足しません。手で足すか、UTF-8 で保存し直してください。",
 		"nothingToExport": "書き出す語がありません。",
 		"exported": "{{count}} 件を {{path}} へ書き出しました。",
-		"noVault": "戻せる対応表がありません。会話が終わっていると、伏せ字は元に戻せません。",
+		"noMapping": "戻せる対応表がありません。会話が終わっていると、伏せ字は元に戻せません。",
 		"nothingToRestore": "戻す伏せ字は見つかりませんでした。",
 		"restored": "伏せ字を元の値へ戻しました。",
 		"documentChanged": "操作の間にファイルが変わりました。位置がずれるため、何もしていません。もう一度お試しください。",
@@ -267,22 +267,22 @@
 		"modelReady": "モデルを {{path}} へ置きました。",
 		"noModelUrl": "取得先が設定されていません。設定 → 一般 → 固有名詞の検出の「取得先」に URL を書くか、置き場所へ手でファイルを置いてください。",
 		"maskingTrouble": "伏せ字を最後まで実行できませんでした: {{detail}}",
-		"clearVault": "消去する",
-		"fileVault": {
-			"workspaceRequired": "File Vault には、ワークスペース内の保存済みファイルが必要です。",
-			"corrupt": "File Vault の破損を検出したため、読み込みも書き込みも止めました。",
-			"unsupported": "未対応の形式の File Vault は、読み込みも書き込みもしません。",
-			"failed": "File Vault を読み込めませんでした。既存の内容は変えていません。",
-			"maxFiles": "File Vault のファイル数が設定の上限に達したため、保存しませんでした。",
+		"clearMapping": "消去する",
+		"fileMapping": {
+			"workspaceRequired": "ファイル対応表には、ワークスペース内の保存済みファイルが必要です。",
+			"corrupt": "ファイル対応表の破損を検出したため、読み込みも書き込みも止めました。",
+			"unsupported": "未対応の形式のファイル対応表は、読み込みも書き込みもしません。",
+			"failed": "ファイル対応表を読み込めませんでした。既存の内容は変えていません。",
+			"maxFiles": "ファイル対応表のファイル数が設定の上限に達したため、保存しませんでした。",
 			"maxEntries": "このファイルの対応数が設定の上限に達したため、保存しませんでした。",
-			"maxBytes": "File Vault 全体の容量が設定の上限に達したため、保存しませんでした。",
-			"none": "消去できる File Vault がありません。",
+			"maxBytes": "ファイル対応表全体の容量が設定の上限に達したため、保存しませんでした。",
+			"none": "消去できるファイル対応表がありません。",
 			"entryCount": "対応 {{count}} 件",
-			"pickClear": "消去する File Vault を選んでください。",
-			"confirmClearMany": "File Vault {{files}} ファイル・対応 {{count}} 件を消去します。消去後は元の値へ戻せません。",
-			"clearedMany": "File Vault {{files}} ファイル・対応 {{count}} 件を消去しました。",
-			"confirmClearAll": "File Vault {{files}} ファイル（対応 {{fileCount}} 件）と Session Vault（対応 {{sessionCount}} 件）をすべて消去します。消去後は元の値へ戻せません。",
-			"clearedAll": "File Vault {{files}} ファイル（対応 {{fileCount}} 件）と Session Vault（対応 {{sessionCount}} 件）を消去しました。"
+			"pickClear": "消去するファイル対応表を選んでください。",
+			"confirmClearMany": "ファイル対応表 {{files}} ファイル・対応 {{count}} 件を消去します。消去後は元の値へ戻せません。",
+			"clearedMany": "ファイル対応表 {{files}} ファイル・対応 {{count}} 件を消去しました。",
+			"confirmClearAll": "ファイル対応表 {{files}} ファイル（対応 {{fileCount}} 件）とセッション対応表（対応 {{sessionCount}} 件）をすべて消去します。消去後は元の値へ戻せません。",
+			"clearedAll": "ファイル対応表 {{files}} ファイル（対応 {{fileCount}} 件）とセッション対応表（対応 {{sessionCount}} 件）を消去しました。"
 		}
 	}
 }

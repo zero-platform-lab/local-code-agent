@@ -59,7 +59,7 @@ export async function restoreSecretsInActiveEditor(unmask: ((text: string) => st
 
 	if (!unmask) {
 		// 会話が始まっていないか、終わっている。対応表が無いので戻しようがない。
-		await vscode.window.showWarningMessage(t("common:pii.noVault"))
+		await vscode.window.showWarningMessage(t("common:pii.noMapping"))
 		return
 	}
 

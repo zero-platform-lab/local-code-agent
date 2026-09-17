@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
 	registerCodeActions: vi.fn(),
 	registerTerminalActions: vi.fn(),
 	registerPiiCommands: vi.fn((..._args: unknown[]) => {}),
-	registerFileVaultCommands: vi.fn((..._args: unknown[]) => {}),
+	registerFileMappingCommands: vi.fn((..._args: unknown[]) => {}),
 	API: vi.fn().mockImplementation((...args: unknown[]) => ({ api: true, args })),
 	providerInstance: {
 		resolveWebviewView: vi.fn(),
@@ -96,7 +96,7 @@ vi.mock("../activate", () => ({
 	registerCodeActions: mocks.registerCodeActions,
 	registerTerminalActions: mocks.registerTerminalActions,
 	registerPiiCommands: mocks.registerPiiCommands,
-	registerFileVaultCommands: mocks.registerFileVaultCommands,
+	registerFileMappingCommands: mocks.registerFileMappingCommands,
 	CodeActionProvider: class {
 		static providedCodeActionKinds = ["quickfix"]
 	},

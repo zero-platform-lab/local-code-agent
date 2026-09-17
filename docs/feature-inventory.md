@@ -136,7 +136,7 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 - 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
 - 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
-- File Vault: clearSelectedFileVault, clearAllFileVault（2コマンド。入/切は右下のトグル）
+- ファイル対応表: clearSelectedFileMapping, clearAllFileMapping（2コマンド。入/切は右下のトグル）
 - 設定: setCustomStoragePath, importSettings
 
 ### C2. 設定タブ（`SettingsView.tsx` の `sectionNames`、11）

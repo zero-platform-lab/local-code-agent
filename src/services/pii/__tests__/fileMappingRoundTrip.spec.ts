@@ -1,10 +1,10 @@
-// npx vitest run services/pii/__tests__/fileVaultRoundTrip.spec.ts
+// npx vitest run services/pii/__tests__/fileMappingRoundTrip.spec.ts
 //
 // **実質の往復確認。** 実際のディスクへ書き、再起動をまたいで
 // 「入 → 読む → 再起動 → 伏せ字が安定」を固定する。
 //
 // 単体の偽物ではなく、本物のファイル入出力を通す。vscode の fs は node の実ファイルへ
-// 差し替える。「再起動」は、新しいコントローラとまっさらな Session Vault を、同じ保存先で
+// 差し替える。「再起動」は、新しいコントローラとまっさらなセッション対応表を、同じ保存先で
 // 作り直して表す。
 
 import * as os from "os"
@@ -84,12 +84,12 @@ vi.mock("../nerBackend", () => ({
 	detectWith: async () => [],
 }))
 
-import { FileVaultController } from "../fileVault"
-import { PiiVault } from "../maskConversation"
+import { FileMappingController } from "../fileMapping"
+import { PiiMapping } from "../maskConversation"
 import { TaskPiiMasker } from "../TaskPiiMasker"
 
 const uri = (p: string) => ({ path: p })
-const controller = () => new FileVaultController({ storageUri: uri(disk.root) } as never)
+const controller = () => new FileMappingController({ storageUri: uri(disk.root) } as never)
 
 const readCall = (callId: string, p: string): AgentMessage =>
 	({
@@ -100,25 +100,25 @@ const readCall = (callId: string, p: string): AgentMessage =>
 	}) as AgentMessage
 const readOutput = (callId: string, text: string): AgentMessage =>
 	({ type: "function_call_output", call_id: callId, output: text }) as AgentMessage
-const settings: PiiMasking = { enabled: true, kinds: ["email"], fileVault: { enabled: true } }
-const masker = () => new TaskPiiMasker(settings, new PiiVault(), controller())
+const settings: PiiMasking = { enabled: true, kinds: ["email"], fileMapping: { enabled: true } }
+const masker = () => new TaskPiiMasker(settings, new PiiMapping(), controller())
 
 beforeEach(async () => {
-	disk.root = await nodefs.mkdtemp(path.join(os.tmpdir(), "file-vault-"))
+	disk.root = await nodefs.mkdtemp(path.join(os.tmpdir(), "file-mapping-"))
 })
 afterEach(async () => {
 	await nodefs.rm(disk.root, { recursive: true, force: true })
 })
 
-describe("File Vault の往復（実ディスク）", () => {
+describe("ファイル対応表の往復（実ディスク）", () => {
 	it("保存 → 再起動 → 取り込みで、同じ値に同じ伏せ字が当たる", async () => {
 		await controller().record(uri("/w/note.md") as never, [["{{email-001}}", "alice@corp.example"]])
 
-		// 再起動: 新しいコントローラとまっさらな Session Vault。保存先は同じ。
-		const vault = new PiiVault()
-		expect(await controller().prepare(uri("/w/note.md") as never, vault)).toBe(true)
-		expect(vault.assign("email", "alice@corp.example")).toBe("{{email-001}}")
-		expect(vault.restore("{{email-001}}")).toBe("alice@corp.example")
+		// 再起動: 新しいコントローラとまっさらなセッション対応表。保存先は同じ。
+		const mapping = new PiiMapping()
+		expect(await controller().prepare(uri("/w/note.md") as never, mapping)).toBe(true)
+		expect(mapping.assign("email", "alice@corp.example")).toBe("{{email-001}}")
+		expect(mapping.restore("{{email-001}}")).toBe("alice@corp.example")
 	})
 
 	it("送信経路: 入で読んだファイルが、再起動後も同じ伏せ字になる", async () => {
@@ -129,7 +129,7 @@ describe("File Vault の往復（実ディスク）", () => {
 		const out1 = (before.messages.find((m) => m.type === "function_call_output") as { output: string }).output
 		expect(out1).toBe("連絡先は {{email-001}}")
 
-		// 起動 B（再起動）: まっさらな Session Vault。同じファイルを読むと、保存済みを取り込んで
+		// 起動 B（再起動）: まっさらなセッション対応表。同じファイルを読むと、保存済みを取り込んで
 		// 同じ伏せ字になる。
 		const after = await masker().maskForRequest("", messages())
 		const out2 = (after.messages.find((m) => m.type === "function_call_output") as { output: string }).output
@@ -140,7 +140,7 @@ describe("File Vault の往復（実ディスク）", () => {
 	it("ディスクには実ファイルと .gitignore が残る", async () => {
 		await masker().maskForRequest("", [readCall("c1", "note.md"), readOutput("c1", "連絡先は taro@corp.example")])
 		const entries = await nodefs.readdir(disk.root)
-		expect(entries).toContain("file-vault.v1.json")
+		expect(entries).toContain("file-mapping.v1.json")
 		expect(entries).toContain(".gitignore")
 		expect(await nodefs.readFile(path.join(disk.root, ".gitignore"), "utf8")).toBe("*\n")
 	})

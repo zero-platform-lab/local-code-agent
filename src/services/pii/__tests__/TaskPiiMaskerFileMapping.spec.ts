@@ -1,6 +1,6 @@
-// npx vitest run services/pii/__tests__/TaskPiiMaskerFileVault.spec.ts
+// npx vitest run services/pii/__tests__/TaskPiiMaskerFileMapping.spec.ts
 //
-// 送信経路の File Vault 配線。読んだファイルを、伏せる前に取り込み、伏せた後に保存する。
+// 送信経路の ファイル対応表の配線。読んだファイルを、伏せる前に取り込み、伏せた後に保存する。
 
 import type { AgentMessage } from "@openai-agent/types"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -17,16 +17,16 @@ vi.mock("../nerBackend", () => ({
 	detectWith: async () => [],
 }))
 
-import type { FileVaultController } from "../fileVault"
-import { resetSessionVault } from "../maskConversation"
+import type { FileMappingController } from "../fileMapping"
+import { resetSessionMapping } from "../maskConversation"
 import { TaskPiiMasker } from "../TaskPiiMasker"
 
 // 対応表は本製品で 1 つを共有する。捨てないと前の試験の番号が残る。
-beforeEach(() => resetSessionVault())
+beforeEach(() => resetSessionMapping())
 
-function fakeVault() {
+function fakeMapping() {
 	return {
-		prepareToolPath: vi.fn(async (_path: string, _vault: unknown) => (text: string) => text),
+		prepareToolPath: vi.fn(async (_path: string, _mapping: unknown) => (text: string) => text),
 		recordToolPath: vi.fn(async (_path: string, _entries: unknown) => true),
 	}
 }
@@ -36,13 +36,13 @@ const readCall = (callId: string, args: unknown): AgentMessage =>
 const readOutput = (callId: string, text: string): AgentMessage =>
 	({ type: "function_call_output", call_id: callId, output: text }) as AgentMessage
 
-const masker = (fileVault: FileVaultController | undefined) =>
-	new TaskPiiMasker({ enabled: true, kinds: ["email"], fileVault: { enabled: true } }, undefined, fileVault)
+const masker = (fileMapping: FileMappingController | undefined) =>
+	new TaskPiiMasker({ enabled: true, kinds: ["email"], fileMapping: { enabled: true } }, undefined, fileMapping)
 
-describe("TaskPiiMasker と File Vault の配線", () => {
+describe("TaskPiiMasker と ファイル対応表の配線", () => {
 	it("読んだファイルを、伏せる前に取り込み、伏せた後に保存する", async () => {
-		const fake = fakeVault()
-		const result = await masker(fake as unknown as FileVaultController).maskForRequest("", [
+		const fake = fakeMapping()
+		const result = await masker(fake as unknown as FileMappingController).maskForRequest("", [
 			readCall("c1", { path: "note.md" }),
 			readOutput("c1", "連絡先は taro@corp.example"),
 		])
@@ -65,7 +65,7 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 				return true
 			}),
 		}
-		await masker(fake as unknown as FileVaultController).maskForRequest("", [
+		await masker(fake as unknown as FileMappingController).maskForRequest("", [
 			readCall("c1", { path: "note.md" }),
 			readOutput("c1", "taro@corp.example"),
 		])
@@ -73,8 +73,8 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 	})
 
 	it("同じファイルは、タスク内で一度だけ取り込む/保存する", async () => {
-		const fake = fakeVault()
-		const one = masker(fake as unknown as FileVaultController)
+		const fake = fakeMapping()
+		const one = masker(fake as unknown as FileMappingController)
 		const messages = [readCall("c1", { path: "note.md" }), readOutput("c1", "連絡先は taro@corp.example")]
 		await one.maskForRequest("", messages)
 		await one.maskForRequest("", messages)
@@ -83,8 +83,8 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 	})
 
 	it("複数ファイルの読みは取り込むが、保存はしない（切り分けられないため）", async () => {
-		const fake = fakeVault()
-		await masker(fake as unknown as FileVaultController).maskForRequest("", [
+		const fake = fakeMapping()
+		await masker(fake as unknown as FileMappingController).maskForRequest("", [
 			readCall("c1", { files: [{ path: "a.md" }, { path: "b.md" }] }),
 			readOutput("c1", "連絡先は taro@corp.example"),
 		])
@@ -94,8 +94,8 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 	})
 
 	it("伏せ字が無いファイルは保存しない", async () => {
-		const fake = fakeVault()
-		await masker(fake as unknown as FileVaultController).maskForRequest("", [
+		const fake = fakeMapping()
+		await masker(fake as unknown as FileMappingController).maskForRequest("", [
 			readCall("c1", { path: "note.md" }),
 			readOutput("c1", "ふつうの本文"),
 		])
@@ -111,12 +111,12 @@ describe("TaskPiiMasker と File Vault の配線", () => {
 		expect(out.output).toBe("{{email-001}}")
 	})
 
-	it("File Vault がオフなら、コントローラがあっても呼ばない", async () => {
-		const fake = fakeVault()
+	it("ファイル対応表がオフなら、コントローラがあっても呼ばない", async () => {
+		const fake = fakeMapping()
 		const off = new TaskPiiMasker(
-			{ enabled: true, kinds: ["email"], fileVault: { enabled: false } },
+			{ enabled: true, kinds: ["email"], fileMapping: { enabled: false } },
 			undefined,
-			fake as unknown as FileVaultController,
+			fake as unknown as FileMappingController,
 		)
 		await off.maskForRequest("", [readCall("c1", { path: "note.md" }), readOutput("c1", "taro@corp.example")])
 		expect(fake.prepareToolPath).not.toHaveBeenCalled()

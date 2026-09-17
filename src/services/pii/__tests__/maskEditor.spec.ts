@@ -250,7 +250,7 @@ describe("restoreSecretsInActiveEditor（FR-PII-20）", () => {
 		await restoreSecretsInActiveEditor(undefined)
 
 		// 会話が終わると対応表は消える。黙って何もしないと、戻ったと思われる。
-		expect(mocks.showWarningMessage).toHaveBeenCalledExactlyOnceWith("common:pii.noVault")
+		expect(mocks.showWarningMessage).toHaveBeenCalledExactlyOnceWith("common:pii.noMapping")
 		expect(mocks.applyEdit).not.toHaveBeenCalled()
 	})
 

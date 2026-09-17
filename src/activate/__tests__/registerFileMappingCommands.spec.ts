@@ -1,6 +1,6 @@
-// npx vitest run activate/__tests__/registerFileVaultCommands.spec.ts
+// npx vitest run activate/__tests__/registerFileMappingCommands.spec.ts
 //
-// File Vault の消去コマンドの登録。
+// ファイル対応表の消去コマンドの登録。
 //
 // 固定するのは 3 点。
 //   1. 宣言した 2 つが 1 度ずつ登録されること
@@ -17,7 +17,7 @@ vi.mock("vscode", () => ({ commands: { registerCommand: mocks.registerCommand } 
 
 import { Package } from "../../shared/package"
 
-import { registerFileVaultCommands } from "../registerFileVaultCommands"
+import { registerFileMappingCommands } from "../registerFileMappingCommands"
 
 function fakeController() {
 	return {
@@ -26,32 +26,32 @@ function fakeController() {
 	}
 }
 
-const vault = {} as never
+const mapping = {} as never
 
 const setup = () => {
 	const subscriptions: { dispose: () => void }[] = []
 	const controller = fakeController()
-	const getVault = vi.fn(() => vault)
-	registerFileVaultCommands(
+	const getMapping = vi.fn(() => mapping)
+	registerFileMappingCommands(
 		{ subscriptions } as unknown as vscode.ExtensionContext,
 		controller as never,
-		getVault as never,
+		getMapping as never,
 	)
 	const handlerFor = (id: string) =>
 		mocks.registerCommand.mock.calls.find(
 			([name]) => name === `${Package.name}.${id}`,
 		)?.[1] as () => Promise<unknown>
-	return { subscriptions, controller, getVault, handlerFor }
+	return { subscriptions, controller, getMapping, handlerFor }
 }
 
 beforeEach(() => vi.clearAllMocks())
 
-describe("registerFileVaultCommands", () => {
+describe("registerFileMappingCommands", () => {
 	it("2 つのコマンドを 1 度ずつ登録する", () => {
 		setup()
 		expect(mocks.registerCommand.mock.calls.map(([id]) => id)).toEqual([
-			`${Package.name}.clearSelectedFileVault`,
-			`${Package.name}.clearAllFileVault`,
+			`${Package.name}.clearSelectedFileMapping`,
+			`${Package.name}.clearAllFileMapping`,
 		])
 	})
 
@@ -61,14 +61,14 @@ describe("registerFileVaultCommands", () => {
 
 	it("選んで消去は、対応表を要らない", async () => {
 		const { controller, handlerFor } = setup()
-		await handlerFor("clearSelectedFileVault")()
+		await handlerFor("clearSelectedFileMapping")()
 		expect(controller.clearSelected).toHaveBeenCalledOnce()
 	})
 
 	it("全消去は、呼ばれた時点の対応表を渡す", async () => {
-		const { controller, getVault, handlerFor } = setup()
-		await handlerFor("clearAllFileVault")()
-		expect(controller.clearAll).toHaveBeenCalledWith(vault)
-		expect(getVault).toHaveBeenCalledOnce()
+		const { controller, getMapping, handlerFor } = setup()
+		await handlerFor("clearAllFileMapping")()
+		expect(controller.clearAll).toHaveBeenCalledWith(mapping)
+		expect(getMapping).toHaveBeenCalledOnce()
 	})
 })

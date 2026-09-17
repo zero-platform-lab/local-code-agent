@@ -9,7 +9,7 @@
 
 import type { AgentMessage } from "@openai-agent/types"
 
-import { collectTexts, PiiVault, maskConversation, type MaskMemo } from "../maskConversation"
+import { collectTexts, PiiMapping, maskConversation, type MaskMemo } from "../maskConversation"
 
 const message = (role: "user" | "assistant", content: string): AgentMessage =>
 	({ type: "message", role, content }) as AgentMessage
@@ -134,52 +134,52 @@ describe("maskConversation", () => {
 	})
 })
 
-describe("PiiVault", () => {
+describe("PiiMapping", () => {
 	it("割り当てを溜めて、戻せる（FR-PII-02a）", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 
-		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault)
+		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, mapping)
 
-		expect(vault.size).toBe(1)
-		expect(vault.restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
+		expect(mapping.size).toBe(1)
+		expect(mapping.restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
 	})
 
 	it("要求ごとに番号を振り直さない（FR-PII-02）", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 
 		// 1 回目は alice が先に出るので 001 になる。
-		maskConversation("", [message("user", "alice@x.example と bob@y.example")], { kinds: ["email"] }, vault)
+		maskConversation("", [message("user", "alice@x.example と bob@y.example")], { kinds: ["email"] }, mapping)
 		// 2 回目は bob だけが出る。番号を振り直すと bob が 001 になり、前の応答で
 		// alice を指していた {{email-001}} が別人を指す。戻すと別人の値が書かれる。
-		const second = maskConversation("", [message("user", "bob@y.example のみ")], { kinds: ["email"] }, vault)
+		const second = maskConversation("", [message("user", "bob@y.example のみ")], { kinds: ["email"] }, mapping)
 
 		expect(second.messages[0]).toMatchObject({ content: "{{email-002}} のみ" })
-		expect(vault.restore("{{email-001}}")).toBe("alice@x.example")
-		expect(vault.restore("{{email-002}}")).toBe("bob@y.example")
+		expect(mapping.restore("{{email-001}}")).toBe("alice@x.example")
+		expect(mapping.restore("{{email-002}}")).toBe("bob@y.example")
 	})
 
 	it("item をまたいで同じ値へ同じ番号を割り当てる", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 
 		const result = maskConversation(
 			"",
 			[message("user", "taro@corp.example"), message("assistant", "また taro@corp.example")],
 			{ kinds: ["email"] },
-			vault,
+			mapping,
 		)
 
 		expect(result.messages[0]).toMatchObject({ content: "{{email-001}}" })
 		expect(result.messages[1]).toMatchObject({ content: "また {{email-001}}" })
-		expect(vault.size).toBe(1)
+		expect(mapping.size).toBe(1)
 	})
 
 	it("覚えた結果を使い回す。件数も同じになる", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 		const memo: MaskMemo = new Map()
 		const messages = [message("user", "taro@corp.example へ")]
 
-		const first = maskConversation("", messages, { kinds: ["email"] }, vault, memo)
-		const second = maskConversation("", messages, { kinds: ["email"] }, vault, memo)
+		const first = maskConversation("", messages, { kinds: ["email"] }, mapping, memo)
+		const second = maskConversation("", messages, { kinds: ["email"] }, mapping, memo)
 
 		// 2 往復目の履歴は 1 往復目とほとんど同じ。走査し直すと二乗で増える。
 		expect(second.messages[0]).toMatchObject({ content: "{{email-001}} へ" })
@@ -189,13 +189,13 @@ describe("PiiVault", () => {
 
 	it("覚える量が上限を越えたら捨てる", () => {
 		const memo: MaskMemo = new Map()
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 		// 上限は 400 万文字。数十 KB の出力を並べて越えさせる。
 		const messages = Array.from({ length: 60 }, (_, i) =>
 			message("user", `taro${i}@corp.example ${"あ".repeat(50_000)}`),
 		)
 
-		maskConversation("", messages, { kinds: ["email"] }, vault, memo)
+		maskConversation("", messages, { kinds: ["email"] }, mapping, memo)
 
 		// 件数だけで抑えると、大きな出力が 5,000 件残り得る。
 		expect(memo.size).toBeLessThan(60)
@@ -203,15 +203,15 @@ describe("PiiVault", () => {
 	})
 
 	it("覚えていても、新しい item は伏せる", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 		const memo: MaskMemo = new Map()
 
-		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault, memo)
+		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, mapping, memo)
 		const second = maskConversation(
 			"",
 			[message("user", "taro@corp.example"), message("assistant", "hanako@corp.example")],
 			{ kinds: ["email"] },
-			vault,
+			mapping,
 			memo,
 		)
 
@@ -228,23 +228,23 @@ describe("PiiVault", () => {
 	})
 
 	it("割り当てていない伏せ字には触らない（FR-PII-08a）", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 
-		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault)
+		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, mapping)
 
-		expect(vault.restore("{{person-001}}")).toBe("{{person-001}}")
+		expect(mapping.restore("{{person-001}}")).toBe("{{person-001}}")
 	})
 
 	it("何も溜まっていなければ、そのまま返す", () => {
-		expect(new PiiVault().restore("{{email-001}}")).toBe("{{email-001}}")
+		expect(new PiiMapping().restore("{{email-001}}")).toBe("{{email-001}}")
 	})
 
 	it("対応表を読めるが、ディスクへは書かない（FR-PII-02b）", () => {
-		const vault = new PiiVault()
+		const mapping = new PiiMapping()
 
-		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, vault)
+		maskConversation("", [message("user", "taro@corp.example")], { kinds: ["email"] }, mapping)
 
-		expect([...vault.entries.values()]).toEqual(["taro@corp.example"])
+		expect([...mapping.entries.values()]).toEqual(["taro@corp.example"])
 	})
 })
 

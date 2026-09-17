@@ -82,8 +82,8 @@ vi.mock("../../../i18n", () => ({
 	t: (key: string, args?: Record<string, unknown>) => (args ? `${key}:${JSON.stringify(args)}` : key),
 }))
 
-import { FileVaultController, fileVaultIdentity } from "../fileVault"
-import { PiiVault } from "../maskConversation"
+import { FileMappingController, fileMappingIdentity } from "../fileMapping"
+import { PiiMapping } from "../maskConversation"
 
 type Entry = readonly [string, string]
 
@@ -110,50 +110,50 @@ beforeEach(() => {
 	mocks.ioError = undefined
 })
 
-describe("fileVaultIdentity", () => {
+describe("fileMappingIdentity", () => {
 	it("ワークスペース内では相対パスだけを識別情報にする", () => {
-		expect(fileVaultIdentity(uri("/w/docs/note.md"))).toBe("0:docs/note.md")
+		expect(fileMappingIdentity(uri("/w/docs/note.md"))).toBe("0:docs/note.md")
 	})
 
 	it("ワークスペース外とワークスペース自体は扱わない", () => {
-		expect(fileVaultIdentity(uri("/outside/note.md"))).toBeUndefined()
-		expect(fileVaultIdentity(uri("/w"))).toBeUndefined()
+		expect(fileMappingIdentity(uri("/outside/note.md"))).toBeUndefined()
+		expect(fileMappingIdentity(uri("/w"))).toBeUndefined()
 	})
 })
 
-describe("FileVaultController — 保存と取り込み", () => {
+describe("FileMappingController — 保存と取り込み", () => {
 	it("読んだファイルの対応を保存し、次のセッションへ取り込み、復元する", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 
-		const second = new PiiVault()
+		const second = new PiiMapping()
 		expect(await controller.prepare(uri("/w/note.md"), second)).toBe(true)
 		expect(second.restore("{{email-005}}")).toBe("alice@corp.example")
 		expect(await controller.restore(uri("/w/note.md"), "{{email-005}}", (text) => text)).toBe("alice@corp.example")
 	})
 
 	it("同じファイルへ足し合わせる（upsert）", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 		await controller.record(uri("/w/note.md"), [["{{person-001}}", "森下"]])
 
-		const vault = new PiiVault()
-		await controller.prepare(uri("/w/note.md"), vault)
-		expect(vault.restore("{{email-005}}")).toBe("alice@corp.example")
-		expect(vault.restore("{{person-001}}")).toBe("森下")
+		const mapping = new PiiMapping()
+		await controller.prepare(uri("/w/note.md"), mapping)
+		expect(mapping.restore("{{email-005}}")).toBe("alice@corp.example")
+		expect(mapping.restore("{{person-001}}")).toBe("森下")
 	})
 
 	it("伏せ字が無ければ保存しない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		expect(await controller.record(uri("/w/note.md"), [])).toBe(true)
-		expect(mocks.files.has("/state/file-vault.v1.json")).toBe(false)
+		expect(mocks.files.has("/state/file-mapping.v1.json")).toBe(false)
 	})
 
 	it("ファイル道具の相対パスから読み、衝突した番号を直す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 
-		const session = new PiiVault()
+		const session = new PiiMapping()
 		session.importEntries([["{{email-005}}", "bob@corp.example"]])
 		const remap = await controller.prepareToolPath("note.md", session)
 
@@ -162,10 +162,10 @@ describe("FileVaultController — 保存と取り込み", () => {
 	})
 
 	it("添付ファイルの URI から読み、衝突した番号を直す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 
-		const session = new PiiVault()
+		const session = new PiiMapping()
 		session.importEntries([["{{email-005}}", "bob@corp.example"]])
 		const remap = await controller.prepareReference(uri("/w/note.md"), session)
 
@@ -176,7 +176,7 @@ describe("FileVaultController — 保存と取り込み", () => {
 
 describe("VS Code の通知への追従", () => {
 	it("名前変更に追い、削除で消す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 		controller.start()
 
@@ -196,7 +196,7 @@ describe("VS Code の通知への追従", () => {
 	})
 
 	it("ワークスペースの外へ動いたら消す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
 		controller.start()
 
@@ -209,7 +209,7 @@ describe("VS Code の通知への追従", () => {
 	})
 
 	it("起動時の掃除が失敗しても、通知の受け口は開く", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		mocks.ioError = "ディスクが読めない"
 		expect(controller.start()).toHaveLength(2)
 	})
@@ -217,13 +217,13 @@ describe("VS Code の通知への追従", () => {
 
 describe("ファイル道具の道筋", () => {
 	it("遡る道筋は扱わない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		for (const bad of ["../外.md", "a/../../外.md", "./note.md", "a//b.md", "  "]) {
-			const remap = await controller.prepareToolPath(bad, new PiiVault())
+			const remap = await controller.prepareToolPath(bad, new PiiMapping())
 			expect(remap("連絡先は {{email-005}}")).toBe("連絡先は {{email-005}}")
 			expect(await controller.recordToolPath(bad, [alice])).toBe(true)
 		}
-		expect(mocks.files.has("/state/file-vault.v1.json")).toBe(false)
+		expect(mocks.files.has("/state/file-mapping.v1.json")).toBe(false)
 	})
 
 	it("フォルダが 2 つ以上なら、先頭がフォルダ名でなければ扱わない", async () => {
@@ -231,59 +231,59 @@ describe("ファイル道具の道筋", () => {
 			{ index: 0, uri: uri("/w"), name: "w" },
 			{ index: 1, uri: uri("/x"), name: "x" },
 		] as never
-		const controller = new FileVaultController(context())
-		const remap = await controller.prepareToolPath("note.md", new PiiVault())
+		const controller = new FileMappingController(context())
+		const remap = await controller.prepareToolPath("note.md", new PiiMapping())
 		expect(remap("{{email-005}}")).toBe("{{email-005}}")
 	})
 })
 
 describe("失敗したら、理由を出して黙らない", () => {
 	it("書けなければ false を返し、理由を出す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		mocks.ioError = "ディスクが読めない"
 		expect(await controller.record(uri("/w/note.md"), [alice])).toBe(false)
-		expect(mocks.showErrorMessage).toHaveBeenCalledWith("common:pii.fileVault.failed")
+		expect(mocks.showErrorMessage).toHaveBeenCalledWith("common:pii.fileMapping.failed")
 	})
 
 	it("読めなければ、取り込みも成功したと言わない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		mocks.ioError = "ディスクが読めない"
-		expect(await controller.prepare(uri("/w/note.md"), new PiiVault())).toBe(false)
-		expect(mocks.showErrorMessage).toHaveBeenCalledWith("common:pii.fileVault.failed")
+		expect(await controller.prepare(uri("/w/note.md"), new PiiMapping())).toBe(false)
+		expect(mocks.showErrorMessage).toHaveBeenCalledWith("common:pii.fileMapping.failed")
 	})
 
 	it("暗号文が壊れていれば止めて理由を出す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.record(uri("/w/note.md"), [alice])
-		mocks.files.set("/state/file-vault.v1.json", new TextEncoder().encode("broken"))
+		mocks.files.set("/state/file-mapping.v1.json", new TextEncoder().encode("broken"))
 
-		expect(await controller.prepare(uri("/w/note.md"), new PiiVault())).toBe(false)
-		expect(mocks.showErrorMessage).toHaveBeenLastCalledWith("common:pii.fileVault.corrupt")
+		expect(await controller.prepare(uri("/w/note.md"), new PiiMapping())).toBe(false)
+		expect(mocks.showErrorMessage).toHaveBeenLastCalledWith("common:pii.fileMapping.corrupt")
 	})
 })
 
 describe("消去", () => {
-	const saveOne = (controller: FileVaultController) => controller.record(uri("/w/note.md"), [alice])
+	const saveOne = (controller: FileMappingController) => controller.record(uri("/w/note.md"), [alice])
 
 	it("保存先が無い環境では、理由を出す", async () => {
-		const controller = new FileVaultController({ ...context(), storageUri: undefined })
+		const controller = new FileMappingController({ ...context(), storageUri: undefined })
 		await controller.clearSelected()
 		await controller.clearAll()
 		expect(mocks.showWarningMessage).toHaveBeenCalledTimes(2)
-		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.fileVault.workspaceRequired")
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith("common:pii.fileMapping.workspaceRequired")
 	})
 
 	it("1 つも無ければ、消すものが無いと出す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await controller.clearSelected()
 		await controller.clearAll()
 		expect(mocks.showInformationMessage).toHaveBeenCalledTimes(2)
-		expect(mocks.showInformationMessage).toHaveBeenCalledWith("common:pii.fileVault.none")
+		expect(mocks.showInformationMessage).toHaveBeenCalledWith("common:pii.fileMapping.none")
 		expect(mocks.showWarningMessage).not.toHaveBeenCalled()
 	})
 
 	it("一覧から選んだファイルだけを確認後に消す", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await saveOne(controller)
 		await controller.record(uri("/w/other.md"), [["{{email-006}}", "bob@corp.example"]])
 
@@ -291,7 +291,7 @@ describe("消去", () => {
 			const items = value as { label: string }[]
 			return items.filter((item) => item.label === "note.md")
 		})
-		mocks.showWarningMessage.mockResolvedValueOnce("common:pii.clearVault")
+		mocks.showWarningMessage.mockResolvedValueOnce("common:pii.clearMapping")
 		await controller.clearSelected()
 
 		expect(await controller.restore(uri("/w/note.md"), "{{email-005}}", (text) => text)).toBe("{{email-005}}")
@@ -299,7 +299,7 @@ describe("消去", () => {
 	})
 
 	it("一覧の確認を断れば、消さない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await saveOne(controller)
 		mocks.showQuickPick.mockResolvedValueOnce([{ identity: "0:note.md", count: 1 }])
 		mocks.showWarningMessage.mockResolvedValueOnce(undefined)
@@ -310,19 +310,19 @@ describe("消去", () => {
 	})
 
 	it("一覧で 1 つも選ばなければ、確認すら出さない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await saveOne(controller)
 		mocks.showQuickPick.mockResolvedValueOnce([])
 		await controller.clearSelected()
 		expect(mocks.showWarningMessage).not.toHaveBeenCalled()
 	})
 
-	it("全消去は、File Vault と Session Vault を消す", async () => {
-		const controller = new FileVaultController(context())
+	it("全消去は、ファイル対応表とセッション対応表を消す", async () => {
+		const controller = new FileMappingController(context())
 		await saveOne(controller)
-		const session = new PiiVault()
+		const session = new PiiMapping()
 		session.assign("email", "bob@corp.example")
-		mocks.showWarningMessage.mockResolvedValueOnce("common:pii.clearVault")
+		mocks.showWarningMessage.mockResolvedValueOnce("common:pii.clearMapping")
 
 		await controller.clearAll(session)
 
@@ -331,9 +331,9 @@ describe("消去", () => {
 	})
 
 	it("全消去を断れば、ファイルもセッションも消さない", async () => {
-		const controller = new FileVaultController(context())
+		const controller = new FileMappingController(context())
 		await saveOne(controller)
-		const session = new PiiVault()
+		const session = new PiiMapping()
 		session.assign("email", "bob@corp.example")
 		mocks.showWarningMessage.mockResolvedValueOnce(undefined)
 

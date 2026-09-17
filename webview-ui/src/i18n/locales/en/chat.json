@@ -455,8 +455,8 @@
 		"on": "Secret mode: on (sensitive information is masked before sending)",
 		"off": "Secret mode: off (nothing is masked)"
 	},
-	"fileVault": {
-		"on": "File Vault: on (masking for files that are read is saved)",
-		"off": "File Vault: off (nothing is saved)"
+	"fileMapping": {
+		"on": "File mapping: on (masking for files that are read is saved)",
+		"off": "File mapping: off (nothing is saved)"
 	}
 }

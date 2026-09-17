@@ -35,14 +35,14 @@ import {
 	registerCommands,
 	registerCodeActions,
 	registerPiiCommands,
-	registerFileVaultCommands,
+	registerFileMappingCommands,
 	registerTerminalActions,
 	CodeActionProvider,
 } from "./activate"
 import { initializeI18n, t } from "./i18n"
-import { sessionVault } from "./services/pii/maskConversation"
-import { FileVaultController, setFileVaultController } from "./services/pii/fileVault"
-import { DEFAULT_FILE_VAULT_LIMITS } from "./services/pii/fileVaultStore"
+import { sessionMapping } from "./services/pii/maskConversation"
+import { FileMappingController, setFileMappingController } from "./services/pii/fileMapping"
+import { DEFAULT_FILE_MAPPING_LIMITS } from "./services/pii/fileMappingStore"
 import { piiMaskerFor } from "./core/webview/promptMessageHandlers"
 
 /**
@@ -243,11 +243,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			const task = provider.getCurrentTask()
 			return task
 				? (text: string) => task.restoreExplicitly(text)
-				: (text: string) => sessionVault().restore(text)
+				: (text: string) => sessionMapping().restore(text)
 		},
 		// ファイルの置き換えでも、会話と同じ番号の場所を使う。分けると同じ形の伏せ字が
 		// 別の値を指す。
-		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
+		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionMapping(),
 		// **会話が無くても第 2 層を実行する（`FR-PII-11e`）。** 会話が動いているときだけに
 		// すると、右クリックのファイルの置き換えでは人名がほとんど残る。第 1 層は敬称から
 		// 人名を当てる規則を持たないので、辞書に書いた名前しか消えない。
@@ -266,25 +266,25 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 	)
 
-	// File Vault（ファイルごとの永続。`FR-PII-24`）。起動時の掃除と、移動・削除への追従を
+	// ファイル対応表（ファイルごとの永続。`FR-PII-24`）。起動時の掃除と、移動・削除への追従を
 	// 開始し、送信経路と右クリックが使う共有のコントローラとして 1 つだけ登録する。
-	const fileVault = new FileVaultController(context, {
-		retentionDays: () => contextProxy.getValue("piiMasking")?.fileVault?.retentionDays ?? 30,
+	const fileMapping = new FileMappingController(context, {
+		retentionDays: () => contextProxy.getValue("piiMasking")?.fileMapping?.retentionDays ?? 30,
 		limits: () => {
-			const settings = contextProxy.getValue("piiMasking")?.fileVault
+			const settings = contextProxy.getValue("piiMasking")?.fileMapping
 			return {
-				maxFiles: settings?.maxFiles ?? DEFAULT_FILE_VAULT_LIMITS.maxFiles,
-				maxEntriesPerFile: settings?.maxEntriesPerFile ?? DEFAULT_FILE_VAULT_LIMITS.maxEntriesPerFile,
-				maxBytes: settings?.maxBytes ?? DEFAULT_FILE_VAULT_LIMITS.maxBytes,
+				maxFiles: settings?.maxFiles ?? DEFAULT_FILE_MAPPING_LIMITS.maxFiles,
+				maxEntriesPerFile: settings?.maxEntriesPerFile ?? DEFAULT_FILE_MAPPING_LIMITS.maxEntriesPerFile,
+				maxBytes: settings?.maxBytes ?? DEFAULT_FILE_MAPPING_LIMITS.maxBytes,
 			}
 		},
 	})
-	setFileVaultController(fileVault)
-	context.subscriptions.push(...fileVault.start())
-	registerFileVaultCommands(
+	setFileMappingController(fileMapping)
+	context.subscriptions.push(...fileMapping.start())
+	registerFileMappingCommands(
 		context,
-		fileVault,
-		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
+		fileMapping,
+		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionMapping(),
 	)
 
 	// Allows other extensions to activate once Agent is ready.

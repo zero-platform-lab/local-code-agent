@@ -230,6 +230,22 @@ export const piiMaskingSchema = z.object({
 			retryCount: z.number().min(0).optional(),
 		})
 		.optional(),
+	/**
+	 * File Vault（ファイルごとの永続。`FR-PII-24`）。有効化そのものは保管庫が持つので、
+	 * ここに置くのは保持期間と上限だけである。
+	 */
+	fileVault: z
+		.object({
+			/** 最終利用からの保持日数（`FR-PII-26`）。省略すると 30。0 は期限なし。 */
+			retentionDays: z.number().min(0).optional(),
+			/** ファイル数の上限（`FR-PII-28`）。0 は無制限。省略すると 100。 */
+			maxFiles: z.number().min(0).optional(),
+			/** ファイルごとの対応数の上限。0 は無制限。省略すると 1000。 */
+			maxEntriesPerFile: z.number().min(0).optional(),
+			/** 全体のバイト数の上限。0 は無制限。省略すると 5 MiB。 */
+			maxBytes: z.number().min(0).optional(),
+		})
+		.optional(),
 })
 
 export type PiiMasking = z.infer<typeof piiMaskingSchema>

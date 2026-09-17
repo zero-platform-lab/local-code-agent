@@ -86,7 +86,7 @@
 | プロバイダ設定のキー   | 28   | `packages/types/src/provider-settings.ts` の `providerSettingsSchema` |
 | グローバル設定のキー   | 75   | `packages/types/src/global-settings.ts`                               |
 | VS Code の設定のキー   | 17   | `src/package.json` の `contributes.configuration`                     |
-| コマンド               | 27   | `src/package.json` の `contributes.commands`                          |
+| コマンド               | 32   | `src/package.json` の `contributes.commands`                          |
 | キーバインド           | 3    | `src/package.json` の `contributes.keybindings`                       |
 | 設定のタブ             | 11   | `webview-ui/src/components/settings/SettingsView.tsx`                 |
 | 実験的な機能           | 2    | `packages/types/src/experiment.ts`                                    |

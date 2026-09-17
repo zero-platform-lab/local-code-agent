@@ -270,10 +270,9 @@
 		"clearVault": "消去する",
 		"fileVault": {
 			"workspaceRequired": "File Vault には、ワークスペース内の保存済みファイルが必要です。",
-			"missingKey": "File Vault の暗号鍵が見つからないため、読み込みも書き込みも止めました。",
-			"corrupt": "File Vault の改竄または破損を検出したため、読み込みも書き込みも止めました。",
+			"corrupt": "File Vault の破損を検出したため、読み込みも書き込みも止めました。",
 			"unsupported": "未対応の形式の File Vault は、読み込みも書き込みもしません。",
-			"failed": "File Vault を安全に読み込めませんでした。既存の内容は変えていません。",
+			"failed": "File Vault を読み込めませんでした。既存の内容は変えていません。",
 			"maxFiles": "File Vault のファイル数が設定の上限に達したため、保存しませんでした。",
 			"maxEntries": "このファイルの対応数が設定の上限に達したため、保存しませんでした。",
 			"maxBytes": "File Vault 全体の容量が設定の上限に達したため、保存しませんでした。",

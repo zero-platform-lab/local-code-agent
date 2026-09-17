@@ -1,6 +1,6 @@
-// npx vitest run src/components/chat/__tests__/FileVaultToggle.spec.tsx
+// npx vitest run src/components/chat/__tests__/FileMappingToggle.spec.tsx
 //
-// 会話の画面の File Vault の切り替え（FR-PII-24）。
+// 会話の画面のファイル対応表の切り替え（FR-PII-24）。
 //
 // 入っていると、読んだファイルの伏せ字がディスクへ残る。入っているか切れているかが、
 // 押さなくても分かることを固定する。
@@ -8,7 +8,7 @@
 import React from "react"
 import { render, screen, fireEvent } from "@/utils/test-utils"
 
-import { FileVaultToggle } from "../FileVaultToggle"
+import { FileMappingToggle } from "../FileMappingToggle"
 
 const state = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
 const postMessage = vi.hoisted(() => vi.fn())
@@ -31,48 +31,48 @@ beforeEach(() => {
 	state.value = {}
 })
 
-describe("FileVaultToggle", () => {
+describe("FileMappingToggle", () => {
 	it("未設定では切れている", () => {
-		render(<FileVaultToggle />)
+		render(<FileMappingToggle />)
 
-		expect(screen.getByTestId("file-vault-toggle")).toHaveAttribute("aria-pressed", "false")
+		expect(screen.getByTestId("file-mapping-toggle")).toHaveAttribute("aria-pressed", "false")
 	})
 
 	it("入っているかが、押さなくても分かる", () => {
-		state.value = { piiMasking: { fileVault: { enabled: true } } }
-		render(<FileVaultToggle />)
+		state.value = { piiMasking: { fileMapping: { enabled: true } } }
+		render(<FileMappingToggle />)
 
-		const button = screen.getByTestId("file-vault-toggle")
+		const button = screen.getByTestId("file-mapping-toggle")
 		expect(button).toHaveAttribute("aria-pressed", "true")
-		expect(button.parentElement).toHaveAttribute("data-tooltip", "chat:fileVault.on")
+		expect(button.parentElement).toHaveAttribute("data-tooltip", "chat:fileMapping.on")
 	})
 
 	it("押すと入る", () => {
-		render(<FileVaultToggle />)
+		render(<FileMappingToggle />)
 
-		fireEvent.click(screen.getByTestId("file-vault-toggle"))
+		fireEvent.click(screen.getByTestId("file-mapping-toggle"))
 
 		expect(postMessage).toHaveBeenCalledWith({
 			type: "updateSettings",
-			updatedSettings: { piiMasking: { fileVault: { enabled: true } } },
+			updatedSettings: { piiMasking: { fileMapping: { enabled: true } } },
 		})
 	})
 
 	it("押すと切れる。ほかの設定は残す", () => {
-		state.value = { piiMasking: { enabled: true, fileVault: { enabled: true, retentionDays: 7 } } }
-		render(<FileVaultToggle />)
+		state.value = { piiMasking: { enabled: true, fileMapping: { enabled: true, retentionDays: 7 } } }
+		render(<FileMappingToggle />)
 
-		fireEvent.click(screen.getByTestId("file-vault-toggle"))
+		fireEvent.click(screen.getByTestId("file-mapping-toggle"))
 
 		// 切り替えだけを変える。シークレットモードや保持日数を巻き添えで消さない。
 		expect(postMessage).toHaveBeenCalledWith({
 			type: "updateSettings",
-			updatedSettings: { piiMasking: { enabled: true, fileVault: { enabled: false, retentionDays: 7 } } },
+			updatedSettings: { piiMasking: { enabled: true, fileMapping: { enabled: false, retentionDays: 7 } } },
 		})
 	})
 
 	it("描いただけでは送らない", () => {
-		render(<FileVaultToggle />)
+		render(<FileMappingToggle />)
 
 		expect(postMessage).not.toHaveBeenCalled()
 	})

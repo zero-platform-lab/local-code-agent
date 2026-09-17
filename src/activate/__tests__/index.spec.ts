@@ -36,7 +36,7 @@ describe("activate/index バレル", () => {
 				"CodeActionProvider",
 				"registerCodeActions",
 				"registerCommands",
-				"registerFileVaultCommands",
+				"registerFileMappingCommands",
 				"registerPiiCommands",
 				"registerTerminalActions",
 			].sort(),

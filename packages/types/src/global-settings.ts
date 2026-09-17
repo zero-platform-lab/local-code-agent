@@ -231,12 +231,12 @@ export const piiMaskingSchema = z.object({
 		})
 		.optional(),
 	/**
-	 * File Vault（ファイルごとの永続。`FR-PII-24`）。有効化そのものは保管庫が持つので、
+	 * ファイル対応表（ファイルごとの永続。`FR-PII-24`）。有効化そのものは対応表が持つので、
 	 * ここに置くのは保持期間と上限だけである。
 	 */
-	fileVault: z
+	fileMapping: z
 		.object({
-			/** File Vault を実行するか（`FR-PII-24`）。既定は切。入にすると、読んだファイルの対応を保存する。 */
+			/** ファイル対応表を実行するか（`FR-PII-24`）。既定は切。入にすると、読んだファイルの対応を保存する。 */
 			enabled: z.boolean().optional(),
 			/** 最終利用からの保持日数（`FR-PII-26`）。省略すると 30。0 は期限なし。 */
 			retentionDays: z.number().min(0).optional(),

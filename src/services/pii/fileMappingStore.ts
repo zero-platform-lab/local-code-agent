@@ -3,27 +3,27 @@ import { randomBytes } from "node:crypto"
 import * as vscode from "vscode"
 
 const FORMAT_VERSION = 1
-const FILE_NAME = "file-vault.v1.json"
+const FILE_NAME = "file-mapping.v1.json"
 
-export const DEFAULT_FILE_VAULT_LIMITS = {
+export const DEFAULT_FILE_MAPPING_LIMITS = {
 	maxFiles: 100,
 	maxEntriesPerFile: 1_000,
 	maxBytes: 5 * 1024 * 1024,
 } as const
 
-export type FileVaultLimits = {
+export type FileMappingLimits = {
 	maxFiles: number
 	maxEntriesPerFile: number
 	maxBytes: number
 }
 
-export type FileVaultEntry = readonly [placeholder: string, value: string]
+export type FileMappingEntry = readonly [placeholder: string, value: string]
 
 type StoredFile = {
 	identity: string
 	savedAt: string
 	lastUsedAt: string
-	entries: FileVaultEntry[]
+	entries: FileMappingEntry[]
 }
 
 type Catalog = {
@@ -31,20 +31,20 @@ type Catalog = {
 	files: Record<string, StoredFile>
 }
 
-export type FileVaultRecord = Readonly<StoredFile>
+export type FileMappingRecord = Readonly<StoredFile>
 
-export type FileVaultPruneResult = {
+export type FileMappingPruneResult = {
 	expired: number
 	missing: number
 }
 
-export class FileVaultError extends Error {
+export class FileMappingError extends Error {
 	constructor(
 		public readonly code: "corrupt" | "unsupported" | "maxFiles" | "maxEntries" | "maxBytes",
 		cause?: unknown,
 	) {
 		super(code, { cause })
-		this.name = "FileVaultError"
+		this.name = "FileMappingError"
 	}
 }
 
@@ -89,12 +89,12 @@ function parse(raw: Uint8Array): Catalog {
 	try {
 		value = JSON.parse(Buffer.from(raw).toString("utf8"))
 	} catch (error) {
-		throw new FileVaultError("corrupt", error)
+		throw new FileMappingError("corrupt", error)
 	}
 	if (value && typeof value === "object" && "formatVersion" in value && value.formatVersion !== FORMAT_VERSION) {
-		throw new FileVaultError("unsupported")
+		throw new FileMappingError("unsupported")
 	}
-	if (!validCatalog(value)) throw new FileVaultError("corrupt")
+	if (!validCatalog(value)) throw new FileMappingError("corrupt")
 	return value
 }
 
@@ -103,7 +103,7 @@ function isNotFound(error: unknown): boolean {
 }
 
 /** ワークスペース固有領域の対応表（平文の JSON）。全操作を直列化して更新の取りこぼしを防ぐ。 */
-export class FileVaultStore {
+export class FileMappingStore {
 	private tail: Promise<void> = Promise.resolve()
 	private readonly target: vscode.Uri
 	/** 保管ディレクトリへ `.gitignore` を置いたか。対応表は平文なので、万一 git 配下でも残さない。 */
@@ -116,7 +116,7 @@ export class FileVaultStore {
 			"readFile" | "writeFile" | "createDirectory" | "rename" | "delete"
 		> = vscode.workspace.fs,
 		private readonly now: () => Date = () => new Date(),
-		private readonly limits: () => FileVaultLimits = () => DEFAULT_FILE_VAULT_LIMITS,
+		private readonly limits: () => FileMappingLimits = () => DEFAULT_FILE_MAPPING_LIMITS,
 	) {
 		this.target = vscode.Uri.joinPath(root, FILE_NAME)
 	}
@@ -124,15 +124,15 @@ export class FileVaultStore {
 	private assertLimits(catalog: Catalog): void {
 		const limits = this.limits()
 		const records = Object.values(catalog.files)
-		if (limits.maxFiles > 0 && records.length > limits.maxFiles) throw new FileVaultError("maxFiles")
+		if (limits.maxFiles > 0 && records.length > limits.maxFiles) throw new FileMappingError("maxFiles")
 		if (
 			limits.maxEntriesPerFile > 0 &&
 			records.some((record) => record.entries.length > limits.maxEntriesPerFile)
 		) {
-			throw new FileVaultError("maxEntries")
+			throw new FileMappingError("maxEntries")
 		}
 		if (limits.maxBytes > 0 && Buffer.byteLength(JSON.stringify(catalog), "utf8") > limits.maxBytes) {
-			throw new FileVaultError("maxBytes")
+			throw new FileMappingError("maxBytes")
 		}
 	}
 
@@ -183,11 +183,11 @@ export class FileVaultStore {
 		}
 	}
 
-	list(): Promise<FileVaultRecord[]> {
+	list(): Promise<FileMappingRecord[]> {
 		return this.exclusive(async () => Object.values((await this.read()).catalog.files))
 	}
 
-	load(identity: string): Promise<FileVaultRecord | undefined> {
+	load(identity: string): Promise<FileMappingRecord | undefined> {
 		return this.exclusive(async () => {
 			const { catalog } = await this.read()
 			const record = catalog.files[identity]
@@ -199,7 +199,7 @@ export class FileVaultStore {
 	}
 
 	/** 対応を保存する。無ければ作り、あれば足し合わせる（upsert）。 */
-	save(identity: string, entries: readonly FileVaultEntry[]): Promise<FileVaultRecord> {
+	save(identity: string, entries: readonly FileMappingEntry[]): Promise<FileMappingRecord> {
 		return this.exclusive(async () => {
 			const { catalog } = await this.read()
 			const timestamp = this.now().toISOString()
@@ -293,7 +293,7 @@ export class FileVaultStore {
 	prune(
 		retentionDays: number,
 		fileExists: (identity: string) => Promise<boolean | undefined>,
-	): Promise<FileVaultPruneResult> {
+	): Promise<FileMappingPruneResult> {
 		return this.exclusive(async () => {
 			const { catalog, exists } = await this.read()
 			if (!exists) return { expired: 0, missing: 0 }

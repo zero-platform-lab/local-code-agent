@@ -117,7 +117,7 @@ vi.mock("../activate", () => ({
 	registerCodeActions: vi.fn(),
 	registerTerminalActions: vi.fn(),
 	registerPiiCommands: vi.fn(),
-	registerFileVaultCommands: vi.fn(),
+	registerFileMappingCommands: vi.fn(),
 	CodeActionProvider: vi.fn().mockImplementation(() => ({
 		providedCodeActionKinds: [],
 	})),

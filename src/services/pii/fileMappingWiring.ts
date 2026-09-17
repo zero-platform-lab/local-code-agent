@@ -1,8 +1,8 @@
 import type { AgentMessage } from "@openai-agent/types"
 
-import type { FileVaultEntry } from "./fileVaultStore"
+import type { FileMappingEntry } from "./fileMappingStore"
 
-/** File Vault が対応づける読み取りツール。内容がまるごと出力に入るのはこれである。 */
+/** ファイル対応表が対応づける読み取りツール。内容がまるごと出力に入るのはこれである。 */
 const READ_FILE_TOOL = "read_file"
 
 const PLACEHOLDER = /\{\{[a-z]+-\d{3,}\}\}/g
@@ -47,9 +47,9 @@ export function readFileTargets(messages: readonly AgentMessage[]): Map<string, 
  *
  * 本文に無い伏せ字は入れない。ファイルに現れたぶんだけを、そのファイルの保管庫へ保存する。
  */
-export function placeholderEntries(text: string, entries: ReadonlyMap<string, string>): FileVaultEntry[] {
+export function placeholderEntries(text: string, entries: ReadonlyMap<string, string>): FileMappingEntry[] {
 	const found = new Set(text.match(PLACEHOLDER) ?? [])
-	const result: FileVaultEntry[] = []
+	const result: FileMappingEntry[] = []
 	for (const placeholder of found) {
 		const value = entries.get(placeholder)
 		if (value !== undefined) result.push([placeholder, value])

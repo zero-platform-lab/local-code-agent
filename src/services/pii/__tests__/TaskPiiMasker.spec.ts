@@ -54,11 +54,11 @@ vi.mock("../nerModel", async (importOriginal) => ({
 }))
 
 import { lookupOf, NER_AT_ONCE, TaskPiiMasker } from "../TaskPiiMasker"
-import { resetSessionVault, sessionVault } from "../maskConversation"
+import { resetSessionMapping, sessionMapping } from "../maskConversation"
 
 // **対応表は本製品で 1 つを共有する（`FR-PII-02b`）。** 捨てないと、前の試験で
 // 割り当てた番号が残り、`{{email-001}}` を期待する試験が `002` を見て落ちる。
-beforeEach(() => resetSessionVault())
+beforeEach(() => resetSessionMapping())
 
 const message = (content: string): AgentMessage => ({ type: "message", role: "user", content }) as AgentMessage
 
@@ -456,16 +456,16 @@ describe("対応表は本製品で 1 つを共有する（FR-PII-02b）", () => 
 		const masker = new TaskPiiMasker({ enabled: true, kinds: ["email"] })
 		await masker.maskForRequest("", [message("taro@corp.example")])
 
-		expect(sessionVault().restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
+		expect(sessionMapping().restore("宛先は {{email-001}} です")).toBe("宛先は taro@corp.example です")
 	})
 
 	it("捨てるまでは同じものを返す", () => {
-		expect(sessionVault()).toBe(sessionVault())
+		expect(sessionMapping()).toBe(sessionMapping())
 	})
 
 	it("捨てれば番号は 1 から始まる", async () => {
 		await new TaskPiiMasker({ enabled: true, kinds: ["email"] }).maskForRequest("", [message("taro@corp.example")])
-		resetSessionVault()
+		resetSessionMapping()
 
 		const result = await new TaskPiiMasker({ enabled: true, kinds: ["email"] }).maskForRequest("", [
 			message("jiro@corp.example"),

@@ -28,7 +28,7 @@ import { ModeSelector } from "./ModeSelector"
 import { ApiConfigSelector } from "./ApiConfigSelector"
 import { AutoApproveDropdown } from "./AutoApproveDropdown"
 import { SecretModeToggle } from "./SecretModeToggle"
-import { FileVaultToggle } from "./FileVaultToggle"
+import { FileMappingToggle } from "./FileMappingToggle"
 import { MAX_IMAGES_PER_MESSAGE } from "./ChatView"
 import ContextMenu from "./ContextMenu"
 import { IndexingStatusBadge } from "./IndexingStatusBadge"
@@ -1202,7 +1202,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					</div>
 					<div className={cn("flex flex-shrink-0 items-center gap-0.5 h-5 leading-none", "pr-2")}>
 						{!isEditMode ? <SecretModeToggle /> : null}
-						{!isEditMode ? <FileVaultToggle /> : null}
+						{!isEditMode ? <FileMappingToggle /> : null}
 						{!isEditMode ? <IndexingStatusBadge /> : null}
 					</div>
 				</div>

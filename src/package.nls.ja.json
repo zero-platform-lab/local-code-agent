@@ -52,7 +52,7 @@
 	"command.maskSecretsInFile.title": "このファイルの機密情報をマスクする",
 	"command.addToDictionary.title": "選択した語をマスクの辞書に足す",
 	"command.exportDictionary.title": "マスクの辞書を書き出す",
-	"command.clearSelectedFileVault.title": "選んだ File Vault を消去する",
-	"command.clearAllFileVault.title": "すべての File Vault を消去する",
+	"command.clearSelectedFileMapping.title": "選んだファイル対応表を消去する",
+	"command.clearAllFileMapping.title": "すべてのファイル対応表を消去する",
 	"command.restoreSecretsInFile.title": "このファイルの伏せ字を元に戻す"
 }

@@ -41,7 +41,7 @@ import { PII_KINDS, type PiiKind } from "./types"
  * **番号を持つのはここである。** 置き換えの側で番号を振ると、要求ごとに 1 から振り直され、
  * 同じ番号が別の値へ結び付く。
  */
-export class PiiVault implements PlaceholderAllocator {
+export class PiiMapping implements PlaceholderAllocator {
 	/**
 	 * 割り当ての本体は `createAllocator` を使う。
 	 *
@@ -84,7 +84,7 @@ export class PiiVault implements PlaceholderAllocator {
 	/**
 	 * 保存済み対応を取り込み、衝突した伏せ字には別の番号を割り当てる（`FR-PII-25a`）。
 	 *
-	 * 取り込んだ結果の「元の伏せ字 → 今回の伏せ字」を返す。File Vault が保存済みの本文を
+	 * 取り込んだ結果の「元の伏せ字 → 今回の伏せ字」を返す。ファイル対応表が保存済みの本文を
 	 * 今回の番号へ読み替えるために使う。
 	 */
 	importEntries(entries: Iterable<readonly [string, string]>): ReadonlyMap<string, string> {
@@ -126,14 +126,14 @@ export class PiiVault implements PlaceholderAllocator {
  * **ディスクへは書かない。** 書けば伏せた値そのものを保存することになり、伏せた意味が
  * 無くなる。本製品を終えれば消える（`FR-PII-20b`）。
  */
-let shared: PiiVault | undefined
+let shared: PiiMapping | undefined
 
-export function sessionVault(): PiiVault {
-	return (shared ??= new PiiVault())
+export function sessionMapping(): PiiMapping {
+	return (shared ??= new PiiMapping())
 }
 
 /** 試験のために捨てる。本番では呼ばない。 */
-export function resetSessionVault(): void {
+export function resetSessionMapping(): void {
 	shared = undefined
 }
 
@@ -176,13 +176,13 @@ export function maskConversation(
 	systemPrompt: string,
 	messages: readonly AgentMessage[],
 	options: MaskOptions = {},
-	vault?: PiiVault,
+	mapping?: PiiMapping,
 	memo?: MaskMemo,
 ): MaskConversationResult {
 	// **部分ごとに置き換える。** 割り当て係だけを共有する。連結してから置き換えると、
 	// 区切りをまたいだ一致が起きる（住所の照合は空白も飲み込む）。またいだ分は片方が
 	// 伏せられないまま送られ、対応表には区切りを含む値が入る。
-	const allocator = vault ?? createAllocator()
+	const allocator = mapping ?? createAllocator()
 	const counts: Partial<Record<PiiKind, number>> = {}
 
 	const add = (from: Partial<Record<PiiKind, number>>) => {

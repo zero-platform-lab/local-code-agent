@@ -34,8 +34,8 @@ export const piiActionIds = [
 	"restoreSecretsInFile",
 	"addToDictionary",
 	"exportDictionary",
-	"clearSelectedFileVault",
-	"clearAllFileVault",
+	"clearSelectedFileMapping",
+	"clearAllFileMapping",
 ] as const
 
 export type PiiActionId = (typeof piiActionIds)[number]

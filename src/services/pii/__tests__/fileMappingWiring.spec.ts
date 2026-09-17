@@ -1,7 +1,7 @@
 import type { AgentMessage } from "@openai-agent/types"
 import { describe, expect, it } from "vitest"
 
-import { placeholderEntries, readFileTargets } from "../fileVaultWiring"
+import { placeholderEntries, readFileTargets } from "../fileMappingWiring"
 
 const call = (callId: string, name: string, args: unknown): AgentMessage =>
 	({ type: "function_call", call_id: callId, name, arguments: JSON.stringify(args) }) as AgentMessage

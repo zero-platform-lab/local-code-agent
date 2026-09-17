@@ -3,9 +3,16 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 import { promises as fs } from "fs"
 
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
-import { fileVaultController, type FileVaultController } from "./fileVault"
-import { placeholderEntries, readFileTargets } from "./fileVaultWiring"
-import { collectTexts, maskConversation, MEMO_LIMIT, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
+import { fileMappingController, type FileMappingController } from "./fileMapping"
+import { placeholderEntries, readFileTargets } from "./fileMappingWiring"
+import {
+	collectTexts,
+	maskConversation,
+	MEMO_LIMIT,
+	PiiMapping,
+	sessionMapping,
+	type MaskMemo,
+} from "./maskConversation"
 import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
 import { defaultModelDirectory, describeCheck, hasNerRuntime } from "./nerModel"
 import { applyPlan, planMasking, type MaskOptions } from "./maskText"
@@ -111,11 +118,11 @@ export class TaskPiiMasker {
 	 * 分けると、別のタスクの `{{email-001}}` と同じ形になり、モデルが別人の値を
 	 * 書き戻す。試験で切り離したいときだけ渡す。
 	 */
-	private readonly vault: PiiVault
-	/** File Vault（ファイルごとの永続。設定していなければ undefined で、File Vault は動かない）。 */
-	private readonly fileVault: FileVaultController | undefined
-	/** File Vault の取り込み・保存を済ませたファイルのパス。タスク内で一度だけ行う。 */
-	private readonly fileVaultSeen = new Set<string>()
+	private readonly mapping: PiiMapping
+	/** ファイル対応表（ファイルごとの永続。設定していなければ undefined で、ファイル対応表は動かない）。 */
+	private readonly fileMapping: FileMappingController | undefined
+	/** ファイル対応表の取り込み・保存を済ませたファイルのパス。タスク内で一度だけ行う。 */
+	private readonly fileMappingSeen = new Set<string>()
 	private terms: PiiTerm[] | undefined
 	private loadedFrom: string | undefined
 	private troubles: string[] = []
@@ -142,12 +149,12 @@ export class TaskPiiMasker {
 	 */
 	constructor(
 		read: (() => PiiMasking | undefined) | PiiMasking,
-		vault: PiiVault = sessionVault(),
-		fileVault: FileVaultController | undefined = fileVaultController(),
+		mapping: PiiMapping = sessionMapping(),
+		fileMapping: FileMappingController | undefined = fileMappingController(),
 	) {
-		this.vault = vault
+		this.mapping = mapping
 		this.read = typeof read === "function" ? read : () => read
-		this.fileVault = fileVault
+		this.fileMapping = fileMapping
 	}
 
 	/**
@@ -441,21 +448,21 @@ export class TaskPiiMasker {
 		const options = await this.options()
 		const properNouns = await this.properNouns(collectTexts(systemPrompt, messages))
 
-		// **File Vault: 読んだファイルの保存済み対応を、伏せる前に取り込む。**
+		// **ファイル対応表: 読んだファイルの保存済み対応を、伏せる前に取り込む。**
 		// 伏せる前に取り込めば、同じ値には保存済みの伏せ字が当たる（`FR-PII-25a`）。
-		// File Vault がオンのときだけ動かす（`FR-PII-24`）。オフなら従来どおり記憶内だけで伏せる。
-		const fileVault = this.settings.fileVault?.enabled === true ? this.fileVault : undefined
-		const targets = fileVault ? this.newFileVaultTargets(messages) : undefined
-		if (fileVault && targets) {
+		// ファイル対応表がオンのときだけ動かす（`FR-PII-24`）。オフなら従来どおり記憶内だけで伏せる。
+		const fileMapping = this.settings.fileMapping?.enabled === true ? this.fileMapping : undefined
+		const targets = fileMapping ? this.newFileMappingTargets(messages) : undefined
+		if (fileMapping && targets) {
 			for (const paths of targets.values()) {
-				for (const path of paths) await fileVault.prepareToolPath(path, this.vault)
+				for (const path of paths) await fileMapping.prepareToolPath(path, this.mapping)
 			}
 		}
 
-		const result = maskConversation(systemPrompt, messages, { ...options, properNouns }, this.vault, this.memo)
+		const result = maskConversation(systemPrompt, messages, { ...options, properNouns }, this.mapping, this.memo)
 
-		// **File Vault: 伏せた出力に現れた対応を、そのファイルへ保存する（`FR-PII-25`）。**
-		if (fileVault && targets) await this.recordFileVault(fileVault, targets, result.messages)
+		// **ファイル対応表: 伏せた出力に現れた対応を、そのファイルへ保存する（`FR-PII-25`）。**
+		if (fileMapping && targets) await this.recordFileMapping(fileMapping, targets, result.messages)
 
 		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
 	}
@@ -466,18 +473,18 @@ export class TaskPiiMasker {
 	 * **タスク内で一度きりにする。** 送信のたびに履歴の全体を見直すので、済んだファイルまで
 	 * 毎回取り込むと、送信のたびに保管庫を読み直すことになる。
 	 */
-	private newFileVaultTargets(messages: AgentMessage[]): Map<string, string[]> {
+	private newFileMappingTargets(messages: AgentMessage[]): Map<string, string[]> {
 		const targets = new Map<string, string[]>()
 		for (const [callId, paths] of readFileTargets(messages)) {
-			const unseen = paths.filter((path) => !this.fileVaultSeen.has(path))
+			const unseen = paths.filter((path) => !this.fileMappingSeen.has(path))
 			if (unseen.length > 0) targets.set(callId, unseen)
 		}
 		return targets
 	}
 
 	/** 伏せた出力に現れた対応を、1 ファイルの読みについてそのファイルへ保存する。 */
-	private async recordFileVault(
-		fileVault: FileVaultController,
+	private async recordFileMapping(
+		fileMapping: FileMappingController,
 		targets: Map<string, string[]>,
 		masked: readonly AgentMessage[],
 	): Promise<void> {
@@ -486,10 +493,10 @@ export class TaskPiiMasker {
 			const paths = targets.get(item.call_id)
 			// 複数ファイルの読みは、どの伏せ字がどのファイルか切り分けられないので保存しない。
 			if (!paths || paths.length !== 1) continue
-			const entries = placeholderEntries(item.output, this.vault.entries)
-			if (entries.length > 0) await fileVault.recordToolPath(paths[0], entries)
+			const entries = placeholderEntries(item.output, this.mapping.entries)
+			if (entries.length > 0) await fileMapping.recordToolPath(paths[0], entries)
 		}
-		for (const paths of targets.values()) for (const path of paths) this.fileVaultSeen.add(path)
+		for (const paths of targets.values()) for (const path of paths) this.fileMappingSeen.add(path)
 	}
 
 	/**
@@ -511,8 +518,8 @@ export class TaskPiiMasker {
 		const options = await this.options()
 		const properNouns = await this.properNouns([text])
 
-		const plan = planMasking(text, { ...options, properNouns }, undefined, this.vault)
-		return { text: applyPlan(text, plan.edits), restore: (one) => this.vault.restore(one) }
+		const plan = planMasking(text, { ...options, properNouns }, undefined, this.mapping)
+		return { text: applyPlan(text, plan.edits), restore: (one) => this.mapping.restore(one) }
 	}
 
 	/**
@@ -526,7 +533,7 @@ export class TaskPiiMasker {
 		// 割り当て済みの伏せ字が残っている。切ったことを理由に戻さないと、`{{email-001}}`
 		// という文字列がそのままファイルへ書かれる。戻すのは割り当てたものだけなので
 		// （`FR-PII-08a`）、入っていなくても安全である。
-		return this.restores ? this.vault.restore(text) : text
+		return this.restores ? this.mapping.restore(text) : text
 	}
 
 	/**
@@ -537,7 +544,7 @@ export class TaskPiiMasker {
 	 * 割り当て済みの伏せ字は戻せる。
 	 */
 	restoreExplicitly(text: string): string {
-		return this.vault.restore(text)
+		return this.mapping.restore(text)
 	}
 
 	/**
@@ -557,12 +564,12 @@ export class TaskPiiMasker {
 	 *
 	 * 分けると、同じ形の伏せ字が別の値を指すことになる。
 	 */
-	get allocator(): PiiVault {
-		return this.vault
+	get allocator(): PiiMapping {
+		return this.mapping
 	}
 
 	/** これまでに伏せた値の数。0 のまま進んでいれば、設定が効いていない。 */
 	get maskedCount(): number {
-		return this.vault.size
+		return this.mapping.size
 	}
 }

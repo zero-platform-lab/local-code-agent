@@ -9,7 +9,12 @@ vi.mock("vscode", () => ({
 	},
 }))
 
-import { DEFAULT_FILE_VAULT_LIMITS, FileVaultStore, type FileVaultEntry, type FileVaultLimits } from "../fileVaultStore"
+import {
+	DEFAULT_FILE_MAPPING_LIMITS,
+	FileMappingStore,
+	type FileMappingEntry,
+	type FileMappingLimits,
+} from "../fileMappingStore"
 
 type Uri = { path: string }
 
@@ -50,18 +55,18 @@ function memoryFs() {
 }
 
 const ROOT: Uri = { path: "/state" }
-const TARGET = "/state/file-vault.v1.json"
+const TARGET = "/state/file-mapping.v1.json"
 
-const entry = (n: number, value: string): FileVaultEntry => [`{{email-${String(n).padStart(3, "0")}}}`, value]
+const entry = (n: number, value: string): FileMappingEntry => [`{{email-${String(n).padStart(3, "0")}}}`, value]
 const readTarget = (disk: ReturnType<typeof memoryFs>) => Buffer.from(disk.files.get(TARGET)!).toString("utf8")
 
-function setup(options: { now?: () => Date; limits?: () => FileVaultLimits } = {}) {
+function setup(options: { now?: () => Date; limits?: () => FileMappingLimits } = {}) {
 	const disk = memoryFs()
-	const make = () => new FileVaultStore(ROOT as never, disk.fs as never, options.now, options.limits)
+	const make = () => new FileMappingStore(ROOT as never, disk.fs as never, options.now, options.limits)
 	return { disk, make, store: make() }
 }
 
-describe("FileVaultStore", () => {
+describe("FileMappingStore", () => {
 	describe("保存して読み戻せる", () => {
 		it("保存した対応を読み戻せる", async () => {
 			const { store } = setup()
@@ -96,19 +101,19 @@ describe("FileVaultStore", () => {
 		it("JSON にならなければ corrupt", async () => {
 			const { make, disk } = setup()
 			disk.files.set(TARGET, Buffer.from("これは JSON ではない", "utf8"))
-			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "corrupt" })
+			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileMappingError", code: "corrupt" })
 		})
 
 		it("形が壊れていれば corrupt", async () => {
 			const { make, disk } = setup()
 			disk.files.set(TARGET, Buffer.from(JSON.stringify({ formatVersion: 1, files: { "0:a.md": {} } }), "utf8"))
-			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "corrupt" })
+			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileMappingError", code: "corrupt" })
 		})
 
 		it("版が違えば unsupported", async () => {
 			const { make, disk } = setup()
 			disk.files.set(TARGET, Buffer.from(JSON.stringify({ formatVersion: 2, files: {} }), "utf8"))
-			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "unsupported" })
+			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileMappingError", code: "unsupported" })
 		})
 	})
 
@@ -218,17 +223,17 @@ describe("FileVaultStore", () => {
 
 	describe("上限に達したら、黙って捨てず失敗する", () => {
 		it("ファイル数の上限", async () => {
-			const limits = { ...DEFAULT_FILE_VAULT_LIMITS, maxFiles: 1 }
+			const limits = { ...DEFAULT_FILE_MAPPING_LIMITS, maxFiles: 1 }
 			const { store } = setup({ limits: () => limits })
 			await store.save("0:a.md", [entry(1, "森下")])
 			await expect(store.save("0:b.md", [entry(1, "林")])).rejects.toMatchObject({
-				name: "FileVaultError",
+				name: "FileMappingError",
 				code: "maxFiles",
 			})
 		})
 
 		it("ファイルごとの対応数の上限", async () => {
-			const limits = { ...DEFAULT_FILE_VAULT_LIMITS, maxEntriesPerFile: 1 }
+			const limits = { ...DEFAULT_FILE_MAPPING_LIMITS, maxEntriesPerFile: 1 }
 			const { store } = setup({ limits: () => limits })
 			await expect(store.save("0:a.md", [entry(1, "森下"), entry(2, "林")])).rejects.toMatchObject({
 				code: "maxEntries",
@@ -236,7 +241,7 @@ describe("FileVaultStore", () => {
 		})
 
 		it("全体のバイト数の上限", async () => {
-			const limits = { ...DEFAULT_FILE_VAULT_LIMITS, maxBytes: 10 }
+			const limits = { ...DEFAULT_FILE_MAPPING_LIMITS, maxBytes: 10 }
 			const { store } = setup({ limits: () => limits })
 			await expect(store.save("0:a.md", [entry(1, "森下")])).rejects.toMatchObject({ code: "maxBytes" })
 		})

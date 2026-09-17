@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import * as path from "node:path"
 
 import * as vscode from "vscode"
@@ -65,6 +66,8 @@ function labelForIdentity(identity: string): string {
 export type FileMappingConfig = {
 	retentionDays?: () => number
 	limits?: () => FileMappingLimits
+	/** 保管ルートの絶対パス（`FR-PII-24d`）。空なら拡張専用領域を使う。 */
+	root?: () => string | undefined
 }
 
 /**
@@ -73,21 +76,64 @@ export type FileMappingConfig = {
  * ファイル対応表を実行するかどうか（`piiMasking.fileMapping.enabled`）は呼び出し側が見る。
  * ここは「実行するなら何をするか」だけを持つ。
  */
+type RootWarning = { key: "rootInsideWorkspace" | "rootNotAbsolute"; path: string }
+
+/** ワークスペースごとの区画名。同じルートを複数のワークスペースで共有しても衝突しない。 */
+function mappingWorkspaceKey(): string {
+	const id = vscode.workspace.workspaceFile?.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? ""
+	return createHash("sha256").update(id).digest("hex").slice(0, 16)
+}
+
+/** 解決したルートが、いずれかのワークスペースフォルダの内側かどうか。 */
+function rootInsideWorkspace(root: string): boolean {
+	return (vscode.workspace.workspaceFolders ?? []).some((folder) => {
+		const relative = path.relative(folder.uri.fsPath, root)
+		return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+	})
+}
+
+/**
+ * 保管ルートを決める（`FR-PII-24d` `FR-PII-24e`）。
+ *
+ * 空なら拡張専用領域（storageUri）。絶対パスならその下にワークスペースの区画を作る。絶対パスで
+ * なければ使わず storageUri へ戻し、警告を返す。ワークスペース内を指すときは、使うが警告を返す。
+ */
+function resolveMappingRoot(
+	configured: string,
+	storageUri: vscode.Uri | undefined,
+): { root: vscode.Uri | undefined; warning: RootWarning | undefined } {
+	if (!configured) return { root: storageUri, warning: undefined }
+	if (!path.isAbsolute(configured)) {
+		return { root: storageUri, warning: { key: "rootNotAbsolute", path: configured } }
+	}
+	const root = vscode.Uri.joinPath(vscode.Uri.file(configured), mappingWorkspaceKey())
+	const warning: RootWarning | undefined = rootInsideWorkspace(configured)
+		? { key: "rootInsideWorkspace", path: configured }
+		: undefined
+	return { root, warning }
+}
+
 export class FileMappingController {
 	private readonly store: FileMappingStore | undefined
 	private readonly retentionDays: () => number
 	private readonly limits: () => FileMappingLimits
+	private readonly rootWarning: RootWarning | undefined
 
 	constructor(context: Pick<vscode.ExtensionContext, "storageUri">, config: FileMappingConfig = {}) {
 		this.retentionDays = config.retentionDays ?? (() => DEFAULT_RETENTION_DAYS)
 		this.limits = config.limits ?? (() => DEFAULT_FILE_MAPPING_LIMITS)
-		this.store = context.storageUri
-			? new FileMappingStore(context.storageUri, undefined, undefined, this.limits)
-			: undefined
+		const resolved = resolveMappingRoot(config.root?.()?.trim() ?? "", context.storageUri)
+		this.rootWarning = resolved.warning
+		this.store = resolved.root ? new FileMappingStore(resolved.root, undefined, undefined, this.limits) : undefined
 	}
 
 	/** 起動時の掃除と、VS Code が通知する移動・削除への追従を開始する。 */
 	start(): vscode.Disposable[] {
+		if (this.rootWarning) {
+			void vscode.window.showWarningMessage(
+				t(`common:pii.fileMapping.${this.rootWarning.key}`, { path: this.rootWarning.path }),
+			)
+		}
 		if (!this.store) return []
 		void this.cleanup().catch((error) => vscode.window.showErrorMessage(errorMessage(error)))
 		return [

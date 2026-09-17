@@ -238,6 +238,8 @@ export const piiMaskingSchema = z.object({
 		.object({
 			/** ファイル対応表を実行するか（`FR-PII-24`）。既定は切。入にすると、読んだファイルの対応を保存する。 */
 			enabled: z.boolean().optional(),
+			/** 保管ルートの絶対パス（`FR-PII-24d`）。空なら拡張専用領域。設定時はその下にワークスペースごとの区画を作る。 */
+			root: z.string().optional(),
 			/** 最終利用からの保持日数（`FR-PII-26`）。省略すると 30。0 は期限なし。 */
 			retentionDays: z.number().min(0).optional(),
 			/** ファイル数の上限（`FR-PII-28`）。0 は無制限。省略すると 100。 */

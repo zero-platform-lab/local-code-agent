@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+
 import * as vscode from "vscode"
 
 const mocks = vi.hoisted(() => {
@@ -8,6 +10,7 @@ const mocks = vi.hoisted(() => {
 		secrets,
 		workspaceFolder: undefined as unknown,
 		workspaceFolders: [] as { index: number; uri: { path: string } }[],
+		workspaceFile: undefined as unknown,
 		renameListener: undefined as unknown,
 		deleteListener: undefined as unknown,
 		showInformationMessage: vi.fn(async (..._args: unknown[]) => undefined as unknown),
@@ -30,6 +33,9 @@ vi.mock("vscode", () => ({
 		getWorkspaceFolder: () => mocks.workspaceFolder,
 		get workspaceFolders() {
 			return mocks.workspaceFolders
+		},
+		get workspaceFile() {
+			return mocks.workspaceFile
 		},
 		onDidRenameFiles(listener: unknown) {
 			mocks.renameListener = listener
@@ -72,6 +78,7 @@ vi.mock("vscode", () => ({
 		},
 	},
 	Uri: {
+		file: (path: string) => ({ path, fsPath: path }),
 		joinPath(base: { path: string }, ...parts: string[]) {
 			return { path: [base.path.replace(/\/$/, ""), ...parts].join("/") }
 		},
@@ -87,7 +94,7 @@ import { PiiMapping } from "../maskConversation"
 
 type Entry = readonly [string, string]
 
-const uri = (path: string) => ({ path }) as vscode.Uri
+const uri = (path: string) => ({ path, fsPath: path }) as vscode.Uri
 const context = () => ({
 	storageUri: uri("/state"),
 	secrets: {
@@ -341,5 +348,47 @@ describe("消去", () => {
 
 		expect(session.size).toBe(1)
 		expect(await controller.restore(uri("/w/note.md"), "{{email-005}}", (text) => text)).toBe("alice@corp.example")
+	})
+})
+
+const workspaceKey = (id: string) => createHash("sha256").update(id).digest("hex").slice(0, 16)
+
+describe("FileMappingController — 保管ルート", () => {
+	it("root 未設定なら storageUri を使う", async () => {
+		const controller = new FileMappingController(context())
+		await controller.record(uri("/w/note.md"), [alice])
+		expect(mocks.files.has("/state/file-mapping.v1.json")).toBe(true)
+	})
+
+	it("絶対パスの root を設定すると、その下のワークスペース区画へ置く", async () => {
+		const controller = new FileMappingController(context(), { root: () => "/secure/vault" })
+		await controller.record(uri("/w/note.md"), [alice])
+		expect(mocks.files.has(`/secure/vault/${workspaceKey("/w")}/file-mapping.v1.json`)).toBe(true)
+		expect(mocks.files.has("/state/file-mapping.v1.json")).toBe(false)
+	})
+
+	it("別のワークスペースなら別の区画になる", async () => {
+		mocks.workspaceFolder = { index: 0, uri: uri("/other") }
+		mocks.workspaceFolders = [mocks.workspaceFolder as never]
+		const controller = new FileMappingController(context(), { root: () => "/secure/vault" })
+		await controller.record(uri("/other/note.md"), [alice])
+		expect(mocks.files.has(`/secure/vault/${workspaceKey("/other")}/file-mapping.v1.json`)).toBe(true)
+		expect(mocks.files.has(`/secure/vault/${workspaceKey("/w")}/file-mapping.v1.json`)).toBe(false)
+	})
+
+	it("root がワークスペース内なら警告し、それでも使う", async () => {
+		const controller = new FileMappingController(context(), { root: () => "/w/inside" })
+		controller.start()
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining("rootInsideWorkspace"))
+		await controller.record(uri("/w/note.md"), [alice])
+		expect(mocks.files.has(`/w/inside/${workspaceKey("/w")}/file-mapping.v1.json`)).toBe(true)
+	})
+
+	it("root が相対パスなら storageUri へ戻して警告する", async () => {
+		const controller = new FileMappingController(context(), { root: () => "relative/dir" })
+		controller.start()
+		expect(mocks.showWarningMessage).toHaveBeenCalledWith(expect.stringContaining("rootNotAbsolute"))
+		await controller.record(uri("/w/note.md"), [alice])
+		expect(mocks.files.has("/state/file-mapping.v1.json")).toBe(true)
 	})
 })

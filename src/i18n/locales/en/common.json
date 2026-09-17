@@ -268,6 +268,8 @@
 		"maskingTrouble": "Masking could not run fully: {{detail}}",
 		"clearMapping": "Clear",
 		"fileMapping": {
+			"rootInsideWorkspace": "The mapping storage root is inside the workspace ({{path}}). The mapping holds original values, so the agent could read it and send it to the LLM. Point it outside the workspace.",
+			"rootNotAbsolute": "The mapping storage root {{path}} is not an absolute path, so it is not used. Saving to the default extension storage instead.",
 			"workspaceRequired": "File mapping needs a saved file inside the workspace.",
 			"corrupt": "File mapping corruption was detected, so reading and writing were stopped.",
 			"unsupported": "File mapping in an unsupported format is neither read nor written.",

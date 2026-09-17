@@ -8,7 +8,7 @@ import {
 	type MaskOptions,
 	type PlaceholderAllocator,
 } from "./maskText"
-import type { PiiKind } from "./types"
+import { PII_KINDS, type PiiKind } from "./types"
 
 /**
  * 会話の全体を伏せ字へ置き換える。
@@ -79,6 +79,36 @@ export class PiiVault implements PlaceholderAllocator {
 	/** 伏せ字を元の値へ戻す（`FR-PII-02a`）。割り当てたものだけを戻す（`FR-PII-08a`）。 */
 	restore(text: string): string {
 		return unmaskText(text, this.allocator.table)
+	}
+
+	/**
+	 * 保存済み対応を取り込み、衝突した伏せ字には別の番号を割り当てる（`FR-PII-25a`）。
+	 *
+	 * 取り込んだ結果の「元の伏せ字 → 今回の伏せ字」を返す。File Vault が保存済みの本文を
+	 * 今回の番号へ読み替えるために使う。
+	 */
+	importEntries(entries: Iterable<readonly [string, string]>): ReadonlyMap<string, string> {
+		const remapped = new Map<string, string>()
+		for (const [placeholder, value] of entries) {
+			const match = /^\{\{([a-z]+)-\d{3,}\}\}$/.exec(placeholder)
+			if (!match || !PII_KINDS.includes(match[1] as PiiKind)) continue
+			remapped.set(placeholder, this.allocator.reserve(match[1] as PiiKind, value, placeholder))
+		}
+		return remapped
+	}
+
+	/**
+	 * 指し示した伏せ字の対応を捨てる（`FR-PII-27`）。消した数を返す。
+	 *
+	 * 消した番号は再利用しない。再利用すると、消去前の文書に残る伏せ字が別の値へ
+	 * 復元されるためである。
+	 */
+	clearSnapshot(placeholders: Iterable<string>): number {
+		let cleared = 0
+		for (const placeholder of placeholders) {
+			if (this.allocator.remove(placeholder)) cleared++
+		}
+		return cleared
 	}
 }
 

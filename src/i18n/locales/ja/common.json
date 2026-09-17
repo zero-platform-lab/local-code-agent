@@ -266,6 +266,33 @@
 		"modelIncomplete": "モデルが揃っていません: {{detail}}",
 		"modelReady": "モデルを {{path}} へ置きました。",
 		"noModelUrl": "取得先が設定されていません。設定 → 一般 → 固有名詞の検出の「取得先」に URL を書くか、置き場所へ手でファイルを置いてください。",
-		"maskingTrouble": "伏せ字を最後まで実行できませんでした: {{detail}}"
+		"maskingTrouble": "伏せ字を最後まで実行できませんでした: {{detail}}",
+		"clearVault": "消去する",
+		"fileVault": {
+			"enable": "有効にする",
+			"confirmEnable": "{{file}} の File Vault を有効にします。対応 {{count}} 件を暗号化し、ワークスペース専用の領域へ保存します。暗号鍵は別の安全な領域へ保存します。",
+			"enabled": "{{file}} の File Vault を有効にしました（対応 {{count}} 件）。",
+			"alreadyEnabled": "{{file}} の File Vault はすでに有効です（対応 {{count}} 件）。",
+			"confirmDisable": "{{file}} の File Vault と対応 {{count}} 件を消去します。消去後、この対応を使った伏せ字は元の値へ戻せません。",
+			"disabled": "{{file}} の File Vault を消去し、保持を無効にしました。",
+			"notEnabled": "{{file}} の File Vault は無効です。",
+			"statusEnabled": "{{file}} の File Vault は有効です（対応 {{count}} 件）。",
+			"workspaceRequired": "File Vault には、ワークスペース内の保存済みファイルが必要です。",
+			"missingKey": "File Vault の暗号鍵が見つからないため、読み込みも書き込みも止めました。",
+			"corrupt": "File Vault の改竄または破損を検出したため、読み込みも書き込みも止めました。",
+			"unsupported": "未対応の形式の File Vault は、読み込みも書き込みもしません。",
+			"failed": "File Vault を安全に読み込めませんでした。既存の内容は変えていません。",
+			"saveFailed": "ファイルは伏せましたが、File Vault を更新できませんでした。",
+			"maxFiles": "File Vault のファイル数が設定の上限に達したため、保存しませんでした。",
+			"maxEntries": "このファイルの対応数が設定の上限に達したため、保存しませんでした。",
+			"maxBytes": "File Vault 全体の容量が設定の上限に達したため、保存しませんでした。",
+			"none": "消去できる File Vault がありません。",
+			"entryCount": "対応 {{count}} 件",
+			"pickClear": "消去する File Vault を選んでください。",
+			"confirmClearMany": "File Vault {{files}} ファイル・対応 {{count}} 件を消去します。消去後は元の値へ戻せません。",
+			"clearedMany": "File Vault {{files}} ファイル・対応 {{count}} 件を消去しました。",
+			"confirmClearAll": "File Vault {{files}} ファイル（対応 {{fileCount}} 件）と Session Vault（対応 {{sessionCount}} 件）をすべて消去します。消去後は元の値へ戻せません。",
+			"clearedAll": "File Vault {{files}} ファイル（対応 {{fileCount}} 件）と Session Vault（対応 {{sessionCount}} 件）を消去しました。"
+		}
 	}
 }

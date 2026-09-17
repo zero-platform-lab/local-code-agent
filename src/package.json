@@ -201,21 +201,6 @@
 				"icon": "$(export)"
 			},
 			{
-				"command": "openai-agent.enableFileVault",
-				"title": "%command.enableFileVault.title%",
-				"icon": "$(lock)"
-			},
-			{
-				"command": "openai-agent.disableFileVault",
-				"title": "%command.disableFileVault.title%",
-				"icon": "$(unlock)"
-			},
-			{
-				"command": "openai-agent.fileVaultStatus",
-				"title": "%command.fileVaultStatus.title%",
-				"icon": "$(info)"
-			},
-			{
 				"command": "openai-agent.clearSelectedFileVault",
 				"title": "%command.clearSelectedFileVault.title%",
 				"icon": "$(clear-all)"
@@ -257,18 +242,6 @@
 				{
 					"command": "openai-agent.addToDictionary",
 					"group": "2_pii@3"
-				},
-				{
-					"command": "openai-agent.enableFileVault",
-					"group": "2_pii@4"
-				},
-				{
-					"command": "openai-agent.disableFileVault",
-					"group": "2_pii@5"
-				},
-				{
-					"command": "openai-agent.fileVaultStatus",
-					"group": "2_pii@6"
 				}
 			],
 			"terminal/context": [

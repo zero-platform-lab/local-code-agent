@@ -23,7 +23,7 @@ export type FileVaultEntry = readonly [placeholder: string, value: string]
 
 type StoredFile = {
 	identity: string
-	enabledAt: string
+	savedAt: string
 	lastUsedAt: string
 	entries: FileVaultEntry[]
 }
@@ -91,8 +91,8 @@ function validCatalog(value: unknown): value is Catalog {
 	}
 	return Object.entries(candidate.files).every(([identity, record]) => {
 		if (!record || typeof record !== "object" || record.identity !== identity) return false
-		if (typeof record.enabledAt !== "string" || typeof record.lastUsedAt !== "string") return false
-		if (!Number.isFinite(Date.parse(record.enabledAt)) || !Number.isFinite(Date.parse(record.lastUsedAt)))
+		if (typeof record.savedAt !== "string" || typeof record.lastUsedAt !== "string") return false
+		if (!Number.isFinite(Date.parse(record.savedAt)) || !Number.isFinite(Date.parse(record.lastUsedAt)))
 			return false
 		return (
 			Array.isArray(record.entries) &&
@@ -223,10 +223,6 @@ export class FileVaultStore {
 		}
 	}
 
-	inspect(identity: string): Promise<FileVaultRecord | undefined> {
-		return this.exclusive(async () => (await this.read()).catalog.files[identity])
-	}
-
 	list(): Promise<FileVaultRecord[]> {
 		return this.exclusive(async () => Object.values((await this.read()).catalog.files))
 	}
@@ -242,7 +238,8 @@ export class FileVaultStore {
 		})
 	}
 
-	enable(identity: string, entries: readonly FileVaultEntry[] = []): Promise<FileVaultRecord> {
+	/** 対応を保存する。無ければ作り、あれば足し合わせる（upsert）。 */
+	save(identity: string, entries: readonly FileVaultEntry[]): Promise<FileVaultRecord> {
 		return this.exclusive(async () => {
 			const { catalog, exists } = await this.read()
 			const timestamp = this.now().toISOString()
@@ -251,7 +248,7 @@ export class FileVaultStore {
 			for (const [placeholder, value] of entries) merged.set(placeholder, value)
 			const record: StoredFile = {
 				identity,
-				enabledAt: previous?.enabledAt ?? timestamp,
+				savedAt: previous?.savedAt ?? timestamp,
 				lastUsedAt: timestamp,
 				entries: [...merged],
 			}
@@ -259,21 +256,6 @@ export class FileVaultStore {
 			this.assertLimits(catalog)
 			await this.write(catalog, exists)
 			return record
-		})
-	}
-
-	appendIfEnabled(identity: string, entries: readonly FileVaultEntry[]): Promise<boolean> {
-		return this.exclusive(async () => {
-			const { catalog, exists } = await this.read()
-			const record = catalog.files[identity]
-			if (!record) return false
-			const merged = new Map(record.entries)
-			for (const [placeholder, value] of entries) merged.set(placeholder, value)
-			record.entries = [...merged]
-			record.lastUsedAt = this.now().toISOString()
-			this.assertLimits(catalog)
-			await this.write(catalog, exists)
-			return true
 		})
 	}
 

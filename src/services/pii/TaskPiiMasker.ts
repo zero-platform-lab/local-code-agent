@@ -443,7 +443,8 @@ export class TaskPiiMasker {
 
 		// **File Vault: 読んだファイルの保存済み対応を、伏せる前に取り込む。**
 		// 伏せる前に取り込めば、同じ値には保存済みの伏せ字が当たる（`FR-PII-25a`）。
-		const fileVault = this.fileVault
+		// File Vault がオンのときだけ動かす（`FR-PII-24`）。オフなら従来どおり記憶内だけで伏せる。
+		const fileVault = this.settings.fileVault?.enabled === true ? this.fileVault : undefined
 		const targets = fileVault ? this.newFileVaultTargets(messages) : undefined
 		if (fileVault && targets) {
 			for (const paths of targets.values()) {

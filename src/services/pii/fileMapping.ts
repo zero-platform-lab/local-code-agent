@@ -196,7 +196,7 @@ export class FileMappingController {
 		return restoreSession(record ? unmaskText(text, new Map(record.entries)) : text)
 	}
 
-	/** 選んだファイルの保管庫を消す（`FR-PII-27`）。 */
+	/** 選んだファイルの対応表を消す（`FR-PII-27`）。 */
 	async clearSelected(): Promise<void> {
 		if (!this.store) {
 			await vscode.window.showWarningMessage(t("common:pii.fileMapping.workspaceRequired"))

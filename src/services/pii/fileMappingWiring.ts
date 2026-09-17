@@ -45,7 +45,7 @@ export function readFileTargets(messages: readonly AgentMessage[]): Map<string, 
 /**
  * 伏せた本文に現れた伏せ字を、対応表から `[伏せ字, 元の値]` にする。
  *
- * 本文に無い伏せ字は入れない。ファイルに現れたぶんだけを、そのファイルの保管庫へ保存する。
+ * 本文に無い伏せ字は入れない。ファイルに現れたぶんだけを、そのファイルの対応表へ保存する。
  */
 export function placeholderEntries(text: string, entries: ReadonlyMap<string, string>): FileMappingEntry[] {
 	const found = new Set(text.match(PLACEHOLDER) ?? [])

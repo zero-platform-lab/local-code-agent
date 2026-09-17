@@ -471,7 +471,7 @@ export class TaskPiiMasker {
 	 * まだ取り込んでいない「読んだファイル」だけを集める。
 	 *
 	 * **タスク内で一度きりにする。** 送信のたびに履歴の全体を見直すので、済んだファイルまで
-	 * 毎回取り込むと、送信のたびに保管庫を読み直すことになる。
+	 * 毎回取り込むと、送信のたびに対応表を読み直すことになる。
 	 */
 	private newFileMappingTargets(messages: AgentMessage[]): Map<string, string[]> {
 		const targets = new Map<string, string[]>()

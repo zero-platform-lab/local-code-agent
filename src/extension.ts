@@ -269,6 +269,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// ファイル対応表（ファイルごとの永続。`FR-PII-24`）。起動時の掃除と、移動・削除への追従を
 	// 開始し、送信経路と右クリックが使う共有のコントローラとして 1 つだけ登録する。
 	const fileMapping = new FileMappingController(context, {
+		root: () => contextProxy.getValue("piiMasking")?.fileMapping?.root,
 		retentionDays: () => contextProxy.getValue("piiMasking")?.fileMapping?.retentionDays ?? 30,
 		limits: () => {
 			const settings = contextProxy.getValue("piiMasking")?.fileMapping

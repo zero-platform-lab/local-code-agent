@@ -78,16 +78,11 @@ export class FileVaultController {
 	private readonly retentionDays: () => number
 	private readonly limits: () => FileVaultLimits
 
-	constructor(
-		context: Pick<vscode.ExtensionContext, "storageUri"> & {
-			secrets: Pick<vscode.SecretStorage, "get" | "store">
-		},
-		config: FileVaultConfig = {},
-	) {
+	constructor(context: Pick<vscode.ExtensionContext, "storageUri">, config: FileVaultConfig = {}) {
 		this.retentionDays = config.retentionDays ?? (() => DEFAULT_RETENTION_DAYS)
 		this.limits = config.limits ?? (() => DEFAULT_FILE_VAULT_LIMITS)
 		this.store = context.storageUri
-			? new FileVaultStore(context.storageUri, context.secrets, undefined, undefined, this.limits)
+			? new FileVaultStore(context.storageUri, undefined, undefined, this.limits)
 			: undefined
 	}
 

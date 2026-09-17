@@ -269,10 +269,9 @@
 		"clearVault": "Clear",
 		"fileVault": {
 			"workspaceRequired": "File Vault needs a saved file inside the workspace.",
-			"missingKey": "The File Vault key was not found, so reading and writing were stopped.",
-			"corrupt": "File Vault tampering or corruption was detected, so reading and writing were stopped.",
+			"corrupt": "File Vault corruption was detected, so reading and writing were stopped.",
 			"unsupported": "File Vault in an unsupported format is neither read nor written.",
-			"failed": "Could not read File Vault safely. Existing data was left unchanged.",
+			"failed": "Could not read File Vault. Existing data was left unchanged.",
 			"maxFiles": "The File Vault file count reached its configured limit, so nothing was saved.",
 			"maxEntries": "This file's mapping count reached its configured limit, so nothing was saved.",
 			"maxBytes": "The total File Vault size reached its configured limit, so nothing was saved.",

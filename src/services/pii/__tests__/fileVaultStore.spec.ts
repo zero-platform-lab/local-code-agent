@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-// store が実行時に使う vscode は `Uri.joinPath` だけである。fs・secrets・時計・上限は注入する。
+// store が実行時に使う vscode は `Uri.joinPath` だけである。fs・時計・上限は注入する。
 vi.mock("vscode", () => ({
 	Uri: {
 		joinPath(base: { path: string }, ...parts: string[]) {
@@ -49,110 +49,66 @@ function memoryFs() {
 	}
 }
 
-function memorySecrets() {
-	const store = new Map<string, string>()
-	return {
-		store,
-		secrets: {
-			async get(key: string) {
-				return store.get(key)
-			},
-			async store(key: string, value: string) {
-				store.set(key, value)
-			},
-		},
-	}
-}
-
 const ROOT: Uri = { path: "/state" }
 const TARGET = "/state/file-vault.v1.json"
 
 const entry = (n: number, value: string): FileVaultEntry => [`{{email-${String(n).padStart(3, "0")}}}`, value]
+const readTarget = (disk: ReturnType<typeof memoryFs>) => Buffer.from(disk.files.get(TARGET)!).toString("utf8")
 
 function setup(options: { now?: () => Date; limits?: () => FileVaultLimits } = {}) {
 	const disk = memoryFs()
-	const keychain = memorySecrets()
-	const make = () =>
-		new FileVaultStore(ROOT as never, keychain.secrets, disk.fs as never, options.now, options.limits)
-	return { disk, keychain, make, store: make() }
+	const make = () => new FileVaultStore(ROOT as never, disk.fs as never, options.now, options.limits)
+	return { disk, make, store: make() }
 }
 
 describe("FileVaultStore", () => {
-	describe("暗号化して残し、読み戻せる", () => {
-		it("有効化した対応を読み戻せる", async () => {
+	describe("保存して読み戻せる", () => {
+		it("保存した対応を読み戻せる", async () => {
 			const { store } = setup()
 			const record = await store.save("0:a.md", [entry(1, "森下")])
 			expect(record.entries).toEqual([entry(1, "森下")])
-			const read = await store.load("0:a.md")
-			expect(read?.entries).toEqual([entry(1, "森下")])
+			expect((await store.load("0:a.md"))?.entries).toEqual([entry(1, "森下")])
 		})
 
-		it("ディスクには平文で残さない（封筒で暗号化する）", async () => {
+		it("平文の JSON で残す（暗号化しない）", async () => {
 			const { store, disk } = setup()
 			await store.save("0:a.md", [entry(1, "森下")])
-			const raw = Buffer.from(disk.files.get(TARGET)!).toString("utf8")
-			expect(raw).not.toContain("森下")
-			expect(raw).not.toContain("0:a.md")
-			const envelope = JSON.parse(raw)
-			expect(envelope.algorithm).toBe("aes-256-gcm")
-			expect(envelope.formatVersion).toBe(1)
+			const raw = readTarget(disk)
+			// 同じ PII は元のファイルやタスク履歴にも平文である。ここも平文で置く。
+			expect(raw).toContain("森下")
+			expect(JSON.parse(raw).formatVersion).toBe(1)
 		})
 
-		it("別の store 実体でも、同じ鍵とファイルなら読める", async () => {
+		it("別の store 実体でも、同じファイルなら読める", async () => {
 			const { make, store } = setup()
 			await store.save("0:a.md", [entry(1, "森下")])
-			const other = make()
-			expect((await other.load("0:a.md"))?.entries).toEqual([entry(1, "森下")])
+			expect((await make().load("0:a.md"))?.entries).toEqual([entry(1, "森下")])
 		})
 
-		it("鍵はファイルに入れず、秘匿保管に持つ", async () => {
-			const { store, keychain, disk } = setup()
+		it(".gitignore を保管ディレクトリへ置く（万一 git 配下でも残さない）", async () => {
+			const { store, disk } = setup()
 			await store.save("0:a.md", [entry(1, "森下")])
-			expect(keychain.store.has("pii.fileVault.masterKey.v1")).toBe(true)
-			const raw = Buffer.from(disk.files.get(TARGET)!).toString("utf8")
-			expect(raw).not.toContain(keychain.store.get("pii.fileVault.masterKey.v1"))
+			expect(Buffer.from(disk.files.get("/state/.gitignore")!).toString("utf8")).toBe("*\n")
 		})
 	})
 
-	describe("復号できないときは、誤った値ではなく失敗を出す", () => {
-		it("鍵が無ければ missingKey", async () => {
-			const { make, keychain, store } = setup()
-			await store.save("0:a.md", [entry(1, "森下")])
-			keychain.store.clear()
-			await expect(make().load("0:a.md")).rejects.toMatchObject({
-				name: "FileVaultError",
-				code: "missingKey",
-			})
+	describe("壊れ・版違いは、誤った値ではなく失敗を出す", () => {
+		it("JSON にならなければ corrupt", async () => {
+			const { make, disk } = setup()
+			disk.files.set(TARGET, Buffer.from("これは JSON ではない", "utf8"))
+			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "corrupt" })
 		})
 
-		it("改竄されていれば corrupt", async () => {
-			const { make, disk, store } = setup()
-			await store.save("0:a.md", [entry(1, "森下")])
-			const envelope = JSON.parse(Buffer.from(disk.files.get(TARGET)!).toString("utf8"))
-			const tag = Buffer.from(envelope.tag, "base64")
-			tag[0] ^= 0xff
-			envelope.tag = tag.toString("base64")
-			disk.files.set(TARGET, Buffer.from(JSON.stringify(envelope), "utf8"))
+		it("形が壊れていれば corrupt", async () => {
+			const { make, disk } = setup()
+			disk.files.set(TARGET, Buffer.from(JSON.stringify({ formatVersion: 1, files: { "0:a.md": {} } }), "utf8"))
 			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "corrupt" })
 		})
 
 		it("版が違えば unsupported", async () => {
-			const { make, disk, store } = setup()
-			await store.save("0:a.md", [entry(1, "森下")])
-			const envelope = JSON.parse(Buffer.from(disk.files.get(TARGET)!).toString("utf8"))
-			envelope.formatVersion = 2
-			disk.files.set(TARGET, Buffer.from(JSON.stringify(envelope), "utf8"))
-			await expect(make().load("0:a.md")).rejects.toMatchObject({
-				name: "FileVaultError",
-				code: "unsupported",
-			})
-		})
-
-		it("JSON にならなければ corrupt", async () => {
-			const { make, disk, store } = setup()
-			await store.save("0:a.md", [entry(1, "森下")])
-			disk.files.set(TARGET, Buffer.from("これは封筒ではない", "utf8"))
-			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "corrupt" })
+			const { make, disk } = setup()
+			disk.files.set(TARGET, Buffer.from(JSON.stringify({ formatVersion: 2, files: {} }), "utf8"))
+			await expect(make().load("0:a.md")).rejects.toMatchObject({ name: "FileVaultError", code: "unsupported" })
 		})
 	})
 
@@ -236,8 +192,7 @@ describe("FileVaultStore", () => {
 			const { store } = setup({ now: () => clock })
 			await store.save("0:a.md", [entry(1, "森下")])
 			clock = new Date("2026-02-15T00:00:00Z") // 45 日後
-			const result = await store.prune(30, async () => true)
-			expect(result).toEqual({ expired: 1, missing: 0 })
+			expect(await store.prune(30, async () => true)).toEqual({ expired: 1, missing: 0 })
 			expect(await store.load("0:a.md")).toBeUndefined()
 		})
 
@@ -296,13 +251,13 @@ describe("FileVaultStore", () => {
 	})
 
 	describe("原子的書き込み", () => {
-		it("一時ファイルを残さず、対象だけを置く", async () => {
+		it("一時ファイルを残さず、対象と .gitignore だけを置く", async () => {
 			const { store, disk } = setup()
 			await store.save("0:a.md", [entry(1, "森下")])
-			expect([...disk.files.keys()]).toEqual([TARGET])
+			expect([...disk.files.keys()].sort()).toEqual([TARGET, "/state/.gitignore"].sort())
 		})
 
-		it("エラーになった FileVaultError は握りつぶさず投げる", async () => {
+		it("書き込みが失敗したら投げる", async () => {
 			const { store, disk } = setup()
 			await store.save("0:a.md", [entry(1, "森下")])
 			disk.fail("disk full")

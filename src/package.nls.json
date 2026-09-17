@@ -49,5 +49,10 @@
 	"command.maskSecretsInFile.title": "Mask Sensitive Information in This File",
 	"command.addToDictionary.title": "Add Selection to the Masking Dictionary",
 	"command.exportDictionary.title": "Export the Masking Dictionary",
+	"command.enableFileVault.title": "Enable File Vault for This File",
+	"command.disableFileVault.title": "Disable File Vault for This File",
+	"command.fileVaultStatus.title": "Show File Vault Status for This File",
+	"command.clearSelectedFileVault.title": "Clear Selected File Vaults",
+	"command.clearAllFileVault.title": "Clear All File Vaults",
 	"command.restoreSecretsInFile.title": "Restore Masked Values in This File"
 }

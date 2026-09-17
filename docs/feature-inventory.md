@@ -127,7 +127,7 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 
 ## C. VS Code UI 面
 
-### C1. コマンド（contributes.commands、27）
+### C1. コマンド（contributes.commands、32）
 
 - タスク / 画面: plusButtonClicked, historyButtonClicked, popoutButtonClicked, settingsButtonClicked,
   openInNewTab, newTask, focusInput, acceptInput
@@ -136,6 +136,7 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 - 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
 - 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
+- File Vault: enableFileVault, disableFileVault, fileVaultStatus, clearSelectedFileVault, clearAllFileVault（5コマンド）
 - 設定: setCustomStoragePath, importSettings
 
 ### C2. 設定タブ（`SettingsView.tsx` の `sectionNames`、11）

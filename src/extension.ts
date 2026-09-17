@@ -35,11 +35,14 @@ import {
 	registerCommands,
 	registerCodeActions,
 	registerPiiCommands,
+	registerFileVaultCommands,
 	registerTerminalActions,
 	CodeActionProvider,
 } from "./activate"
 import { initializeI18n, t } from "./i18n"
 import { sessionVault } from "./services/pii/maskConversation"
+import { FileVaultController, setFileVaultController } from "./services/pii/fileVault"
+import { DEFAULT_FILE_VAULT_LIMITS } from "./services/pii/fileVaultStore"
 import { piiMaskerFor } from "./core/webview/promptMessageHandlers"
 
 /**
@@ -261,6 +264,27 @@ export async function activate(context: vscode.ExtensionContext) {
 				return properNouns
 			}
 		},
+	)
+
+	// File Vault（ファイルごとの永続。`FR-PII-24`）。起動時の掃除と、移動・削除への追従を
+	// 開始し、送信経路と右クリックが使う共有のコントローラとして 1 つだけ登録する。
+	const fileVault = new FileVaultController(context, {
+		retentionDays: () => contextProxy.getValue("piiMasking")?.fileVault?.retentionDays ?? 30,
+		limits: () => {
+			const settings = contextProxy.getValue("piiMasking")?.fileVault
+			return {
+				maxFiles: settings?.maxFiles ?? DEFAULT_FILE_VAULT_LIMITS.maxFiles,
+				maxEntriesPerFile: settings?.maxEntriesPerFile ?? DEFAULT_FILE_VAULT_LIMITS.maxEntriesPerFile,
+				maxBytes: settings?.maxBytes ?? DEFAULT_FILE_VAULT_LIMITS.maxBytes,
+			}
+		},
+	})
+	setFileVaultController(fileVault)
+	context.subscriptions.push(...fileVault.start())
+	registerFileVaultCommands(
+		context,
+		fileVault,
+		() => provider.getCurrentTask()?.piiMasker.allocator ?? sessionVault(),
 	)
 
 	// Allows other extensions to activate once Agent is ready.

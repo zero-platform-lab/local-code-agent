@@ -379,3 +379,20 @@ export class FileVaultController {
 		return restoreSession(record ? unmaskText(text, new Map(record.entries)) : text)
 	}
 }
+
+/**
+ * 送信経路と右クリックが使う共有のコントローラ。
+ *
+ * **1 つだけ持つ。** 保存先はワークスペース固有なので、拡張の起動で 1 度だけ作る。
+ * `activate` で `setFileVaultController` を呼ぶ。設定していなければ、File Vault は動かない
+ * だけで、伏せ字化は従来どおり動く。
+ */
+let sharedController: FileVaultController | undefined
+
+export function fileVaultController(): FileVaultController | undefined {
+	return sharedController
+}
+
+export function setFileVaultController(controller: FileVaultController | undefined): void {
+	sharedController = controller
+}

@@ -3,6 +3,8 @@ import type { AgentMessage, PiiMasking } from "@openai-agent/types"
 import { promises as fs } from "fs"
 
 import { defaultDictionaryPath, readDictionaries, resolveDictionaryPath } from "./dictionary"
+import { fileVaultController, type FileVaultController } from "./fileVault"
+import { placeholderEntries, readFileTargets } from "./fileVaultWiring"
 import { collectTexts, maskConversation, MEMO_LIMIT, PiiVault, sessionVault, type MaskMemo } from "./maskConversation"
 import { detectWith, loadBackend, type NerBackend } from "./nerBackend"
 import { defaultModelDirectory, describeCheck, hasNerRuntime } from "./nerModel"
@@ -110,6 +112,10 @@ export class TaskPiiMasker {
 	 * 書き戻す。試験で切り離したいときだけ渡す。
 	 */
 	private readonly vault: PiiVault
+	/** File Vault（ファイルごとの永続。設定していなければ undefined で、File Vault は動かない）。 */
+	private readonly fileVault: FileVaultController | undefined
+	/** File Vault の取り込み・保存を済ませたファイルのパス。タスク内で一度だけ行う。 */
+	private readonly fileVaultSeen = new Set<string>()
 	private terms: PiiTerm[] | undefined
 	private loadedFrom: string | undefined
 	private troubles: string[] = []
@@ -134,9 +140,14 @@ export class TaskPiiMasker {
 	 *
 	 * 対応表だけは持ち越す。番号が振り直されると、前の応答の伏せ字が別の値を指す。
 	 */
-	constructor(read: (() => PiiMasking | undefined) | PiiMasking, vault: PiiVault = sessionVault()) {
+	constructor(
+		read: (() => PiiMasking | undefined) | PiiMasking,
+		vault: PiiVault = sessionVault(),
+		fileVault: FileVaultController | undefined = fileVaultController(),
+	) {
 		this.vault = vault
 		this.read = typeof read === "function" ? read : () => read
+		this.fileVault = fileVault
 	}
 
 	/**
@@ -430,8 +441,54 @@ export class TaskPiiMasker {
 		const options = await this.options()
 		const properNouns = await this.properNouns(collectTexts(systemPrompt, messages))
 
+		// **File Vault: 読んだファイルの保存済み対応を、伏せる前に取り込む。**
+		// 伏せる前に取り込めば、同じ値には保存済みの伏せ字が当たる（`FR-PII-25a`）。
+		const fileVault = this.fileVault
+		const targets = fileVault ? this.newFileVaultTargets(messages) : undefined
+		if (fileVault && targets) {
+			for (const paths of targets.values()) {
+				for (const path of paths) await fileVault.prepareToolPath(path, this.vault)
+			}
+		}
+
 		const result = maskConversation(systemPrompt, messages, { ...options, properNouns }, this.vault, this.memo)
+
+		// **File Vault: 伏せた出力に現れた対応を、そのファイルへ保存する（`FR-PII-25`）。**
+		if (fileVault && targets) await this.recordFileVault(fileVault, targets, result.messages)
+
 		return { ...result, troubles: this.takeDictionaryTroubles(), enabled: true }
+	}
+
+	/**
+	 * まだ取り込んでいない「読んだファイル」だけを集める。
+	 *
+	 * **タスク内で一度きりにする。** 送信のたびに履歴の全体を見直すので、済んだファイルまで
+	 * 毎回取り込むと、送信のたびに保管庫を読み直すことになる。
+	 */
+	private newFileVaultTargets(messages: AgentMessage[]): Map<string, string[]> {
+		const targets = new Map<string, string[]>()
+		for (const [callId, paths] of readFileTargets(messages)) {
+			const unseen = paths.filter((path) => !this.fileVaultSeen.has(path))
+			if (unseen.length > 0) targets.set(callId, unseen)
+		}
+		return targets
+	}
+
+	/** 伏せた出力に現れた対応を、1 ファイルの読みについてそのファイルへ保存する。 */
+	private async recordFileVault(
+		fileVault: FileVaultController,
+		targets: Map<string, string[]>,
+		masked: readonly AgentMessage[],
+	): Promise<void> {
+		for (const item of masked) {
+			if (item.type !== "function_call_output") continue
+			const paths = targets.get(item.call_id)
+			// 複数ファイルの読みは、どの伏せ字がどのファイルか切り分けられないので保存しない。
+			if (!paths || paths.length !== 1) continue
+			const entries = placeholderEntries(item.output, this.vault.entries)
+			if (entries.length > 0) await fileVault.recordToolPath(paths[0], entries)
+		}
+		for (const paths of targets.values()) for (const path of paths) this.fileVaultSeen.add(path)
 	}
 
 	/**

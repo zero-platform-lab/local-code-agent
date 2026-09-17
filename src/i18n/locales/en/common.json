@@ -265,6 +265,33 @@
 		"modelIncomplete": "The model is incomplete: {{detail}}",
 		"modelReady": "Placed the model at {{path}}.",
 		"noModelUrl": "No fetch destination is set. Enter the model URL in Settings → General → Proper nouns, or place the files in the model location by hand.",
-		"maskingTrouble": "Masking could not run fully: {{detail}}"
+		"maskingTrouble": "Masking could not run fully: {{detail}}",
+		"clearVault": "Clear",
+		"fileVault": {
+			"enable": "Enable",
+			"confirmEnable": "Enable File Vault for {{file}}? {{count}} mapping(s) will be encrypted and saved to a workspace-only area. The key is stored separately in a secure area.",
+			"enabled": "Enabled File Vault for {{file}} ({{count}} mapping(s)).",
+			"alreadyEnabled": "File Vault is already enabled for {{file}} ({{count}} mapping(s)).",
+			"confirmDisable": "Clear File Vault for {{file}} and its {{count}} mapping(s)? After clearing, placeholders that used them cannot be restored.",
+			"disabled": "Cleared File Vault for {{file}} and turned off retention.",
+			"notEnabled": "File Vault is not enabled for {{file}}.",
+			"statusEnabled": "File Vault is enabled for {{file}} ({{count}} mapping(s)).",
+			"workspaceRequired": "File Vault needs a saved file inside the workspace.",
+			"missingKey": "The File Vault key was not found, so reading and writing were stopped.",
+			"corrupt": "File Vault tampering or corruption was detected, so reading and writing were stopped.",
+			"unsupported": "File Vault in an unsupported format is neither read nor written.",
+			"failed": "Could not read File Vault safely. Existing data was left unchanged.",
+			"saveFailed": "The file was masked, but File Vault could not be updated.",
+			"maxFiles": "The File Vault file count reached its configured limit, so nothing was saved.",
+			"maxEntries": "This file's mapping count reached its configured limit, so nothing was saved.",
+			"maxBytes": "The total File Vault size reached its configured limit, so nothing was saved.",
+			"none": "There is no File Vault to clear.",
+			"entryCount": "{{count}} mapping(s)",
+			"pickClear": "Choose the File Vault to clear.",
+			"confirmClearMany": "Clear {{files}} File Vault file(s) and {{count}} mapping(s)? They cannot be restored afterward.",
+			"clearedMany": "Cleared {{files}} File Vault file(s) and {{count}} mapping(s).",
+			"confirmClearAll": "Clear all {{files}} File Vault file(s) ({{fileCount}} mapping(s)) and the Session Vault ({{sessionCount}} mapping(s))? They cannot be restored afterward.",
+			"clearedAll": "Cleared {{files}} File Vault file(s) ({{fileCount}} mapping(s)) and the Session Vault ({{sessionCount}} mapping(s))."
+		}
 	}
 }

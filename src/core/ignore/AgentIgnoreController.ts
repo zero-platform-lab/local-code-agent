@@ -7,6 +7,23 @@ import * as vscode from "vscode"
 
 export const LOCK_TEXT_SYMBOL = "\u{1F512}"
 
+// 伏せ字の対応表の保管領域。エージェントのファイルツールから常に隠す（.agentignore とは独立）。
+// 設定で保管ルートをワークスペース内に置いても、平文の対応表をモデルへ渡さないため。
+let mappingStorageRoot: string | undefined
+
+export function setMappingStorageRoot(root: vscode.Uri | undefined): void {
+	mappingStorageRoot = root?.fsPath
+}
+
+/** 絶対パスが対応表の保管ルート配下か。ルート未設定なら常に false。 */
+export function isInsideMappingStore(absolutePath: string): boolean {
+	if (!mappingStorageRoot) {
+		return false
+	}
+	const rel = path.relative(mappingStorageRoot, absolutePath)
+	return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))
+}
+
 /**
  * Controls LLM access to files by enforcing ignore patterns.
  * Designed to be instantiated once in Cline.ts and passed to file manipulation services.
@@ -87,6 +104,14 @@ export class AgentIgnoreController {
 	 * @returns true if file is accessible, false if ignored
 	 */
 	validateAccess(filePath: string): boolean {
+		// 対応表の保管領域は、.agentignore の有無に関わらず常にアクセスさせない。
+		try {
+			if (isInsideMappingStore(path.resolve(this.cwd, filePath))) {
+				return false
+			}
+		} catch {
+			// パス解決に失敗しても、下の通常判定へ進む。
+		}
 		// Always allow access if .agentignore does not exist
 		if (!this.rooIgnoreContent) {
 			return true

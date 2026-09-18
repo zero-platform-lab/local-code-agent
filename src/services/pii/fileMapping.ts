@@ -118,13 +118,21 @@ export class FileMappingController {
 	private readonly retentionDays: () => number
 	private readonly limits: () => FileMappingLimits
 	private readonly rootWarning: RootWarning | undefined
+	/** 対応表の保管ルート。この配下はエージェントのファイルツールから隠す。 */
+	private readonly root: vscode.Uri | undefined
 
 	constructor(context: Pick<vscode.ExtensionContext, "storageUri">, config: FileMappingConfig = {}) {
 		this.retentionDays = config.retentionDays ?? (() => DEFAULT_RETENTION_DAYS)
 		this.limits = config.limits ?? (() => DEFAULT_FILE_MAPPING_LIMITS)
 		const resolved = resolveMappingRoot(config.root?.()?.trim() ?? "", context.storageUri)
 		this.rootWarning = resolved.warning
+		this.root = resolved.root
 		this.store = resolved.root ? new FileMappingStore(resolved.root, undefined, undefined, this.limits) : undefined
+	}
+
+	/** 対応表の保管ルート。ファイルツールの除外に使う。 */
+	get storageRoot(): vscode.Uri | undefined {
+		return this.root
 	}
 
 	/** 起動時の掃除と、VS Code が通知する移動・削除への追従を開始する。 */

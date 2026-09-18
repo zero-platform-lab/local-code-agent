@@ -222,18 +222,18 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 
 ## 2. 引用文書
 
-| 文書                           | 参照する箇所                                 |
-| ------------------------------ | -------------------------------------------- |
-| ISO/IEC/IEEE 29148:2018        | 本書の構成                                   |
-| ISO/IEC 25010:2023             | 3.8 の品質特性の分類                         |
-| Roo Code（Apache License 2.0） | 1.2 の出発点。同梱する `LICENSE` と `NOTICE` |
-| Model Context Protocol 仕様    | 3.2.10 の通信手順                            |
-| OpenAI Chat Completions API    | 3.2.13 のリクエスト形式                      |
-| Azure OpenAI Service REST API  | 3.2.13 の Azure 向けリクエスト形式           |
-| agentskills.io Specification   | 3.2.12 のスキルの名前の制約                  |
-| `docs/architecture.md`         | 実装の構造。要件ではない                     |
-| `docs/features/`               | 要件を満たす機能の仕様                       |
-| `AGENTS.md`                    | 開発時の規約。要件ではない                   |
+| 文書                               | 参照する箇所                                 |
+| ---------------------------------- | -------------------------------------------- |
+| ISO/IEC/IEEE 29148:2018            | 本書の構成                                   |
+| ISO/IEC 25010:2023                 | 3.8 の品質特性の分類                         |
+| Roo Code（Apache License 2.0）     | 1.2 の出発点。同梱する `LICENSE` と `NOTICE` |
+| Model Context Protocol 仕様        | 3.2.10 の通信手順                            |
+| OpenAI Chat Completions API        | 3.2.13 のリクエスト形式                      |
+| Azure OpenAI Service REST API      | 3.2.13 の Azure 向けリクエスト形式           |
+| agentskills.io Specification       | 3.2.12 のスキルの名前の制約                  |
+| `docs/development/architecture.md` | 実装の構造。要件ではない                     |
+| `docs/features/`                   | 要件を満たす機能の仕様                       |
+| `AGENTS.md`                        | 開発時の規約。要件ではない                   |
 
 ---
 
@@ -1404,8 +1404,8 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 非機能要件は、品質ゲート（`NFR-MNT-*`）と文書の規約が満たす。
 
 **実装の構造は要件ではない。** 構造の説明は
-[architecture.md](architecture.md)・[webview.md](webview.md)・[mcp.md](mcp.md)・
-[diff-and-checkpoints.md](diff-and-checkpoints.md) にあり、本書はそれらを参照しない。
+[architecture.md](development/architecture.md)・[webview.md](development/webview.md)・[mcp.md](development/mcp.md)・
+[diff-and-checkpoints.md](development/diff-and-checkpoints.md) にあり、本書はそれらを参照しない。
 
 ### 5.2 未確定事項
 

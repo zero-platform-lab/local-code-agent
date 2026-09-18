@@ -19,7 +19,7 @@
 | `NFR-REL-01`                                                        | 記録が使えなくても、編集そのものは続行する                     |
 
 ユースケースは UC-03（任意の時点まで戻す）。
-仕組みの説明は [diff-and-checkpoints.md](../diff-and-checkpoints.md) の 2 節にある。
+仕組みの説明は [diff-and-checkpoints.md](../development/diff-and-checkpoints.md) の 2 節にある。
 
 ### 扱わないもの
 

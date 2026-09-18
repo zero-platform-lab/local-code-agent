@@ -159,4 +159,4 @@ mcp / worktrees / general / about
    ~~TTS / sound~~（済） → ~~役割モード群~~（済） → checkpoints。
    自律モード群は**核**なので対象外。
 
-関連: [architecture.md](architecture.md) / [mcp.md](mcp.md) / [webview.md](webview.md)
+関連: [architecture.md](development/architecture.md) / [mcp.md](development/mcp.md) / [webview.md](development/webview.md)

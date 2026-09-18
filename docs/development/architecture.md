@@ -175,7 +175,7 @@ UI は独立した React + Vite アプリケーションで、サンドボック
 | **core/prompts**  | システムプロンプトを節単位で組み立てる（役割 / ツール使用 / 能力 / ルール / 目的 / ユーザー設定）。目的（OBJECTIVE）節には、計画の事前提示と完了前検証の指示を含む                                                                                                                                          |
 | **core/config**   | `ContextProxy` が設定と秘密情報の単一の入口。API キーは VS Code の SecretStorage（OS のキーチェーン相当）に保存され、平文ファイルには書き出されない                                                                                                                                                         |
 
-**モード**には名前の似た別々の 2 軸がある。**役割モード**は LLM に与える役割文と使用できるツールグループの組であり、組み込みは `code` と `research` の 2 件である。**自律モード**は承認を求める範囲を決める設定であり、`manual` / `autoEdit` / `auto` / `plan` の 4 種類がある。ファイル種別による編集の制限は持たない（制限はツールグループ単位である）。詳細は [features/modes.md](features/modes.md) と [features/approval.md](features/approval.md)。
+**モード**には名前の似た別々の 2 軸がある。**役割モード**は LLM に与える役割文と使用できるツールグループの組であり、組み込みは `code` と `research` の 2 件である。**自律モード**は承認を求める範囲を決める設定であり、`manual` / `autoEdit` / `auto` / `plan` の 4 種類がある。ファイル種別による編集の制限は持たない（制限はツールグループ単位である）。詳細は [features/modes.md](../features/modes.md) と [features/approval.md](../features/approval.md)。
 
 > **命名について**：コード中に頻出する `Cline*`（`ClineProvider` など）は CLI とは無関係で、上流プロジェクト Cline（→ Roo Code → 本フォーク）に由来する名称である。単体の CLI（apps/cli）は削除済み。
 

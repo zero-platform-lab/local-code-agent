@@ -24,6 +24,7 @@ import { ClineAskResponse } from "../../shared/WebviewMessage"
 import { summarizeConversation } from "../condense"
 import { manageContext, willManageContext } from "../context-management"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
+import { isTerminalClientError, MAX_API_RETRY_ATTEMPTS } from "./apiRetryPolicy"
 import { AutoApprovalHandler } from "../auto-approval"
 import { AgentIgnoreController } from "../ignore/AgentIgnoreController"
 import { type ApiMessage } from "../task-persistence"
@@ -625,16 +626,17 @@ export async function handleFirstChunkError(
 	// 永遠にスピナー」に化ける（実際、Azure GPT-5.x の reasoning_effort+tools=400 がこれで
 	// ハングに見えていた）。例外: 429（レート制限）は時間で回復するのでリトライ対象に残す。
 	// context-window 超過（4xx のことがある）は上の専用処理に任せるため除外済み。
-	const httpStatus = (error as { status?: number })?.status
-	if (
-		typeof httpStatus === "number" &&
-		httpStatus >= 400 &&
-		httpStatus < 500 &&
-		httpStatus !== 429 &&
-		!isContextWindowExceededError
-	) {
+	if (isTerminalClientError(error, { isContextWindowExceeded: isContextWindowExceededError })) {
 		deps.log?.(
-			`[API] クライアントエラー HTTP ${httpStatus} のため中断（リトライしない）: ${(error as { message?: string })?.message ?? ""}`,
+			`[API] クライアントエラー（非リトライの 4xx）のため中断: ${(error as { message?: string })?.message ?? ""}`,
+		)
+		throw error
+	}
+
+	// 再試行の上限（backstop）。判定漏れがあっても無限ループにしない。
+	if (retryAttempt >= MAX_API_RETRY_ATTEMPTS) {
+		deps.log?.(
+			`[API] 再試行の上限（${MAX_API_RETRY_ATTEMPTS}）に達したため中断: ${(error as { message?: string })?.message ?? ""}`,
 		)
 		throw error
 	}

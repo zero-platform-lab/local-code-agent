@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 
 import { handleMidStreamError, type HandleMidStreamErrorStateHost } from "../handleMidStreamError"
+import { MAX_API_RETRY_ATTEMPTS } from "../apiRetryPolicy"
 
 function makeDeps(
 	opts: {
@@ -99,5 +100,53 @@ describe("handleMidStreamError", () => {
 		await handleMidStreamError(deps as never, { code: "ECONN" } as never, userContent, 0)
 
 		expect(deps.abortStream).toHaveBeenCalledWith("streaming_failed", expect.stringContaining("ECONN"))
+	})
+
+	it("終端の 4xx（status 400）はリトライせず abortTask し break を返す", async () => {
+		const deps = makeDeps({ autoApproval: true })
+		const error = Object.assign(new Error("bad request"), { status: 400 })
+
+		const result = await handleMidStreamError(deps as never, error, userContent, 0)
+
+		expect(deps.abortStream).toHaveBeenCalledWith("streaming_failed", expect.stringContaining("bad request"))
+		expect(deps.abortTask).toHaveBeenCalledTimes(1)
+		expect(deps.backoffAndAnnounce).not.toHaveBeenCalled()
+		expect(deps.host.abortReason).toBe("streaming_failed")
+		expect(result).toEqual({ action: "break" })
+	})
+
+	it("status が response.status にネストした 400 も終端にする", async () => {
+		const deps = makeDeps({ autoApproval: true })
+		const error = Object.assign(new Error("nested bad"), { response: { status: 400 } })
+
+		const result = await handleMidStreamError(deps as never, error, userContent, 0)
+
+		expect(deps.abortTask).toHaveBeenCalledTimes(1)
+		expect(result).toEqual({ action: "break" })
+	})
+
+	it("429 は終端にせず、従来どおり retryAttempt+1 で continue する", async () => {
+		const deps = makeDeps({ autoApproval: false })
+		const error = Object.assign(new Error("rate limited"), { status: 429 })
+
+		const result = await handleMidStreamError(deps as never, error, userContent, 2)
+
+		expect(deps.abortTask).not.toHaveBeenCalled()
+		expect(result.action).toBe("continue")
+		expect((result as { retryStackItem?: { retryAttempt: number } }).retryStackItem?.retryAttempt).toBe(3)
+	})
+
+	it("再試行が上限に達したら（ステータス無しでも）終端にする", async () => {
+		const deps = makeDeps({ autoApproval: false })
+
+		const result = await handleMidStreamError(
+			deps as never,
+			new Error("transient"),
+			userContent,
+			MAX_API_RETRY_ATTEMPTS,
+		)
+
+		expect(deps.abortTask).toHaveBeenCalledTimes(1)
+		expect(result).toEqual({ action: "break" })
 	})
 })

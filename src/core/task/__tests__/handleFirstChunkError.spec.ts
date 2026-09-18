@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 import { handleFirstChunkError } from "../apiRequestOrchestrator"
+import { MAX_API_RETRY_ATTEMPTS } from "../apiRetryPolicy"
 
 vi.mock("../../context-management", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../../context-management")>()),
@@ -184,5 +185,21 @@ describe("handleFirstChunkError", () => {
 		const deps = makeDeps({ askResponse: "noButtonClicked" })
 
 		await expect(handleFirstChunkError(deps, new Error("x"), 0, false)).rejects.toThrow("API request failed")
+	})
+
+	it("status が response.status にネストした 400 も終端にして throw する", async () => {
+		mockedCheckContextWindow.mockReturnValue(false)
+		const deps = makeDeps()
+		const error = Object.assign(new Error("nested 400"), { response: { status: 400 } })
+
+		await expect(handleFirstChunkError(deps, error, 0, true)).rejects.toBe(error)
+	})
+
+	it("再試行が上限に達したら（4xx でなくても）throw する", async () => {
+		mockedCheckContextWindow.mockReturnValue(false)
+		const deps = makeDeps()
+		const error = new Error("transient 5xx")
+
+		await expect(handleFirstChunkError(deps, error, MAX_API_RETRY_ATTEMPTS, true)).rejects.toBe(error)
 	})
 })

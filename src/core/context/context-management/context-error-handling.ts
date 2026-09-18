@@ -1,4 +1,6 @@
+
 import { APIError } from "openai"
+import { getHttpStatus } from "../../task/httpStatus"
 
 export function checkContextWindowExceededError(error: unknown): boolean {
 	return (
@@ -16,7 +18,7 @@ function checkIsOpenRouterContextWindowError(error: unknown): boolean {
 
 		// Use Record<string, any> for proper type narrowing
 		const err = error as Record<string, any>
-		const status = err.status ?? err.code ?? err.error?.status ?? err.response?.status
+		const status = getHttpStatus(err)
 		const message: string = String(err.message || err.error?.message || "")
 
 		// Known OpenAI/OpenRouter-style signal (code 400 and message includes "context length")

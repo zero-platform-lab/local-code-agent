@@ -41,6 +41,7 @@ import {
 } from "./activate"
 import { initializeI18n, t } from "./i18n"
 import { sessionMapping } from "./services/pii/maskConversation"
+import { setMappingStorageRoot } from "./core/ignore/AgentIgnoreController"
 import { FileMappingController, setFileMappingController } from "./services/pii/fileMapping"
 import { DEFAULT_FILE_MAPPING_LIMITS } from "./services/pii/fileMappingStore"
 import { piiMaskerFor } from "./core/webview/promptMessageHandlers"
@@ -281,6 +282,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		},
 	})
 	setFileMappingController(fileMapping)
+	setMappingStorageRoot(fileMapping.storageRoot)
 	context.subscriptions.push(...fileMapping.start())
 	registerFileMappingCommands(
 		context,

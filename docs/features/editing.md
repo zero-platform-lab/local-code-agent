@@ -20,7 +20,7 @@ LLM がファイルを書き換えるときの経路である。**変更は承�
 | `NFR-REL-02` `NFR-REL-03`                                                          | 拒否で元へ戻る。当たらなかった編集でファイルを壊さない   |
 
 ユースケースは UC-02（差分を読んで承認または破棄する）と UC-04（新しいエラーを直させる）。
-仕組みの説明は [diff-and-checkpoints.md](../diff-and-checkpoints.md) の 1 節にある。
+仕組みの説明は [diff-and-checkpoints.md](../development/diff-and-checkpoints.md) の 1 節にある。
 
 ### 扱わないもの
 

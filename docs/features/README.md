@@ -13,8 +13,8 @@
 | できていないこと | 要件を満たしていない箇所。**満たしたらここから消す** |
 
 **実装の構造の説明はここに書かない。** 構造は
-[architecture.md](../architecture.md)・[webview.md](../webview.md)・[mcp.md](../mcp.md)・
-[diff-and-checkpoints.md](../diff-and-checkpoints.md) にある。ここに書くのは、
+[architecture.md](../development/architecture.md)・[webview.md](../development/webview.md)・[mcp.md](../development/mcp.md)・
+[diff-and-checkpoints.md](../development/diff-and-checkpoints.md) にある。ここに書くのは、
 要件と実装を結ぶ判断である。
 
 ## 一覧

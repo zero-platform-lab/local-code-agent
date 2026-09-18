@@ -200,8 +200,8 @@ const inlineCounts = [
 	["docs/feature-inventory.md", /### C1\. コマンド（contributes\.commands、(\d+)）/, "コマンド"],
 	["docs/feature-inventory.md", /### C2\. 設定タブ（[^）]*、(\d+)）/, "設定のタブ"],
 	["AGENTS.md", /組み込みの役割モードは `code` と `research` の (\d+) 件である/, "役割モード"],
-	["docs/architecture.md", /組み込みは `code` と `research` の (\d+) 件である/, "役割モード"],
-	["docs/architecture.md", /`manual` \/ `autoEdit` \/ `auto` \/ `plan` の (\d+) 種類/, "自律モード"],
+	["docs/development/architecture.md", /組み込みは `code` と `research` の (\d+) 件である/, "役割モード"],
+	["docs/development/architecture.md", /`manual` \/ `autoEdit` \/ `auto` \/ `plan` の (\d+) 種類/, "自律モード"],
 ]
 
 let manifestCache

@@ -19,7 +19,7 @@
 | `NFR-USA-06`                                           | 設定の変更は、保存するまで反映しない                                                     |
 
 ユースケースは UC-01（指示を出す）ほか、画面を伴うすべて。
-仕組みの説明は [webview.md](../webview.md) にある。
+仕組みの説明は [webview.md](../development/webview.md) にある。
 
 ### 扱わないもの
 

@@ -20,7 +20,7 @@
 | `NFR-PERF-02` `NFR-REL-04`                             | 応答の待機に上限を設け、無応答のまま留まらない                         |
 
 ユースケースは UC-01（指示を出す）と UC-12（中断する）。
-反復をステップに分けた説明は [architecture.md](../architecture.md) の 4 節にある。
+反復をステップに分けた説明は [architecture.md](../development/architecture.md) の 4 節にある。
 
 ### 扱わないもの
 

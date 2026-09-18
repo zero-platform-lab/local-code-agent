@@ -24,7 +24,8 @@ import { ClineAskResponse } from "../../shared/WebviewMessage"
 import { summarizeConversation } from "../condense"
 import { manageContext, willManageContext } from "../context-management"
 import { checkContextWindowExceededError } from "../context/context-management/context-error-handling"
-import { getHttpStatus, isTerminalClientError, MAX_API_RETRY_ATTEMPTS } from "./apiRetryPolicy"
+import { isTerminalClientError, MAX_API_RETRY_ATTEMPTS } from "./apiRetryPolicy"
+import { getHttpStatus } from "./httpStatus"
 import { AutoApprovalHandler } from "../auto-approval"
 import { AgentIgnoreController } from "../ignore/AgentIgnoreController"
 import { type ApiMessage } from "../task-persistence"
@@ -628,7 +629,7 @@ export async function handleFirstChunkError(
 	// context-window 超過（4xx のことがある）は上の専用処理に任せるため除外済み。
 	if (isTerminalClientError(error, { isContextWindowExceeded: isContextWindowExceededError })) {
 		deps.log?.(
-			`[API] クライアントエラー HTTP ${getHttpStatus(error) ?? "?"} のため中断（リトライしない）: ${(error as { message?: string })?.message ?? ""}`,
+			`[API] クライアントエラー HTTP ${getHttpStatus(error)} のため中断（リトライしない）: ${(error as { message?: string })?.message ?? ""}`,
 		)
 		throw error
 	}

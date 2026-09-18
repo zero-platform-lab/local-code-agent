@@ -106,7 +106,7 @@ flowchart TB
 | `core/webview` → `core/task`           | `webviewMessageHandler`／`ClineProvider` が Task を生成・操作する | `src/core/webview/ClineProvider.ts`（`new Task(...)`）                   |
 | `core/task` → `api/providers`          | 送信（`api.createMessage`）                                       | `src/core/task/apiRequestOrchestrator.ts`                                |
 | `core/task` → `services/pii`           | 送信直前の伏せ字（`maskForRequest`）                              | `src/core/task/apiRequestOrchestrator.ts`                                |
-| `core/task` → `core/assistant-message` | 応答の提示とツール実行（`presentAssistantMessage`）               | `src/core/task/runOneApiIteration.ts`                                    |
+| `core/task` → `core/assistant-message` | 応答の提示とツール実行（`presentAssistantMessage`）               | `src/core/task/Task.ts`                                                  |
 | `tools` → `integrations`               | コマンド実行・差分適用                                            | `ExecuteCommandTool`（terminal）／`EditTool`・`ApplyPatchTool`（editor） |
 | `tools` → `services`                   | 検索・スキル・スラッシュコマンド                                  | `SearchFilesTool`／`SkillTool`／`RunSlashCommandTool`                    |
 
@@ -216,7 +216,7 @@ collaborator のクラスはいずれも `src/core/task/<クラス名>.ts` に�
 
 ### ループの各層
 
-`recursivelyMakeClineRequests()` から始まる呼び出しは、明示的なスタックを回すループとして実装されている（関数の再帰ではない）。関数どうしの呼び出しの入れ子は、表の後の図に示す。
+`recursivelyMakeClineRequests()` は `runRecursiveClineLoop` を呼ぶ。この呼び出しは、明示的なスタックを回すループとして実装されている（関数の再帰ではない）。関数どうしの呼び出しの入れ子は、表の後の図に示す。
 
 | 層                        | file                                                    | 役割                                                                                                                      |
 | ------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |

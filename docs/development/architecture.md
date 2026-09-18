@@ -110,6 +110,20 @@ flowchart TB
 | `tools` → `integrations`               | コマンド実行・差分適用                                            | `ExecuteCommandTool`（terminal）／`EditTool`・`ApplyPatchTool`（editor） |
 | `tools` → `services`                   | 検索・スキル・スラッシュコマンド                                  | `SearchFilesTool`／`SkillTool`／`RunSlashCommandTool`                    |
 
+### 起動（activation）
+
+拡張は `src/package.json` の `activationEvents` に従って起動する。実質のトリガーは **`onStartupFinished`**（VS Code の起動が一段落した後に自動で常駐する。起動そのものは遅らせない）である。加えて `onLanguage`（コード系ファイルを開く）と、サイドバーのビュー（`openai-agent.SidebarProvider`）を開く・29 個のコマンドのいずれかを実行する、でも起動する。利用者が明示的に何かしなくても、VS Code が立ち上がれば拡張は動いている。
+
+入口は `main`（`dist/extension.js`）の `activate()`（`src/extension.ts`）で、概ね次の順に組み立てる。
+
+1. `ContextProxy`（`src/core/config/ContextProxy.ts`）で設定と状態を読み込む。
+2. **`ClineProvider`**（`src/core/webview/ClineProvider.ts`）を生成し、サイドバーのビューとして登録する（§3 の図の中核）。
+3. コマンドを登録する（`src/activate/`）。右クリックの伏せ字（`registerPiiCommands`）を含む。
+4. 伏せ字の対応表の窓口 **`FileMappingController`** を 1 つ生成し、拡張内で共有登録する。
+5. IPC 用の `API` を返す。
+
+ここまでは「拡張が常駐する」までの話である。**エージェントのループが動き出すのは別のトリガー**で、チャットの Webview から利用者が指示を送ると `ClineProvider` が `Task` を生成し、§4 のリクエストループが回り始める。
+
 ## 4. リクエストループ
 
 §1 のループの内部を段階順に示す。**ステップ 2〜5 がツール呼び出しのたびに繰り返され、ステップ 6 で継続可否を判定する**。各ステップには対応する関数名を添えた（コードを追う場合の起点）。

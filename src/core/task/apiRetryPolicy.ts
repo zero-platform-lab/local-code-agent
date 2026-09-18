@@ -13,10 +13,10 @@ export const MAX_API_RETRY_ATTEMPTS = 10
 
 /**
  * 時間や次回の送信で回復しうる一時的な 4xx。ここに挙げたものは終端にしない。
- * 408（Request Timeout）と 429（Too Many Requests）に限る。409（Conflict）や
- * 425（Too Early）は同じ内容の再送で直らないことが多いので、終端（即時に表面化）にする。
+ * 408（Request Timeout）・425（Too Early。RFC 8470 で再送安全）・429（Too Many Requests）。
+ * 409（Conflict）は同じ内容の再送で直らないことが多いので、終端（即時に表面化）にする。
  */
-const RETRYABLE_4XX = new Set([408, 429])
+const RETRYABLE_4XX = new Set([408, 425, 429])
 
 /**
  * 再試行しても直らない終端のクライアントエラー（HTTP 4xx）か。

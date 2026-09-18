@@ -127,13 +127,13 @@ UI 側でユーザーが何かすると、その操作は**種類（`type`）を
   `src/core/webview/worktreeMessageHandlers.ts`
 - **プロンプトの表** — システムプロンプトの取得/コピー、プロンプト強化、モード別カスタムプロンプト（`customModePrompts`）更新、OpenAI 互換エンドポイントのモデル一覧取得。
   `src/core/webview/promptMessageHandlers.ts`
-- **読み上げ（TTS）の表** — 音声の再生/停止、有効無効と速度の反映。
-  `src/core/webview/ttsMessageHandlers.ts`
 - **スキルの表** — スキルの一覧取得・作成・削除・移動・対応モード割当・ファイルを開く。`src/core/webview/skillsMessageHandler.ts`
 - **ファイル操作の表** — 画像/ファイルのオープン、メンション解決、ファイル内容の読み出し。
   `src/core/webview/fileEditorMessageHandlers.ts`
 - **UI 操作とチェックポイントの表** — パネルフォーカス、タブ切替、宣伝表示の非表示化、
   チェックポイントの差分表示/復元を担う。`src/core/webview/uiMessageHandlers.ts`
+
+表は以上の 12 個で、`webviewMessageHandler.ts` が import するものと一致する。読み上げ（TTS）には専用の表が無い。TTS の設定値は、ターミナルの設定などと同じく起動時に `src/core/webview/initializeWebview.ts` が反映する（再生/停止のメッセージ経路は持たない）。
 
 ```mermaid
 sequenceDiagram
@@ -214,7 +214,7 @@ UI 側は、届いた状態を**React Context のバッファ**に溜める。�
 という二段構えになっている。
 
 - 下書きと保存: `webview-ui/src/components/settings/SettingsView.tsx`
-- 保存の受け口: `src/core/webview/settingsMessageHandlers.ts`（`updateSettings`）
+- 保存の受け側: `src/core/webview/settingsMessageHandlers.ts`（`updateSettings`）
 
 ```mermaid
 flowchart TD

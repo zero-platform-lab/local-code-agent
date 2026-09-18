@@ -99,19 +99,32 @@ flowchart TB
 
 矢印は呼び出しの向き。実行結果と状態は Task → ClineProvider → Webview UI の順に通知され、UI が更新される。ツール実行はターミナル・ファイルシステム・MCP サーバ（外部プロセスまたはリモート）に作用する。
 
+モジュール境界を越える主な呼び出しは次のとおり（起点のファイルを添える。粒度は §7 とこの表の中間）。
+
+| 呼び出し元 → 呼び出し先                | 何を                                                              | 起点                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `core/webview` → `core/task`           | `webviewMessageHandler`／`ClineProvider` が Task を生成・操作する | `src/core/webview/ClineProvider.ts`（`new Task(...)`）                   |
+| `core/task` → `api/providers`          | 送信（`api.createMessage`）                                       | `src/core/task/apiRequestOrchestrator.ts`                                |
+| `core/task` → `services/pii`           | 送信直前の伏せ字（`maskForRequest`）                              | `src/core/task/apiRequestOrchestrator.ts`                                |
+| `core/task` → `core/assistant-message` | 応答の提示とツール実行（`presentAssistantMessage`）               | `src/core/task/runOneApiIteration.ts`                                    |
+| `tools` → `integrations`               | コマンド実行・差分適用                                            | `ExecuteCommandTool`（terminal）／`EditTool`・`ApplyPatchTool`（editor） |
+| `tools` → `services`                   | 検索・スキル・スラッシュコマンド                                  | `SearchFilesTool`／`SkillTool`／`RunSlashCommandTool`                    |
+
 ## 4. リクエストループ
 
 §1 のループの内部を段階順に示す。**ステップ 2〜5 がツール呼び出しのたびに繰り返され、ステップ 6 で継続可否を判定する**。各ステップには対応する関数名を添えた（コードを追う場合の起点）。
 
 1. **ユーザーが指示を送信する** — Webview UI から入力。新規タスク、または実行中タスクへのフォローアップ。
-2. **送信内容を組み立てる** — `@ファイル` 参照の展開と、プロジェクトの環境情報（開いているファイルなど）の付加を行う。（`prepareRequestCycle`）
-3. **LLM に送信する** — レート制限に応じて待機し、会話履歴が長い場合は自動要約（condense と呼ぶ）で圧縮した上で、システムプロンプト・履歴・ツール定義を送信する。（`attemptApiRequest` → `api.createMessage`）
+2. **送信内容を組み立てる** — `@ファイル` 参照の展開と、プロジェクトの環境情報（開いているファイルなど）を付加する。（`prepareRequestCycle`）
+3. **LLM に送信する** — レート制限に応じて待機し、会話履歴が長い場合は自動要約（condense と呼ぶ）で圧縮した上で、システムプロンプト・履歴・ツール定義を送信する。**送信直前に、送る写しにだけ個人情報を伏せる**（§7 の pii、詳細は [pii.md](pii.md)）。（`runOneRequest` → `attemptApiRequest`。`maskForRequest` で伏せてから `api.createMessage`）
 4. **応答をストリームで受信する** — 逐次届く断片を種類（本文テキスト / 推論 / ツール呼び出し）別に処理する。（`runStreamingLoop` → `processStreamChunk`）
-5. **ツール呼び出しを実行する** — 必要に応じてユーザーの承認を求め、ファイル変更は差分としてプレビュー適用する。実行結果を会話履歴に追加する。（`presentAssistantMessage`）
+5. **ツールを実行する** — 必要に応じてユーザーの承認を求め、ファイル変更は差分としてプレビュー適用する。実行結果を会話履歴に追加する。（`presentAssistantMessage`）
 6. **継続を判定する** — ツールを実行した場合は、その結果とともにステップ 2 へ戻る。（`runRecursiveClineLoop`。スタック駆動）
 7. **完了を報告する** — LLM が `attempt_completion` を返した時点でループを終了し、結果を表示する。
 
 中断要求は断片の境界ごとに確認される。API エラーが発生した場合は指数バックオフで再試行し、コンテキストウィンドウを超過した場合は自動要約で圧縮して同じループに戻る。
+
+各ステップの関数どうしの入れ子（`runRecursiveClineLoop` → `runOneRequest` → `attemptApiRequest` / `runOneApiIteration`）は、§8 の図で示す。
 
 ## 5. コンポーネント間シーケンス
 
@@ -167,13 +180,14 @@ UI は独立した React + Vite アプリケーションで、サンドボック
 | コンポーネント    | 役割                                                                                                                                                                                                                                                                                                        |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Task**          | タスク 1 件のライフサイクル全体を管理する中核クラス。実処理は collaborator 群と手続き関数群に委譲する（→ §8）。サブタスクはスタックにより入れ子で管理される                                                                                                                                                 |
-| **ClineProvider** | Webview の保持と Task スタックの管理を担う。タスクスタック / モード / プロバイダ設定の各コントローラなど約 20 の collaborator に責務を分散する                                                                                                                                                              |
+| **ClineProvider** | Webview の保持と Task スタックの管理を担う。タスクスタック / モード / プロバイダ設定の各コントローラなど 18 の collaborator に責務を分散する                                                                                                                                                                |
 | **api/providers** | LLM 呼び出し層。`openai` とテスト用 `fake-ai` 以外はハンドラ構築時に例外で拒否される。LLM 呼び出し・接続テスト・web_fetch は `getProxyDispatcher()` を経由する（http / https / socks5）。リモート MCP は別経路                                                                                              |
 | **tools**         | LLM が呼び出せる操作の実装。モードごとに使用できる範囲が制限される。ファイル操作（read_file / apply_diff / edit_file / write_to_file など）と探索・実行（codebase_search / execute_command / MCP ツール / web_fetch）。実行前のユーザー承認と `.agentignore` / `.agentprotected` によるファイル保護を備える |
 | **services**      | mcp（Model Context Protocol による外部ツールサーバ連携）/ コードインデックス・tree-sitter・ripgrep・検索 / checkpoints（作業ツリーに影響しないシャドウ git リポジトリへのスナップショット保存）/ skills・command・agent-config                                                                              |
 | **integrations**  | terminal（コマンド実行）/ editor（差分のプレビュー適用）/ diagnostics・workspace・theme・misc                                                                                                                                                                                                               |
 | **core/prompts**  | システムプロンプトを節単位で組み立てる（役割 / ツール使用 / 能力 / ルール / 目的 / ユーザー設定）。目的（OBJECTIVE）節には、計画の事前提示と完了前検証の指示を含む                                                                                                                                          |
 | **core/config**   | `ContextProxy` が設定と秘密情報の単一の入口。API キーは VS Code の SecretStorage（OS のキーチェーン相当）に保存され、平文ファイルには書き出されない                                                                                                                                                         |
+| **pii**           | `src/services/pii/`。送信直前に個人情報を伏せる唯一の差し込み口（`maskForRequest`。§4 のステップ 3）。検出（規則の第 1 層＋モデルの第 2 層）と、伏せ字↔元の値の対応表を持つ。詳細は [pii.md](pii.md)                                                                                                       |
 
 **モード**には名前の似た別々の 2 軸がある。**役割モード**は LLM に与える役割文と使用できるツールグループの組であり、組み込みは `code` と `research` の 2 件である。**自律モード**は承認を求める範囲を決める設定であり、`manual` / `autoEdit` / `auto` / `plan` の 4 種類がある。ファイル種別による編集の制限は持たない（制限はツールグループ単位である）。詳細は [features/modes.md](../features/modes.md) と [features/approval.md](../features/approval.md)。
 
@@ -198,19 +212,41 @@ UI は独立した React + Vite アプリケーションで、サンドボック
 | `TaskLauncher`               | 起動元（新規 / 履歴からの再開）の確定                                                    |
 | `TaskSubscriptions`          | 外部イベント購読の登録と一括解除                                                         |
 
+collaborator のクラスはいずれも `src/core/task/<クラス名>.ts` にある。
+
 ### ループの各層
 
-`recursivelyMakeClineRequests()` から始まる呼び出しは、明示的なスタックを回すループとして実装されている（関数の再帰ではない）。
+`recursivelyMakeClineRequests()` から始まる呼び出しは、明示的なスタックを回すループとして実装されている（関数の再帰ではない）。関数どうしの呼び出しの入れ子は、表の後の図に示す。
 
-| 層                        | 役割                                                                                    |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| `runRecursiveClineLoop`   | スタックが空になるまで回す最上位ループ。中断確認と連続失敗の上限判定を行う              |
-| `prepareRequestCycle`     | メンション展開・環境情報の付加・ユーザーメッセージの履歴登録                            |
-| `runOneRequest`           | ストリーミング状態の初期化と API リクエストの発行                                       |
-| `runOneApiIteration`      | 1 リクエスト分の実行。ストリーム処理・途中エラーの処理・完了処理をまとめる              |
-| `runStreamingLoop`        | 中断と競合させながらストリームの断片を順に取り出す                                      |
-| `processStreamChunk`      | 断片を種類別（テキスト / 推論 / 使用量 / ツール呼び出し）に振り分ける薄いディスパッチャ |
-| `presentAssistantMessage` | 応答内容の提示とツール実行。再入ロックにより並行実行を防ぐ                              |
+| 層                        | file                                                    | 役割                                                                                                                      |
+| ------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `runRecursiveClineLoop`   | `src/core/task/runRecursiveClineLoop.ts`                | スタックが空になるまで回す最上位ループ。中断確認と連続失敗の上限判定を行う                                                |
+| `prepareRequestCycle`     | `src/core/task/prepareRequestCycle.ts`                  | メンション展開・環境情報の付加・ユーザーメッセージの履歴登録                                                              |
+| `runOneRequest`           | `src/core/task/runOneRequest.ts`                        | ストリーミング状態を初期化し、`attemptApiRequest` で API 要求（generator）を用意して `runOneApiIteration` へ渡す          |
+| `attemptApiRequest`       | `src/core/task/apiRequestOrchestrator.ts`               | 1 リクエストを組み立てて送る generator。送信直前に `maskForRequest` で伏せ、`api.createMessage` を呼ぶ（§4 のステップ 3） |
+| `runOneApiIteration`      | `src/core/task/runOneApiIteration.ts`                   | `attemptApiRequest` のストリームを消費する 1 リクエスト分の実行。ストリーム処理・途中エラー・完了処理をまとめる           |
+| `runStreamingLoop`        | `src/core/task/runStreamingLoop.ts`                     | 中断と競合させながらストリームの断片を順に取り出す                                                                        |
+| `processStreamChunk`      | `src/core/task/processStreamChunk.ts`                   | 断片を種類別（テキスト / 推論 / 使用量 / ツール呼び出し）に振り分ける薄いディスパッチャ                                   |
+| `presentAssistantMessage` | `src/core/assistant-message/presentAssistantMessage.ts` | 応答内容の提示とツール実行。再入ロックにより並行実行を防ぐ（`core/task` ではなく `core/assistant-message` にある）        |
+
+```mermaid
+flowchart TB
+    RRC["runRecursiveClineLoop<br/>最上位ループ（stack を回す）"]
+    PRC["prepareRequestCycle"]
+    ROR["runOneRequest"]
+    AAR["attemptApiRequest（generator）<br/>apiRequestOrchestrator.ts<br/>maskForRequest → api.createMessage"]
+    ROI["runOneApiIteration"]
+    RSL["runStreamingLoop → processStreamChunk"]
+    PAM["presentAssistantMessage<br/>core/assistant-message/"]
+
+    RRC --> PRC
+    RRC --> ROR
+    ROR --> AAR
+    ROR --> ROI
+    AAR -. ApiStream .-> ROI
+    ROI --> RSL
+    RSL -. コールバック .-> PAM
+```
 
 ## 9. ビルドと品質ゲート
 
@@ -237,4 +273,4 @@ git フック（husky）は別レイヤの軽量チェックである。pre-comm
 
 ---
 
-各論は [mcp.md](mcp.md)（MCP 連携）・[webview.md](webview.md)（Webview の詳細）・[diff-and-checkpoints.md](diff-and-checkpoints.md)（差分プレビューとチェックポイント）を参照。
+各論は [pii.md](pii.md)（個人情報の伏せ字）・[mcp.md](mcp.md)（MCP 連携）・[webview.md](webview.md)（Webview の詳細）・[diff-and-checkpoints.md](diff-and-checkpoints.md)（差分プレビューとチェックポイント）を参照。

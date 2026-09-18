@@ -4,6 +4,8 @@ import { serializeError } from "serialize-error"
 
 import { t } from "../../i18n"
 
+import { isTerminalClientError, MAX_API_RETRY_ATTEMPTS } from "./apiRetryPolicy"
+
 /**
  * ストリーミング中断エラー（mid-stream failure / user cancel）のリカバリ処理。
  *
@@ -74,6 +76,18 @@ export async function handleMidStreamError(
 		host.abortReason = cancelReason
 		await deps.abortTask()
 		return { action: "noop" }
+	}
+
+	// 非リトライの 4xx（400 など）、または再試行の上限超過は、リトライせず終端にする。
+	// 部分状態は上の abortStream で片付け済み、エラーは streamingFailedMessage で表面化済み。
+	// これをしないと、ストリーム途中で来た 400 が延々とリトライされ続ける。
+	if (isTerminalClientError(error) || previousRetryAttempt >= MAX_API_RETRY_ATTEMPTS) {
+		const reason =
+			previousRetryAttempt >= MAX_API_RETRY_ATTEMPTS ? "retry cap reached" : "terminal client error (4xx)"
+		console.error(`[Task#${host.taskId}.${host.instanceId}] ${reason}, aborting task: ${streamingFailedMessage}`)
+		host.abortReason = cancelReason
+		await deps.abortTask()
+		return { action: "break" }
 	}
 
 	// Stream failed - log the error and retry with the same content

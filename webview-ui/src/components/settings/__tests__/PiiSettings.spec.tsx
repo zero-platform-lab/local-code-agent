@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@/utils/test-utils"
 
 import type { PiiMasking } from "@openai-agent/types"
 
-import { PiiSettings } from "../PiiSettings"
+import { PiiSettings, inputValue } from "../PiiSettings"
 
 vi.mock("@vscode/webview-ui-toolkit/react", () => ({
 	VSCodeTextField: ({ value, onInput, placeholder, className, disabled, "data-testid": testId }: any) => (
@@ -356,5 +356,48 @@ describe("動かせない配布物（FR-PII-23g）", () => {
 		expect(screen.queryByTestId("pii-no-runtime")).not.toBeInTheDocument()
 		expect(screen.getByTestId("pii-proper-nouns-enabled")).toBeInTheDocument()
 		expect(screen.getByTestId("pii-entity-PER")).toBeInTheDocument()
+	})
+})
+
+describe("判定にかけてよい時間（FR-PII-23f）", () => {
+	const input = (value: string) => {
+		const set = renderWith({ properNouns: { enabled: true } })
+		fireEvent.change(screen.getByTestId("pii-time-budget"), { target: { value } })
+		return set
+	}
+
+	it("未設定なら既定の 10000 を出す", () => {
+		renderWith({ properNouns: { enabled: true } })
+
+		expect(screen.getByTestId("pii-time-budget")).toHaveValue("10000")
+	})
+
+	it("数を書けば、その値を保存する", () => {
+		expect(input("30000").mock.calls[0][0].properNouns.timeBudgetMs).toBe(30000)
+	})
+
+	it("0 は保存する（負の数だけを捨てる境目）", () => {
+		expect(input("0").mock.calls[0][0].properNouns.timeBudgetMs).toBe(0)
+	})
+
+	// 捨てないと NaN や負の値が保存され、第 2 層（モデル）が毎回すぐ切られる。
+	it.each([
+		{ name: "負の数", value: "-1" },
+		{ name: "空欄", value: "" },
+		{ name: "空白だけ", value: "  " },
+		{ name: "数でない", value: "10秒" },
+		{ name: "無限大", value: "Infinity" },
+	])("$name は捨てて、設定を変えない", ({ value }) => {
+		expect(input(value)).not.toHaveBeenCalled()
+	})
+})
+
+describe("inputValue", () => {
+	it("イベントの target から値を取り出す", () => {
+		expect(inputValue({ target: { value: "abc" } })).toBe("abc")
+	})
+
+	it.each([undefined, null, "abc", {}])("target の無いもの（%s）からは空文字を返す", (event) => {
+		expect(inputValue(event)).toBe("")
 	})
 })

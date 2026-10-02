@@ -9,7 +9,7 @@ import { getCostBreakdownIfNeeded } from "@src/utils/costFormatting"
 import type { ClineAsk, ClineMessage, ExtensionMessage } from "@openai-agent/types"
 
 import { findLast } from "@agent/array"
-import { SuggestionItem } from "@openai-agent/types"
+import { SuggestionItem, TaskStatus } from "@openai-agent/types"
 import { combineApiRequests } from "@agent/combineApiRequests"
 import { combineCommandSequences } from "@agent/combineCommandSequences"
 import { getApiMetrics } from "@agent/getApiMetrics"
@@ -59,6 +59,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		clineMessages: messages,
 		currentTaskItem,
 		currentTaskTodos,
+		currentTaskStatus,
 		taskHistory,
 		apiConfiguration,
 		organizationAllowList,
@@ -282,6 +283,18 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return false
 	}, [modifiedMessages, clineAsk, enableButtons, primaryButtonText])
 
+	/**
+	 * 止められるか。拡張が「実行中」と言っている間は、上の推測に関わらず止められるようにする。
+	 *
+	 * 上の推測は LLM の応答の受信中しか拾えず、ツールの実行中（長いコマンド、MCP、再試行の
+	 * 待ちなど）に停止ボタンが消えていた。自動承認したコマンドの「実行／拒否」が画面に
+	 * 残っていても、拡張は実行中と知っている。
+	 *
+	 * isStreaming 自体は変えない。それは「拒否」を「停止」に変えるのにも使っており、
+	 * 本物の承認待ちの直後（状態が入力待ちへ変わる前）に拒否を押すとタスクごと止まってしまう。
+	 */
+	const canStop = isStreaming || currentTaskStatus === TaskStatus.Running
+
 	const handleChatReset = useCallback(() => {
 		// Only reset message-specific state, preserving mode.
 		setInputValue("")
@@ -309,12 +322,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				// - API request in progress (isStreaming)
 				// - Queue has items (preserve message order during drain)
 				// - Command is running (command_output) - user's message should be queued for AI, not sent to terminal
-				if (
-					sendingDisabled ||
-					isStreaming ||
-					messageQueue.length > 0 ||
-					clineAskRef.current === "command_output"
-				) {
+				if (sendingDisabled || canStop || messageQueue.length > 0 || clineAskRef.current === "command_output") {
 					try {
 						console.log("queueMessage", text, images)
 						vscode.postMessage({ type: "queueMessage", text, images })
@@ -361,7 +369,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				handleChatReset()
 			}
 		},
-		[handleChatReset, sendingDisabled, isStreaming, messageQueue.length], // messagesRef and clineAskRef are stable
+		[handleChatReset, sendingDisabled, canStop, messageQueue.length], // messagesRef and clineAskRef are stable
 	)
 
 	const handleSetChatBoxMessage = useCallback(
@@ -1138,7 +1146,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				mode={mode}
 				setMode={setMode}
 				modeShortcutText={modeShortcutText}
-				isStreaming={isStreaming}
+				isStreaming={canStop}
 				onStop={handleStopTask}
 				onEnqueueMessage={handleEnqueueCurrentMessage}
 			/>

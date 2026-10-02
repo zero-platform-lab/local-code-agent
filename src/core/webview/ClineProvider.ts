@@ -98,6 +98,7 @@ import {
 } from "./buildProviderCollaborators"
 import { mergeAllowedCommands, mergeDeniedCommands } from "./mergeCommandLists"
 import { postStateWithDiagnostics } from "./webviewDiagnostics"
+import { taskStatusForWebview } from "./taskEventForwarding"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -614,6 +615,7 @@ export class ClineProvider
 			currentTaskItem: currentTask?.taskId ? this.taskHistoryStore.get(currentTask.taskId) : undefined,
 			clineMessages: currentTask?.messageStore.clineMessages || [],
 			currentTaskTodos: currentTask?.todoList || [],
+			currentTaskStatus: taskStatusForWebview(currentTask),
 			messageQueue: currentTask?.messageQueueService?.messages,
 			taskHistory: this.taskHistoryStore.getAll().filter((item: HistoryItem) => item.ts && item.task),
 			mergedAllowedCommands: mergeAllowedCommands(allowedCommands),

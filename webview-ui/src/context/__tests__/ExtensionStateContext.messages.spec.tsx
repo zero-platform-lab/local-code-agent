@@ -72,6 +72,28 @@ describe("ExtensionStateContextProvider messages", () => {
 		expect(context.version).not.toBe("9.9.9")
 	})
 
+	describe("taskStatus", () => {
+		it("拡張から届いた状態をそのまま持ち、次の通知で置き換える", () => {
+			renderProvider()
+
+			post({ type: "taskStatus", taskStatus: "running" })
+			expect(context.currentTaskStatus).toBe("running")
+
+			post({ type: "taskStatus", taskStatus: "none" })
+			expect(context.currentTaskStatus).toBe("none")
+		})
+
+		it("状態の全体（state）にも載り、後から届いた通知が上書きする", () => {
+			renderProvider()
+
+			post({ type: "state", state: { currentTaskStatus: "idle" } })
+			expect(context.currentTaskStatus).toBe("idle")
+
+			post({ type: "taskStatus", taskStatus: "running" })
+			expect(context.currentTaskStatus).toBe("running")
+		})
+	})
+
 	describe("state", () => {
 		it("hydrates from the extension", () => {
 			renderProvider()

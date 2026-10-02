@@ -284,6 +284,8 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-LOOP-02`  | 反復は、LLM が `attempt_completion` を返した時点で終了する                                                                                                                          | `attempt_completion`             |
 | `FR-LOOP-03`  | 反復は、関数の再帰ではなく明示的なスタックで実装する                                                                                                                                | 作り直し                         |
 | `FR-LOOP-04`  | 利用者は反復の途中で中断を要求できる。中断はストリームの断片の境界ごとに判定する                                                                                                    | 作り直し                         |
+| `FR-LOOP-04a` | 中断は、ツールの実行中にも受け付ける。実行中のコマンドは止め、止めた後にコマンドを起動しない                                                                                        | **独自**                         |
+| `FR-LOOP-04b` | タスクが実行中である間は、LLM の応答の受信中に限らず、中断の操作を画面に出す                                                                                                        | **独自**                         |
 | `FR-LOOP-05`  | 応答の断片は、本文・推論・使用量・ツール呼び出しの種類別に振り分ける                                                                                                                | 作り直し                         |
 | `FR-LOOP-06`  | ツール呼び出しの提示と実行は再入を禁じ、並行して実行しない                                                                                                                          | 作り直し                         |
 | `FR-LOOP-07`  | API がエラーを返した場合は、指数バックオフで再試行し、待機の残りを利用者へ表示する                                                                                                  | 作り直し                         |
@@ -950,6 +952,8 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-LOOP-02`  | 試験 |                                                                                                                                                                                               |
 | `FR-LOOP-03`  | 試験 | スタックが空になるまで繰り返す実装であること。関数の再帰では、長い反復で呼び出しの段数が積み上がる (`core/task/__tests__/Task.orchestration.spec.ts`)                                         |
 | `FR-LOOP-04`  | 試験 | 中断の要求を出した後、次の断片の処理へ進まないこと (`core/task/__tests__/Task.spec.ts`)                                                                                                       |
+| `FR-LOOP-04a` | 試験 | 実行中の sleep を止めるとプロセスが消え、止めた後に要求が出ないこと (`apps/vscode-e2e/src/suite/cancellation.test.ts`)                                                                        |
+| `FR-LOOP-04b` | 試験 | ツールだけが動く間も停止ボタンが出ること (`webview-ui/src/components/chat/__tests__/ChatView.wiring.spec.tsx`)                                                                                |
 | `FR-LOOP-05`  | 試験 |                                                                                                                                                                                               |
 | `FR-LOOP-06`  | 試験 | ツールの提示が実行中に再び呼ばれた場合、2 回目が待つこと                                                                                                                                      |
 | `FR-LOOP-07`  | 試験 | 再試行の間隔が回ごとに伸びること。待機の残りが画面へ出ること (`core/task/__tests__/ApiRequestTimingController.spec.ts`)                                                                       |

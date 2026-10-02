@@ -40,6 +40,38 @@ describe("runAbortTask", () => {
 		expect(host.saveClineMessages).toHaveBeenCalled()
 	})
 
+	it("実行中のコマンドがあれば止める（止めないとツールが終わりを待ち続け、停止が効かない）", async () => {
+		// 本物と同じく、abort されるまで終わらないコマンドを模す。
+		let finish: () => void = () => {}
+		const running = new Promise<void>((resolve) => (finish = resolve))
+		const terminalProcess = { abort: vi.fn(() => finish()) }
+		const host = makeHost({ terminalProcess })
+
+		await runAbortTask(host as never, false)
+
+		expect(terminalProcess.abort).toHaveBeenCalledTimes(1)
+		// 待っていたツールの側が先へ進める
+		await expect(running).resolves.toBeUndefined()
+	})
+
+	it("コマンドを止めるときに例外が出ても、dispose と保存は行う", async () => {
+		const terminalProcess = {
+			abort: vi.fn(() => {
+				throw new Error("already exited")
+			}),
+		}
+		const error = vi.spyOn(console, "error").mockImplementation(() => {})
+		const host = makeHost({ terminalProcess })
+
+		await runAbortTask(host as never, false)
+
+		expect(host.abort).toBe(true)
+		expect(host.dispose).toHaveBeenCalled()
+		expect(host.saveClineMessages).toHaveBeenCalled()
+		expect(error).toHaveBeenCalled()
+		error.mockRestore()
+	})
+
 	it("isAbandoned=true なら abandoned も立てる", async () => {
 		const host = makeHost()
 

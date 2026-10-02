@@ -2,10 +2,10 @@ import EventEmitter from "events"
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
-import { AgentEventName, type HistoryItem } from "@openai-agent/types"
+import { AgentEventName, TaskStatus, type HistoryItem } from "@openai-agent/types"
 
 import type { Task } from "../../task/Task"
-import { makeTaskCreationCallback, type TaskEventForwardingHost } from "../taskEventForwarding"
+import { makeTaskCreationCallback, taskStatusForWebview, type TaskEventForwardingHost } from "../taskEventForwarding"
 
 class FakeTask extends EventEmitter {
 	abortReason?: string
@@ -28,6 +28,7 @@ const makeHost = (overrides: Partial<TaskEventForwardingHost> = {}) => {
 		getCurrentTask: vi.fn(() => undefined),
 		getTaskWithId: vi.fn(async (id: string) => ({ historyItem: { id } as HistoryItem })),
 		createTaskWithHistoryItem: vi.fn(async () => undefined),
+		postMessageToWebview: vi.fn(async () => undefined),
 		...overrides,
 	}
 
@@ -84,10 +85,65 @@ describe("makeTaskCreationCallback", () => {
 
 		const [instance, cleanupFns] = setCleanup.mock.calls[0]
 		expect(instance).toBe(task)
-		expect(cleanupFns).toHaveLength(task.eventNames().length)
+		// 1 つのイベントに複数のリスナーが付く（状態の送信と中継）ので、名前ではなく数で比べる
+		const listenerTotal = task.eventNames().reduce((sum, name) => sum + task.listenerCount(name), 0)
+		expect(cleanupFns).toHaveLength(listenerTotal)
 
 		cleanupFns.forEach((fn: () => void) => fn())
 		expect(task.eventNames()).toHaveLength(0)
+	})
+
+	describe("状態を画面へ送る（停止ボタンの表示）", () => {
+		const statusEvents = [
+			AgentEventName.TaskStarted,
+			AgentEventName.TaskActive,
+			AgentEventName.TaskInteractive,
+			AgentEventName.TaskResumable,
+			AgentEventName.TaskIdle,
+			AgentEventName.TaskAborted,
+		] as const
+
+		it.each(statusEvents)("%s のたびに、その時点の状態を送る", (event) => {
+			const host = makeHost()
+			const task = Object.assign(new FakeTask(), { abort: false, taskStatus: TaskStatus.Running })
+			attach(host, task)
+
+			task.emit(event)
+
+			expect(host.postMessageToWebview).toHaveBeenCalledWith({
+				type: "taskStatus",
+				taskStatus: TaskStatus.Running,
+			})
+		})
+
+		it("ツールの実行中（ask を待っていない）は running を送り、入力待ちに変わったら interactive を送る", () => {
+			const host = makeHost()
+			const task = Object.assign(new FakeTask(), { abort: false, taskStatus: TaskStatus.Running })
+			attach(host, task)
+
+			task.emit(AgentEventName.TaskActive)
+			task.taskStatus = TaskStatus.Interactive
+			task.emit(AgentEventName.TaskInteractive)
+
+			expect(vi.mocked(host.postMessageToWebview).mock.calls.map(([m]) => m.taskStatus)).toEqual([
+				TaskStatus.Running,
+				TaskStatus.Interactive,
+			])
+		})
+
+		it("止めたタスクは、ask が残っていても none を送る", () => {
+			const host = makeHost()
+			const task = Object.assign(new FakeTask(), { abort: true, taskStatus: TaskStatus.Interactive })
+			attach(host, task)
+
+			task.emit(AgentEventName.TaskAborted)
+
+			expect(host.postMessageToWebview).toHaveBeenCalledWith({ type: "taskStatus", taskStatus: TaskStatus.None })
+		})
+	})
+
+	it("taskStatusForWebview はタスクが無ければ none を返す", () => {
+		expect(taskStatusForWebview(undefined)).toBe(TaskStatus.None)
 	})
 
 	it("rehydrates the task from history when streaming failed", async () => {
@@ -147,5 +203,21 @@ describe("makeTaskCreationCallback", () => {
 		await vi.waitFor(() => expect(host.log).toHaveBeenCalled())
 
 		expect(vi.mocked(host.log).mock.calls[0][0]).toContain("history gone")
+	})
+
+	it("Error でない値で失敗しても、文字列にしてログへ残す", async () => {
+		const host = makeHost({
+			getTaskWithId: vi.fn(async () => {
+				throw "storage offline"
+			}),
+		})
+		const task = new FakeTask()
+		task.abortReason = "streaming_failed"
+		attach(host, task)
+
+		task.emit(AgentEventName.TaskAborted)
+		await vi.waitFor(() => expect(host.log).toHaveBeenCalled())
+
+		expect(vi.mocked(host.log).mock.calls[0][0]).toContain("storage offline")
 	})
 })

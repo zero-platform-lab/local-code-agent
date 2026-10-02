@@ -2,7 +2,6 @@ import * as fs from "fs"
 import * as path from "path"
 
 import * as vscode from "vscode"
-import axios from "axios"
 
 import { t } from "../../i18n"
 import { getNonce } from "./getNonce"
@@ -37,8 +36,12 @@ export class WebviewContentGenerator {
 		const localServerUrl = `localhost:${localPort}`
 
 		// Check if local dev server is running.
+		// axios と同じく、2xx 以外も「起動していない」として扱う（fetch は 4xx・5xx で投げない）。
 		try {
-			await axios.get(`http://${localServerUrl}`)
+			const response = await fetch(`http://${localServerUrl}`)
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`)
+			}
 		} catch (_error) {
 			vscode.window.showErrorMessage(t("common:errors.hmr_not_running"))
 			return this.getHtmlContent(webview)

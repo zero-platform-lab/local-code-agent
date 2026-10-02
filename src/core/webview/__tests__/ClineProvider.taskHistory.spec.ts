@@ -24,15 +24,6 @@ vi.mock("fs/promises", () => ({
 	rm: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock("axios", () => ({
-	default: {
-		get: vi.fn().mockResolvedValue({ data: { data: [] } }),
-		post: vi.fn(),
-	},
-	get: vi.fn().mockResolvedValue({ data: { data: [] } }),
-	post: vi.fn(),
-}))
-
 vi.mock("delay", () => {
 	const delayFn = (_ms: number) => Promise.resolve()
 	delayFn.createDelay = () => delayFn

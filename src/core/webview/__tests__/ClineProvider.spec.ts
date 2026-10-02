@@ -2,7 +2,6 @@
 
 import type { MessageParam } from "@openai-agent/types"
 import * as vscode from "vscode"
-import axios from "axios"
 
 import {
 	type ProviderSettingsEntry,
@@ -36,15 +35,6 @@ vi.mock("fs/promises", () => ({
 	readFile: vi.fn().mockResolvedValue(""),
 	unlink: vi.fn().mockResolvedValue(undefined),
 	rmdir: vi.fn().mockResolvedValue(undefined),
-}))
-
-vi.mock("axios", () => ({
-	default: {
-		get: vi.fn().mockResolvedValue({ data: { data: [] } }),
-		post: vi.fn(),
-	},
-	get: vi.fn().mockResolvedValue({ data: { data: [] } }),
-	post: vi.fn(),
 }))
 
 vi.mock("../../../utils/safeWriteJson")
@@ -433,9 +423,13 @@ describe("ClineProvider", () => {
 			new ContextProxy(mockContext),
 			{ taskFactory: fakeTaskFactory as any },
 		)
-		;(axios.get as any).mockRejectedValueOnce(new Error("Network error"))
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")))
 
-		await provider.resolveWebviewView(mockWebviewView)
+		try {
+			await provider.resolveWebviewView(mockWebviewView)
+		} finally {
+			vi.unstubAllGlobals()
+		}
 
 		expect(mockWebviewView.webview.options).toEqual({
 			enableScripts: true,

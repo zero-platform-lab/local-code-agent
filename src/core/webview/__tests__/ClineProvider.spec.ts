@@ -563,6 +563,83 @@ describe("ClineProvider", () => {
 		expect(mockPostMessage).toHaveBeenCalled()
 	})
 
+	// 白い画面の調査用のログ（webviewDiagnostics.ts）。起動の受信から状態の送信までを、
+	// 本物の ClineProvider で繋いで確かめる。
+	test("webviewDidLaunch を受けたら、起動と送った状態の大きさを出力パネルへ残す", async () => {
+		await provider.resolveWebviewView(mockWebviewView)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as any).mock.calls[0][0]
+		const lines = () => (mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mock.calls.map(([line]) => line)
+
+		await messageHandler({ type: "webviewDidLaunch" })
+
+		expect(lines()).toContainEqual(expect.stringMatching(/^\[Webview\] launched at \S+ \(no task\)$/))
+		await vi.waitFor(() =>
+			expect(lines()).toContainEqual(
+				expect.stringMatching(/^\[Webview\] state post: \d+ bytes, clineMessages=0$/),
+			),
+		)
+		const statePosts = mockPostMessage.mock.calls.filter(
+			([message]: [ExtensionMessage | undefined]) => message?.type === "state",
+		)
+		expect(statePosts.length).toBeGreaterThan(0)
+	})
+
+	test("サイドバーの表示の切り替えと破棄を出力パネルへ残す", async () => {
+		await provider.resolveWebviewView(mockWebviewView)
+		const onVisibility = (mockWebviewView.onDidChangeVisibility as any).mock.calls[0][0]
+		const lines = () => (mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mock.calls.map(([line]) => line)
+
+		;(mockWebviewView as { visible: boolean }).visible = false
+		onVisibility()
+		;(mockWebviewView as { visible: boolean }).visible = true
+		onVisibility()
+
+		expect(lines()).toContain("[Webview] disposed (sidebar)")
+		expect(lines().filter((line) => line?.startsWith("[Webview] visibility:"))).toEqual([
+			"[Webview] visibility: hidden",
+			"[Webview] visibility: visible",
+		])
+	})
+
+	test("タブの表示の切り替えと破棄を出力パネルへ残す", async () => {
+		const panel = {
+			webview: mockWebviewView.webview,
+			visible: false,
+			onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+			onDidChangeViewState: vi.fn(() => ({ dispose: vi.fn() })),
+		} as unknown as vscode.WebviewPanel
+		await provider.resolveWebviewView(panel)
+		const onViewState = (panel.onDidChangeViewState as any).mock.calls[0][0]
+		const onDispose = (panel.onDidDispose as any).mock.calls[0][0]
+		const lines = () => (mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mock.calls.map(([line]) => line)
+
+		onViewState()
+		;(panel as { visible: boolean }).visible = true
+		onViewState()
+		await onDispose()
+
+		expect(lines().filter((line) => line?.startsWith("[Webview] visibility:"))).toEqual([
+			"[Webview] visibility: hidden",
+			"[Webview] visibility: visible",
+		])
+		expect(mockPostMessage).toHaveBeenCalledWith({ type: "action", action: "didBecomeVisible" })
+		expect(lines()).toContain("[Webview] disposed (tab)")
+	})
+
+	test("タスクの途中で webviewDidLaunch を受けたら、読み込み直しとしてタスクを書く", async () => {
+		await provider.resolveWebviewView(mockWebviewView)
+		const task = fakeTaskFactory(defaultTaskOptions)
+		await provider.addClineToStack(task)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as any).mock.calls[0][0]
+
+		await messageHandler({ type: "webviewDidLaunch" })
+
+		const lines = (mockOutputChannel.appendLine as ReturnType<typeof vi.fn>).mock.calls.map(([line]) => line)
+		expect(lines).toContainEqual(
+			expect.stringMatching(new RegExp(`^\\[Webview\\] launched at \\S+ \\(task ${task.taskId} is running\\)$`)),
+		)
+	})
+
 	test("clearTask aborts current task", async () => {
 		// Setup Cline instance with auto-mock from the top of the file
 		const mockCline = fakeTaskFactory(defaultTaskOptions) // Create a new mocked instance

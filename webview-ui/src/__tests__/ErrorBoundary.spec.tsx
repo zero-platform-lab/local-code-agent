@@ -2,6 +2,12 @@ import React from "react"
 import { render, screen } from "@testing-library/react"
 import ErrorBoundary from "../components/ErrorBoundary"
 
+const mocks = vi.hoisted(() => ({ postMessage: vi.fn() }))
+
+vi.mock("@src/utils/vscode", () => ({
+	vscode: { postMessage: (...args: unknown[]) => mocks.postMessage(...args) },
+}))
+
 // Mock translation function
 vi.mock("react-i18next", () => {
 	const tFunction = (key: string) => key
@@ -72,5 +78,21 @@ describe("ErrorBoundary", () => {
 		expect(screen.getByText(/Test component error/)).toBeInTheDocument()
 
 		spy.mockRestore()
+	})
+
+	// 白い画面の調査用。描画のエラーを、ソースマップの適用を待たずに拡張のログへ送る。
+	it("描画のエラーを拡張へ送る", () => {
+		mocks.postMessage.mockClear()
+
+		render(
+			<ErrorBoundary>
+				<ErrorThrower shouldThrow={true} message="reported error" />
+			</ErrorBoundary>,
+		)
+
+		expect(mocks.postMessage).toHaveBeenCalledWith({
+			type: "webviewDiagnostic",
+			text: expect.stringMatching(/^render error: Error: reported error[\s\S]*ErrorThrower/),
+		})
 	})
 })

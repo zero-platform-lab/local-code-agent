@@ -7,6 +7,7 @@ import { t } from "../../i18n"
 import { getCommand } from "../../utils/commands"
 
 import type { WebviewMessageHost } from "./webviewMessageHost"
+import { formatWebviewDiagnostic } from "./webviewDiagnostics"
 
 /**
  * webview の UI 操作とチェックポイント関連のメッセージハンドラ。
@@ -20,6 +21,11 @@ type UiMessageHandler = (provider: WebviewMessageHost, message: WebviewMessage) 
 const toErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 export const uiMessageHandlers: Partial<Record<WebviewMessage["type"], UiMessageHandler>> = {
+	// Webview のエラーを出力パネルへ残す（白い画面の調査用。webviewDiagnostics.ts）。
+	webviewDiagnostic: async (provider, message) => {
+		provider.log(formatWebviewDiagnostic(message.text))
+	},
+
 	focusPanelRequest: async () => {
 		// Execute the focusPanel command to focus the WebView
 		await vscode.commands.executeCommand(getCommand("focusPanel"))

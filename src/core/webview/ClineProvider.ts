@@ -97,6 +97,7 @@ import {
 	type ProviderStateSnapshot,
 } from "./buildProviderCollaborators"
 import { mergeAllowedCommands, mergeDeniedCommands } from "./mergeCommandLists"
+import { postStateWithDiagnostics } from "./webviewDiagnostics"
 
 /**
  * https://github.com/microsoft/vscode-webview-ui-toolkit-samples/blob/main/default/weather-webview/src/providers/WeatherViewProvider.ts
@@ -398,6 +399,11 @@ export class ClineProvider
 		}
 	}
 
+	/** 状態を Webview へ送る。大きさをログへ残す（白い画面の調査用。webviewDiagnostics.ts）。 */
+	public postStateMessage(state: ExtensionMessage["state"]): Promise<unknown> {
+		return postStateWithDiagnostics(this, state)
+	}
+
 	/**
 	 * Sets up an event listener to listen for messages passed from the webview context and
 	 * executes code based on the message that is received.
@@ -533,7 +539,7 @@ export class ClineProvider
 		const state = await this.getStateToPostToWebview()
 		this.clineMessagesSeq++
 		state.clineMessagesSeq = this.clineMessagesSeq
-		this.postMessageToWebview({ type: "state", state })
+		this.postStateMessage(state)
 	}
 
 	/**
@@ -573,7 +579,7 @@ export class ClineProvider
 		this.clineMessagesSeq++
 		state.clineMessagesSeq = this.clineMessagesSeq
 		const { taskHistory: _omit, ...rest } = state
-		this.postMessageToWebview({ type: "state", state: rest })
+		this.postStateMessage(rest)
 	}
 
 	/**
@@ -590,7 +596,7 @@ export class ClineProvider
 	async postStateToWebviewWithoutClineMessages(): Promise<void> {
 		const state = await this.getStateToPostToWebview()
 		const { clineMessages: _omitMessages, taskHistory: _omitHistory, ...rest } = state
-		this.postMessageToWebview({ type: "state", state: rest })
+		this.postStateMessage(rest)
 	}
 
 	async getStateToPostToWebview(): Promise<ExtensionState> {

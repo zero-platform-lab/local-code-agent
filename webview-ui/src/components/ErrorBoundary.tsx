@@ -1,6 +1,7 @@
 import React, { Component } from "react"
 import { withTranslation, WithTranslation } from "react-i18next"
 import { enhanceErrorWithSourceMaps } from "@src/utils/sourceMapUtils"
+import { describeErrorForExtension, reportWebviewDiagnostic } from "@src/utils/forwardErrorsToExtension"
 
 type ErrorProps = {
 	children: React.ReactNode
@@ -35,6 +36,8 @@ class ErrorBoundary extends Component<ErrorProps, ErrorState> {
 
 	async componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
 		const componentStack = errorInfo.componentStack || ""
+		// ソースマップの適用より先に送る。適用が失敗しても、拡張のログには残る。
+		reportWebviewDiagnostic(`render error: ${describeErrorForExtension(error)}${componentStack}`)
 		const enhancedError = await enhanceErrorWithSourceMaps(error, componentStack)
 
 		this.setState((previous) => ({

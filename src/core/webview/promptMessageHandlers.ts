@@ -55,7 +55,7 @@ export const promptMessageHandlers: Partial<Record<WebviewMessage["type"], Promp
 			customModePrompts: updatedPrompts,
 			hasOpenedModeSelector: currentState.hasOpenedModeSelector ?? false,
 		}
-		provider.postMessageToWebview({ type: "state", state: stateWithPrompts })
+		provider.postStateMessage(stateWithPrompts)
 	},
 
 	enhancePrompt: async (provider, message) => {

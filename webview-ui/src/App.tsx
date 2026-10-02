@@ -7,6 +7,7 @@ import { type ExtensionMessage } from "@openai-agent/types"
 import TranslationProvider from "./i18n/TranslationContext"
 import { vscode } from "./utils/vscode"
 import { initializeSourceMaps, exposeSourceMapsForDebugging } from "./utils/sourceMapInitializer"
+import { forwardErrorsToExtension } from "./utils/forwardErrorsToExtension"
 import { ExtensionStateContextProvider, useExtensionState } from "./context/ExtensionStateContext"
 import ChatView, { ChatViewRef } from "./components/chat/ChatView"
 import HistoryView from "./components/history/HistoryView"
@@ -274,18 +275,24 @@ const App = () => {
 
 const queryClient = new QueryClient()
 
-const AppWithProviders = () => (
-	<ErrorBoundary>
-		<ExtensionStateContextProvider>
-			<TranslationProvider>
-				<QueryClientProvider client={queryClient}>
-					<TooltipProvider delayDuration={STANDARD_TOOLTIP_DELAY}>
-						<App />
-					</TooltipProvider>
-				</QueryClientProvider>
-			</TranslationProvider>
-		</ExtensionStateContextProvider>
-	</ErrorBoundary>
-)
+const AppWithProviders = () => {
+	// エラーを拡張のログへ送る（白い画面の調査用）。ErrorBoundary の外で登録し、
+	// 中の画面が落ちた後も転送を続ける。
+	useEffect(() => forwardErrorsToExtension(), [])
+
+	return (
+		<ErrorBoundary>
+			<ExtensionStateContextProvider>
+				<TranslationProvider>
+					<QueryClientProvider client={queryClient}>
+						<TooltipProvider delayDuration={STANDARD_TOOLTIP_DELAY}>
+							<App />
+						</TooltipProvider>
+					</QueryClientProvider>
+				</TranslationProvider>
+			</ExtensionStateContextProvider>
+		</ErrorBoundary>
+	)
+}
 
 export default AppWithProviders

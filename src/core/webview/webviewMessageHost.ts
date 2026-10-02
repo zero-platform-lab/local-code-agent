@@ -70,6 +70,7 @@ export interface WebviewMessageHost {
 
 	// ---- Webview messaging ----
 	postMessageToWebview(message: ExtensionMessage): Promise<unknown>
+	postStateMessage(state: ExtensionMessage["state"]): Promise<unknown>
 	postStateToWebview(): Promise<void>
 	getState(): Promise<WebviewMessageHostState>
 	getStateToPostToWebview(): Promise<ExtensionState>

@@ -38,6 +38,11 @@ export interface InitializeWebviewHost {
 	dispose(): Promise<void>
 }
 
+/** 表示の切り替えを 1 行にする。白くなる直前に隠れて戻ったかを、ログで追えるようにする。 */
+function describeVisibility(visible: boolean | undefined): string {
+	return `[Webview] visibility: ${visible ? "visible" : "hidden"}`
+}
+
 export async function initializeWebview(
 	host: InitializeWebviewHost,
 	webviewView: vscode.WebviewView | vscode.WebviewPanel,
@@ -105,6 +110,7 @@ export async function initializeWebview(
 		// WebviewView and WebviewPanel have all the same properties except
 		// for this visibility listener panel.
 		const viewStateDisposable = webviewView.onDidChangeViewState(() => {
+			host.log(describeVisibility(host.view?.visible))
 			if (host.view?.visible) {
 				host.postMessageToWebview({ type: "action", action: "didBecomeVisible" })
 			}
@@ -114,6 +120,7 @@ export async function initializeWebview(
 	} else if ("onDidChangeVisibility" in webviewView) {
 		// sidebar
 		const visibilityDisposable = webviewView.onDidChangeVisibility(() => {
+			host.log(describeVisibility(host.view?.visible))
 			if (host.view?.visible) {
 				host.postMessageToWebview({ type: "action", action: "didBecomeVisible" })
 			}
@@ -126,6 +133,7 @@ export async function initializeWebview(
 	// This happens when the user closes the view or when the view is closed programmatically
 	webviewView.onDidDispose(
 		async () => {
+			host.log(`[Webview] disposed (${inTabMode ? "tab" : "sidebar"})`)
 			if (inTabMode) {
 				host.log("Disposing ClineProvider instance for tab view")
 				await host.dispose()

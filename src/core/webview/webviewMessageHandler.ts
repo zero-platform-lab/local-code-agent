@@ -3,6 +3,7 @@ import { type GlobalState, type WebviewMessage } from "@openai-agent/types"
 import type { WebviewMessageHost } from "./webviewMessageHost"
 import { checkExistKey } from "../../shared/checkExistApiConfig"
 import { getTheme } from "../../integrations/theme/getTheme"
+import { describeWebviewLaunch } from "./webviewDiagnostics"
 
 import { skillsMessageHandlers } from "./skillsMessageHandler"
 import { worktreeMessageHandlers } from "./worktreeMessageHandlers"
@@ -48,6 +49,9 @@ export const webviewMessageHandler = async (provider: WebviewMessageHost, messag
 
 	switch (message.type) {
 		case "webviewDidLaunch":
+			// タスクの途中でこれが出たら、Webview が読み込み直されている（白い画面の調査用）。
+			provider.log(describeWebviewLaunch(provider.getCurrentTask()?.taskId))
+
 			// 初回 state は hydration の唯一の入口。fire-and-forget のままだと reject が
 			// unhandled rejection として消え、白い画面の理由がどこにも残らない。
 			provider.postStateToWebview().catch((error) => {

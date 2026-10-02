@@ -695,6 +695,27 @@ describe("App", () => {
 		})
 	})
 
+	// 白い画面の調査用。画面のエラーを拡張のログへ送り、外したら送らない。
+	describe("エラーの転送", () => {
+		const diagnostics = () => mocks.postMessage.mock.calls.filter(([m]) => m?.type === "webviewDiagnostic")
+
+		it("マウント中の window のエラーを拡張へ送り、アンマウント後は送らない", () => {
+			const { unmount } = render(<AppWithProviders />)
+
+			act(() => {
+				window.dispatchEvent(new ErrorEvent("error", { error: new Error("boom"), message: "boom" }))
+			})
+			expect(diagnostics()).toEqual([
+				[{ type: "webviewDiagnostic", text: expect.stringMatching(/^error: Error: boom/) }],
+			])
+
+			unmount()
+			window.dispatchEvent(new ErrorEvent("error", { message: "after unmount" }))
+
+			expect(diagnostics()).toHaveLength(1)
+		})
+	})
+
 	describe("non-interactive click handling", () => {
 		it("asks the extension to focus the panel in editor mode", () => {
 			mockUseExtensionState.mockReturnValue({ didHydrateState: true, renderContext: "editor" })

@@ -419,6 +419,7 @@ export interface WebviewMessage {
 		| "toggleWorkspaceIndexing"
 		| "setAutoEnableDefault"
 		| "focusPanelRequest"
+		| "webviewDiagnostic"
 		| "openExternal"
 		| "switchTab"
 		| "saveCodeIndexSettingsAtomic"

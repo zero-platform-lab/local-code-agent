@@ -5,7 +5,7 @@ import { drainQueuedMessageForAsk } from "../drainQueuedMessageForAsk"
 function makeHost(message?: { text?: string; images?: string[] }) {
 	return {
 		messageQueueService: { dequeueMessage: vi.fn(() => message) },
-		handleWebviewAskResponse: vi.fn((..._a: unknown[]) => {}),
+		handleUserAskResponse: vi.fn((..._a: unknown[]) => {}),
 	}
 }
 
@@ -15,7 +15,7 @@ describe("drainQueuedMessageForAsk", () => {
 
 		drainQueuedMessageForAsk(host as never, "followup")
 
-		expect(host.handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(host.handleUserAskResponse).not.toHaveBeenCalled()
 	})
 
 	it.each(["tool", "command", "use_mcp_server"] as const)(
@@ -25,7 +25,7 @@ describe("drainQueuedMessageForAsk", () => {
 
 			drainQueuedMessageForAsk(host as never, type)
 
-			expect(host.handleWebviewAskResponse).toHaveBeenCalledWith("yesButtonClicked", "go", ["img"])
+			expect(host.handleUserAskResponse).toHaveBeenCalledWith("yesButtonClicked", "go", ["img"])
 		},
 	)
 
@@ -34,6 +34,6 @@ describe("drainQueuedMessageForAsk", () => {
 
 		drainQueuedMessageForAsk(host as never, "followup")
 
-		expect(host.handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "hi", undefined)
+		expect(host.handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "hi", undefined)
 	})
 })

@@ -448,6 +448,18 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		runHandleWebviewAskResponse({ host: this }, askResponse, text, images)
 	}
 
+	/**
+	 * 人が応答したときの入口。繰り返しの判定の回数を 0 に戻してから応答を渡す。
+	 *
+	 * 自動承認・自動拒否（applyAutoApprovalDecision）は handleWebviewAskResponse を直接呼び、
+	 * 回数を残す。ここで戻すと、自動で拒否され続けるループを止められなくなる。
+	 * 呼び出し箇所は userAskResponse.invariants.spec.ts が固定している。
+	 */
+	handleUserAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
+		this.toolRepetitionDetector.reset()
+		this.handleWebviewAskResponse(askResponse, text, images)
+	}
+
 	/** ユーザー操作で auto-approval timer をキャンセルする（発火前の抑止）。 */
 	public cancelAutoApprovalTimeout(): void {
 		this.askState.cancelAutoApprovalTimeout()

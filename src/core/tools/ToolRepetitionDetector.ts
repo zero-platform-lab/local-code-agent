@@ -68,6 +68,15 @@ export class ToolRepetitionDetector {
 	}
 
 	/**
+	 * 連続回数を 0 に戻す。人が応答したら呼ぶ（Task.handleUserAskResponse）。
+	 * 人が割り込んだ時点で、モデルの繰り返しはループではなくなる。
+	 */
+	public reset(): void {
+		this.consecutiveIdenticalToolCallCount = 0
+		this.previousToolCallJson = null
+	}
+
+	/**
 	 * Serializes a ToolUse object into a canonical JSON string for comparison
 	 *
 	 * @param toolUse The ToolUse object to serialize

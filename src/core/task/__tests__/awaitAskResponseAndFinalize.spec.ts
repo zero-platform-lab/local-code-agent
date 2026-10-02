@@ -34,7 +34,7 @@ function makeHost(askState: ReturnType<typeof makeAskState>, isEmpty = true) {
 		taskId: "t1",
 		emit: vi.fn(),
 		messageQueueService: { isEmpty: vi.fn(() => isEmpty), dequeueMessage: vi.fn() },
-		handleWebviewAskResponse: vi.fn(),
+		handleUserAskResponse: vi.fn(),
 	}
 }
 

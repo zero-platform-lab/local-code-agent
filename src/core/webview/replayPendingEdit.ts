@@ -11,7 +11,7 @@ export interface PendingEditTarget {
 	readonly messageStore: { clineMessages: ClineMessage[]; apiConversationHistory: ApiMessage[] }
 	overwriteClineMessages(messages: ClineMessage[]): Promise<void>
 	overwriteApiConversationHistory(messages: ApiMessage[]): Promise<void>
-	handleWebviewAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]): unknown
+	handleUserAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]): unknown
 }
 
 /** 保留編集ストアのうち、再生に必要な最小表面。 */
@@ -56,7 +56,7 @@ export async function replayPendingEdit(task: PendingEditTarget, pendingEdit: Pe
 	}
 
 	// Process the edited message
-	await task.handleWebviewAskResponse("messageResponse", pendingEdit.editedContent, pendingEdit.images)
+	await task.handleUserAskResponse("messageResponse", pendingEdit.editedContent, pendingEdit.images)
 }
 
 /**

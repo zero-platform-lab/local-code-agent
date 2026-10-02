@@ -26,7 +26,7 @@ export interface AwaitAskResponseAndFinalizeHost {
 		isEmpty(): boolean
 		dequeueMessage(): QueuedMessage | undefined
 	}
-	handleWebviewAskResponse: (askResponse: ClineAskResponse, text?: string, images?: string[]) => void
+	handleUserAskResponse: (askResponse: ClineAskResponse, text?: string, images?: string[]) => void
 }
 
 export interface AwaitAskResponseAndFinalizeInput {

@@ -20,15 +20,15 @@ function makeProvider(overrides: Partial<SubmitUserMessageProvider> = {}): Submi
 function makeHost(provider: SubmitUserMessageProvider | undefined) {
 	const emit = vi.fn()
 	const updateApiConfiguration = vi.fn()
-	const handleWebviewAskResponse = vi.fn()
+	const handleUserAskResponse = vi.fn()
 	const host: SubmitUserMessageStateHost = {
 		taskId: "task-123",
 		emit,
 		updateApiConfiguration,
-		handleWebviewAskResponse,
+		handleUserAskResponse,
 		providerRef: { deref: () => provider } as unknown as WeakRef<SubmitUserMessageProvider>,
 	}
-	return { host, emit, updateApiConfiguration, handleWebviewAskResponse }
+	return { host, emit, updateApiConfiguration, handleUserAskResponse }
 }
 
 afterEach(() => {
@@ -38,18 +38,18 @@ afterEach(() => {
 describe("submitUserMessage", () => {
 	it("text も images も空なら早期リターンし、provider 解決も emit も ask ハンドラ呼び出しも行わない", async () => {
 		const provider = makeProvider()
-		const { host, emit, handleWebviewAskResponse } = makeHost(provider)
+		const { host, emit, handleUserAskResponse } = makeHost(provider)
 
 		await submitUserMessage({ host }, undefined as unknown as string, undefined)
 
 		expect(emit).not.toHaveBeenCalled()
-		expect(handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(handleUserAskResponse).not.toHaveBeenCalled()
 		expect(provider.setMode).not.toHaveBeenCalled()
 	})
 
 	it("text のみ（mode / profile 無し）なら前後をトリムし、emit 後に messageResponse として ask ハンドラへ渡す", async () => {
 		const provider = makeProvider()
-		const { host, emit, updateApiConfiguration, handleWebviewAskResponse } = makeHost(provider)
+		const { host, emit, updateApiConfiguration, handleUserAskResponse } = makeHost(provider)
 
 		await submitUserMessage({ host }, "  hi  ")
 
@@ -57,7 +57,7 @@ describe("submitUserMessage", () => {
 		expect(provider.setProviderProfile).not.toHaveBeenCalled()
 		expect(updateApiConfiguration).not.toHaveBeenCalled()
 		expect(emit).toHaveBeenCalledWith(AgentEventName.TaskUserMessage, "task-123")
-		expect(handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "hi", [])
+		expect(handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "hi", [])
 	})
 
 	it("text が空でも images があれば続行し、mode / profile を切替え、profile 更新後の apiConfiguration を反映する", async () => {
@@ -65,7 +65,7 @@ describe("submitUserMessage", () => {
 		const provider = makeProvider({
 			getState: vi.fn((..._a: unknown[]) => Promise.resolve({ apiConfiguration: config })),
 		})
-		const { host, emit, updateApiConfiguration, handleWebviewAskResponse } = makeHost(provider)
+		const { host, emit, updateApiConfiguration, handleUserAskResponse } = makeHost(provider)
 
 		await submitUserMessage({ host }, "", ["img"], "architect", "prof-a")
 
@@ -74,20 +74,20 @@ describe("submitUserMessage", () => {
 		expect(provider.getState).toHaveBeenCalledTimes(1)
 		expect(updateApiConfiguration).toHaveBeenCalledWith(config)
 		expect(emit).toHaveBeenCalledWith(AgentEventName.TaskUserMessage, "task-123")
-		expect(handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "", ["img"])
+		expect(handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "", ["img"])
 	})
 
 	it("profile 切替後の getState が undefined なら apiConfiguration は反映しない", async () => {
 		const provider = makeProvider({
 			getState: vi.fn((..._a: unknown[]) => Promise.resolve(undefined)),
 		})
-		const { host, updateApiConfiguration, handleWebviewAskResponse } = makeHost(provider)
+		const { host, updateApiConfiguration, handleUserAskResponse } = makeHost(provider)
 
 		await submitUserMessage({ host }, "hi", undefined, undefined, "prof-b")
 
 		expect(provider.setProviderProfile).toHaveBeenCalledWith("prof-b")
 		expect(updateApiConfiguration).not.toHaveBeenCalled()
-		expect(handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "hi", [])
+		expect(handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "hi", [])
 	})
 
 	it("profile 切替後の getState に apiConfiguration が無ければ反映しない", async () => {
@@ -103,13 +103,13 @@ describe("submitUserMessage", () => {
 
 	it("provider 参照が失われていれば error ログを出し、以降の副作用（emit / ask ハンドラ）を行わない", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
-		const { host, emit, handleWebviewAskResponse } = makeHost(undefined)
+		const { host, emit, handleUserAskResponse } = makeHost(undefined)
 
 		await submitUserMessage({ host }, "hi")
 
 		expect(errorSpy).toHaveBeenCalledWith("[Task#submitUserMessage] Provider reference lost")
 		expect(emit).not.toHaveBeenCalled()
-		expect(handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(handleUserAskResponse).not.toHaveBeenCalled()
 	})
 
 	it("処理中に例外が出ても throw せず error ログに落とし、ask ハンドラは呼ばない", async () => {
@@ -118,12 +118,12 @@ describe("submitUserMessage", () => {
 		const provider = makeProvider({
 			setMode: vi.fn((..._a: unknown[]) => Promise.reject(boom)),
 		})
-		const { host, emit, handleWebviewAskResponse } = makeHost(provider)
+		const { host, emit, handleUserAskResponse } = makeHost(provider)
 
 		await submitUserMessage({ host }, "hi", [], "architect")
 
 		expect(errorSpy).toHaveBeenCalledWith("[Task#submitUserMessage] Failed to submit user message:", boom)
 		expect(emit).not.toHaveBeenCalled()
-		expect(handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(handleUserAskResponse).not.toHaveBeenCalled()
 	})
 })

@@ -450,7 +450,7 @@ export const taskMessageHandlers: Partial<Record<WebviewMessage["type"], TaskMes
 
 	askResponse: async (provider, message) => {
 		const resolved = await resolveIncomingImages(provider, { text: message.text, images: message.images })
-		provider.getCurrentTask()?.handleWebviewAskResponse(message.askResponse!, resolved.text, resolved.images)
+		provider.getCurrentTask()?.handleUserAskResponse(message.askResponse!, resolved.text, resolved.images)
 	},
 
 	// ---- Chat Message Queue ----

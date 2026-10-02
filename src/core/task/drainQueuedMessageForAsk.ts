@@ -15,7 +15,7 @@ import type { ClineAsk, ClineAskResponse, QueuedMessage } from "@openai-agent/ty
  */
 export interface DrainQueuedMessageForAskHost {
 	messageQueueService: { dequeueMessage(): QueuedMessage | undefined }
-	handleWebviewAskResponse: (askResponse: ClineAskResponse, text?: string, images?: string[]) => void
+	handleUserAskResponse: (askResponse: ClineAskResponse, text?: string, images?: string[]) => void
 }
 
 export function drainQueuedMessageForAsk(host: DrainQueuedMessageForAskHost, type: ClineAsk): void {
@@ -30,5 +30,5 @@ export function drainQueuedMessageForAsk(host: DrainQueuedMessageForAskHost, typ
 	const askResponse: ClineAskResponse =
 		type === "tool" || type === "command" || type === "use_mcp_server" ? "yesButtonClicked" : "messageResponse"
 
-	host.handleWebviewAskResponse(askResponse, message.text, message.images)
+	host.handleUserAskResponse(askResponse, message.text, message.images)
 }

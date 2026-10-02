@@ -22,7 +22,7 @@ const makeTask = (
 		},
 		overwriteClineMessages: vi.fn().mockResolvedValue(undefined),
 		overwriteApiConversationHistory: vi.fn().mockResolvedValue(undefined),
-		handleWebviewAskResponse: vi.fn().mockResolvedValue(undefined),
+		handleUserAskResponse: vi.fn().mockResolvedValue(undefined),
 		...overrides,
 	} as unknown as PendingEditTarget
 
@@ -49,7 +49,7 @@ describe("replayPendingEdit", () => {
 
 		expect(task.overwriteClineMessages).toHaveBeenCalledWith([msg(1)])
 		expect(task.overwriteApiConversationHistory).toHaveBeenCalledWith([apiMsg(1)])
-		expect(task.handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "edited!", ["img"])
+		expect(task.handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "edited!", ["img"])
 	})
 
 	it("対象メッセージが UI 履歴に無ければ何もしない", async () => {
@@ -58,7 +58,7 @@ describe("replayPendingEdit", () => {
 		await replayPendingEdit(task, pendingEdit({ messageTs: 999 }))
 
 		expect(task.overwriteClineMessages).not.toHaveBeenCalled()
-		expect(task.handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(task.handleUserAskResponse).not.toHaveBeenCalled()
 	})
 
 	it("API 履歴に対応するメッセージが無ければ UI 履歴だけ切り落とす", async () => {
@@ -68,7 +68,7 @@ describe("replayPendingEdit", () => {
 
 		expect(task.overwriteClineMessages).toHaveBeenCalledWith([msg(1)])
 		expect(task.overwriteApiConversationHistory).not.toHaveBeenCalled()
-		expect(task.handleWebviewAskResponse).toHaveBeenCalled()
+		expect(task.handleUserAskResponse).toHaveBeenCalled()
 	})
 })
 
@@ -98,11 +98,11 @@ describe("schedulePendingEditReplay", () => {
 		expect(store.clear).toHaveBeenCalledWith("task-task-1")
 
 		// 予約は遅延実行（タスクの復元完了を待つ）
-		expect(task.handleWebviewAskResponse).not.toHaveBeenCalled()
+		expect(task.handleUserAskResponse).not.toHaveBeenCalled()
 
 		await vi.advanceTimersByTimeAsync(100)
 
-		expect(task.handleWebviewAskResponse).toHaveBeenCalledWith("messageResponse", "edited!", ["img"])
+		expect(task.handleUserAskResponse).toHaveBeenCalledWith("messageResponse", "edited!", ["img"])
 	})
 
 	it("再生が失敗しても throw せず log に落とす", async () => {

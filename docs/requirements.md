@@ -292,6 +292,7 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-LOOP-08`  | LLM の応答が空だった場合は、猶予の回数まで再試行する                                                                                                                                | 作り直し                         |
 | `FR-LOOP-09`  | ツールの実行が連続して失敗した回数が上限に達した場合は、反復を止めて利用者の判断を求める                                                                                            | `consecutiveMistakeLimit`        |
 | `FR-LOOP-10`  | 同一のツールを同一の引数で繰り返し呼び出したことを検出し、反復を止める                                                                                                              | 作り直し                         |
+| `FR-LOOP-10a` | 利用者が応答した時点で、同一の呼び出しの回数を数え直す。自動の承認・拒否では数え直さない                                                                                            | `handleUserAskResponse`          |
 | `FR-LOOP-11`  | 1 リクエストの応答が所定の時間内に届かない場合は、待機を打ち切ってエラーとして利用者へ表示する                                                                                      | **独自**                         |
 | `FR-LOOP-11a` | 待機の打ち切りは、応答の全体だけでなく、ストリームの断片と断片の間隔にも適用する                                                                                                    | **独自**                         |
 | `FR-LOOP-11b` | 待機の上限は `openai-agent.apiRequestTimeout`（秒、既定 600）で定める。0 は上限を設けないことを表す                                                                                 | **独自**                         |
@@ -953,6 +954,7 @@ VS Code を日常的に使い、ターミナルのコマンドを読める。**
 | `FR-LOOP-08`  | 試験 |                                                                                                                                                                                               |
 | `FR-LOOP-09`  | 試験 | 上限に達した時点で反復が止まること。上限は設定で変えられること (`core/task/__tests__/checkMistakeLimit.spec.ts`)                                                                              |
 | `FR-LOOP-10`  | 試験 |                                                                                                                                                                                               |
+| `FR-LOOP-10a` | 試験 | 利用者の応答の後は同一の呼び出しが通り、自動の拒否の後は止まること (`core/task/__tests__/ask-queued-message-drain.spec.ts`)                                                                   |
 | `FR-LOOP-11`  | 試験 | 応答を返さない接続先に対し、上限の時間で終わること (`api/providers/__tests__/openaiHang.integration.spec.ts`)                                                                                 |
 | `FR-LOOP-11a` | 試験 | 最初の断片は届くが後続が来ない場合にも、上限の時間で終わること (同上)                                                                                                                         |
 | `FR-LOOP-11b` | 試験 | 0 を設定した場合、ウォッチドッグを張らないこと。0 で即座に失敗しないこと (`api/providers/__tests__/openai-timeout.spec.ts`)                                                                   |

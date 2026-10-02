@@ -541,4 +541,24 @@ describe("ToolRepetitionDetector", () => {
 			expect(result.askUser).toBeDefined()
 		})
 	})
+
+	describe("reset", () => {
+		it("上限の直前で戻すと、次の同じ呼び出しから数え直す", () => {
+			const detector = new ToolRepetitionDetector(3)
+			const tool = createToolUse("execute_command", "execute_command", { command: "npm test" })
+
+			// 3 回目まで通る。戻さなければ、次の 4 回目で止まる
+			for (let i = 0; i < 3; i++) {
+				expect(detector.check(tool).allowExecution).toBe(true)
+			}
+
+			detector.reset()
+
+			// 戻した後は、また 3 回通って 4 回目で止まる
+			for (let i = 0; i < 3; i++) {
+				expect(detector.check(tool).allowExecution).toBe(true)
+			}
+			expect(detector.check(tool).allowExecution).toBe(false)
+		})
+	})
 })

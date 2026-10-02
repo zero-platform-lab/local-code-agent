@@ -6,14 +6,14 @@ import { ClineAskResponse } from "../../shared/WebviewMessage"
  * ユーザー入力を送信するときに必要な操作。
  *
  * Task を state host として渡し、`emit` / `updateApiConfiguration` /
- * `handleWebviewAskResponse` は host 経由で直接呼ぶ。provider 参照のみ
+ * `handleUserAskResponse` は host 経由で直接呼ぶ。provider 参照のみ
  * WeakRef の解決を callback で受ける。
  */
 export interface SubmitUserMessageStateHost {
 	taskId: string
 	emit: (event: typeof AgentEventName.TaskUserMessage, taskId: string) => void
 	updateApiConfiguration: (config: ProviderSettings) => void
-	handleWebviewAskResponse: (response: ClineAskResponse, text?: string, images?: string[]) => void
+	handleUserAskResponse: (response: ClineAskResponse, text?: string, images?: string[]) => void
 	providerRef: WeakRef<SubmitUserMessageProvider>
 }
 
@@ -34,7 +34,7 @@ export interface SubmitUserMessageProvider {
  * webview の入力欄から送られたユーザーメッセージを受け取り、必要ならモード / プロバイダを
  * 切り替えたうえで、現在の Task の ask ハンドラへ「messageResponse」として渡す。
  *
- * webview を経由せず直接 `handleWebviewAskResponse` を呼ぶのは意図的。webview の
+ * webview を経由せず直接 `handleUserAskResponse` を呼ぶのは意図的。webview の
  * メッセージ状態がハイドレート前だと「新規タスクリクエスト」と解釈されてしまう
  * レースを避けるため。
  */
@@ -80,7 +80,7 @@ export async function submitUserMessage(
 		// Handle the message directly instead of routing through the webview.
 		// This avoids a race condition where the webview's message state hasn't
 		// hydrated yet, causing it to interpret the message as a new task request.
-		deps.host.handleWebviewAskResponse("messageResponse", text, images)
+		deps.host.handleUserAskResponse("messageResponse", text, images)
 	} catch (error) {
 		console.error("[Task#submitUserMessage] Failed to submit user message:", error)
 	}

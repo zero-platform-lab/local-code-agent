@@ -1,4 +1,10 @@
-import { AgentEventName, type HistoryItem, type TaskEvents } from "@openai-agent/types"
+import {
+	AgentEventName,
+	TaskStatus,
+	type ExtensionMessage,
+	type HistoryItem,
+	type TaskEvents,
+} from "@openai-agent/types"
 
 import type { Task } from "../task/Task"
 
@@ -8,6 +14,7 @@ export interface TaskEventForwardingHost {
 	getCurrentTask(): Task | undefined
 	getTaskWithId(id: string): Promise<{ historyItem: HistoryItem }>
 	createTaskWithHistoryItem(item: HistoryItem & { rootTask?: Task; parentTask?: Task }): Promise<unknown>
+	postMessageToWebview(message: ExtensionMessage): Promise<unknown>
 }
 
 export interface TaskEventForwardingDeps {
@@ -37,6 +44,29 @@ const TASK_ID_ONLY_EVENTS = [
 	AgentEventName.TaskFocused,
 	AgentEventName.TaskUnfocused,
 ] as const
+
+/**
+ * 状態が変わったときに画面へ知らせるイベント。画面はこれで停止ボタンを出し入れする。
+ *
+ * 画面はメッセージから「実行中か」を推測していたが、LLM の応答が終わってツールを実行して
+ * いる間は推測が外れ、停止ボタンが消えていた。拡張が持つ本当の状態を送る。
+ */
+const STATUS_EVENTS = [
+	AgentEventName.TaskStarted,
+	AgentEventName.TaskActive,
+	AgentEventName.TaskInteractive,
+	AgentEventName.TaskResumable,
+	AgentEventName.TaskIdle,
+	AgentEventName.TaskAborted,
+] as const
+
+/** 画面へ見せるタスクの状態。止めたタスクは、ask が残っていても `none` にする。 */
+export function taskStatusForWebview(task: Pick<Task, "abort" | "taskStatus"> | undefined): TaskStatus {
+	if (!task || task.abort) {
+		return TaskStatus.None
+	}
+	return task.taskStatus
+}
 
 type TaskListener = (...args: never[]) => void
 
@@ -94,6 +124,18 @@ export function makeTaskCreationCallback(
 			),
 			...TASK_ID_ONLY_EVENTS.map(
 				(event) => [event, () => deps.emit(event, instance.taskId)] as [keyof TaskEvents, TaskListener],
+			),
+			...STATUS_EVENTS.map(
+				(event) =>
+					[
+						event,
+						() => {
+							void host.postMessageToWebview({
+								type: "taskStatus",
+								taskStatus: taskStatusForWebview(instance),
+							})
+						},
+					] as [keyof TaskEvents, TaskListener],
 			),
 			[
 				AgentEventName.TaskAborted,

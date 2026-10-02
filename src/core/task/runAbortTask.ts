@@ -3,7 +3,7 @@ import { AgentEventName } from "@openai-agent/types"
 /**
  * `Task.abortTask()` の実装本体。
  *
- * abort/abandoned フラグの立て、error counter のリセット、
+ * abort/abandoned フラグの立て、実行中のコマンドの停止、error counter のリセット、
  * final token usage の emit、TaskAborted event の emit、dispose、
  * clineMessages の永続化まで一括で行う。
  *
@@ -20,6 +20,8 @@ export interface AbortTaskHost {
 	emit: (event: AgentEventName.TaskAborted) => unknown
 	dispose: () => void
 	saveClineMessages: () => Promise<boolean>
+	/** 実行中のコマンド。ExecuteCommandTool が実行の間だけ入れる。 */
+	terminalProcess?: { abort(): void }
 }
 
 export async function runAbortTask(host: AbortTaskHost, isAbandoned: boolean): Promise<void> {
@@ -29,6 +31,15 @@ export async function runAbortTask(host: AbortTaskHost, isAbandoned: boolean): P
 	}
 
 	host.abort = true
+
+	// 実行中のコマンドを止める。dispose はターミナルとタスクの紐付けを外すだけで、
+	// プロセスは止めない。止めないと、ツールはコマンドが終わるまで待ち続け、停止を
+	// 押してもタスクが止まらない（長く動くコマンドや、終わらないサーバーで顕著）。
+	try {
+		host.terminalProcess?.abort()
+	} catch (error) {
+		console.error(`Error aborting running command for task ${host.taskId}.${host.instanceId}:`, error)
+	}
 
 	// Reset consecutive error counters on abort (manual intervention)
 	host.graceRetry.resetAll()

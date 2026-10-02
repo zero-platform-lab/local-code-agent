@@ -37,6 +37,7 @@ export interface ExtensionStateExtras {
 	currentTaskItem: ExtensionState["currentTaskItem"]
 	clineMessages: ExtensionState["clineMessages"]
 	currentTaskTodos: ExtensionState["currentTaskTodos"]
+	currentTaskStatus: ExtensionState["currentTaskStatus"]
 	messageQueue: ExtensionState["messageQueue"]
 	taskHistory: ExtensionState["taskHistory"]
 	mergedAllowedCommands: string[]
@@ -133,6 +134,7 @@ export function buildExtensionState(state: StateForWebview, extras: ExtensionSta
 		currentTaskItem: extras.currentTaskItem,
 		clineMessages: extras.clineMessages,
 		currentTaskTodos: extras.currentTaskTodos,
+		currentTaskStatus: extras.currentTaskStatus,
 		messageQueue: extras.messageQueue,
 		taskHistory: extras.taskHistory,
 		enableCheckpoints: enableCheckpoints ?? DEFAULT_ENABLE_CHECKPOINTS,

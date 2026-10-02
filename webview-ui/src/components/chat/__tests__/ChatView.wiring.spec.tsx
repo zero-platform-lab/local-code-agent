@@ -1129,6 +1129,86 @@ describe("ChatView wiring", () => {
 			expect(posted()).toContainEqual({ type: "cancelTask" })
 		})
 
+		describe("拡張が実行中と言っている間は、停止ボタンを出す", () => {
+			/** LLM の応答は終わり（コスト確定）、ツールだけが動いている状態。 */
+			const toolRunning = (currentTaskStatus?: string) => ({
+				currentTaskStatus,
+				clineMessages: [
+					task(),
+					{
+						ts: 1001,
+						type: "say",
+						say: "api_req_started",
+						text: JSON.stringify({ request: "x", cost: 0.01 }),
+					} as ClineMessage,
+					{ ts: 1002, type: "say", say: "command_output", text: "still running..." } as ClineMessage,
+				],
+			})
+
+			it("応答が終わってツールだけが動いている間も、停止ボタンを出し、入力待ちに変わったら引っ込める", () => {
+				// 以前はメッセージからの推測だけで決めていて、この状態では停止ボタンが消えていた。
+				const { rerender } = renderChatView(toolRunning(undefined))
+				expect(textArea()).toHaveAttribute("data-streaming", "false")
+
+				setState(toolRunning("running"))
+				rerender(<ChatView isHidden={false} />)
+				expect(textArea()).toHaveAttribute("data-streaming", "true")
+				fireEvent.click(screen.getByTestId("textarea-stop"))
+				expect(posted()).toContainEqual({ type: "cancelTask" })
+
+				setState(toolRunning("interactive"))
+				rerender(<ChatView isHidden={false} />)
+				expect(textArea()).toHaveAttribute("data-streaming", "false")
+			})
+
+			it("自動承認したコマンドの「実行／拒否」が残っていても、実行中なら停止ボタンを出す", () => {
+				// 実機の画面で見つけた形。自動承認した command の ask が最後のメッセージとして残り、
+				// 画面はボタンを有効なまま出している。拡張はコマンドを実行中と知っている。
+				renderChatView({
+					currentTaskStatus: "running",
+					clineMessages: [
+						task(),
+						{ ts: 1001, type: "ask", ask: "command", text: "sleep 300" } as ClineMessage,
+					],
+				})
+
+				expect(textArea()).toHaveAttribute("data-streaming", "true")
+			})
+
+			it("停止ボタンが出ていても、拒否を押したら拒否として送る（タスクを止めない）", () => {
+				// 本物の承認待ちでは、状態が入力待ちへ変わるまで少し間がある。その間に拒否を
+				// 押しても、タスクごと止めてはいけない。
+				renderChatView({
+					currentTaskStatus: "running",
+					clineMessages: [
+						task(),
+						{
+							ts: 1001,
+							type: "ask",
+							ask: "tool",
+							text: JSON.stringify({ tool: "readFile" }),
+						} as ClineMessage,
+					],
+				})
+
+				fireEvent.click(screen.getByText("chat:reject.title"))
+
+				expect(posted()).toContainEqual(expect.objectContaining({ askResponse: "noButtonClicked" }))
+				expect(posted()).not.toContainEqual({ type: "cancelTask" })
+			})
+
+			it("実行中に送った文は、承認への返事ではなくキューへ入れる", () => {
+				renderChatView(toolRunning("running"))
+
+				type("ついでにこれも")
+				fireEvent.click(screen.getByTestId("textarea-send"))
+
+				expect(posted()).toContainEqual(
+					expect.objectContaining({ type: "queueMessage", text: "ついでにこれも" }),
+				)
+			})
+		})
+
 		it("cancels the task from the secondary button while streaming", () => {
 			const { rerender } = renderChatView({
 				clineMessages: [

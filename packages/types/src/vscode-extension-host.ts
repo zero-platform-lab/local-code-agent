@@ -8,6 +8,7 @@ import type { PromptComponent } from "./mode.js"
 import type { Experiments } from "./experiment.js"
 import type { ClineMessage, QueuedMessage } from "./message.js"
 import type { TodoItem } from "./todo.js"
+import type { TaskStatus } from "./task.js"
 import type { OrganizationAllowList } from "./organization.js"
 import type { GitCommit } from "./git.js"
 import type { McpServer } from "./mcp.js"
@@ -64,6 +65,7 @@ export interface ExtensionMessage {
 		| "insertTextIntoTextarea"
 		| "dismissedUpsells"
 		| "interactionRequired"
+		| "taskStatus"
 		| "modes"
 		| "taskWithAggregatedCosts"
 		// Worktree response types
@@ -137,6 +139,8 @@ export interface ExtensionMessage {
 	messageTs?: number
 	hasCheckpoint?: boolean
 	context?: string
+	/** `type: "taskStatus"` のとき、現在のタスクの状態。タスクが無ければ `none`。停止ボタンの表示に使う。 */
+	taskStatus?: TaskStatus
 	commands?: Command[]
 	queuedMessages?: QueuedMessage[]
 	list?: string[] // For dismissedUpsells
@@ -258,6 +262,7 @@ export type ExtensionState = Pick<
 	currentTaskId?: string
 	currentTaskItem?: HistoryItem
 	currentTaskTodos?: TodoItem[] // Initial todos for the current task
+	currentTaskStatus?: TaskStatus // 現在のタスクの状態。タスクが無ければ none。停止ボタンの表示に使う
 	apiConfiguration: ProviderSettings
 	uriScheme?: string
 

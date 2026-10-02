@@ -18,6 +18,7 @@ import {
 	DEFAULT_MAX_WORKSPACE_FILES,
 	DEFAULT_SHOW_AGENT_IGNORED_FILES,
 	DEFAULT_WRITE_DELAY_MS,
+	TaskStatus,
 } from "@openai-agent/types"
 
 import { buildExtensionState, type ExtensionStateExtras } from "../buildExtensionState"
@@ -31,6 +32,7 @@ const extras: ExtensionStateExtras = {
 	currentTaskItem: undefined,
 	clineMessages: [],
 	currentTaskTodos: [],
+	currentTaskStatus: TaskStatus.None,
 	messageQueue: [],
 	taskHistory: [],
 	mergedAllowedCommands: ["git status"],

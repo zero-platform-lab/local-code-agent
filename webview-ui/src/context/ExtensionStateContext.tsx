@@ -312,6 +312,11 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					setCommands(message.commands ?? [])
 					break
 				}
+				case "taskStatus": {
+					// 拡張が持つ本当の状態。停止ボタンの表示に使う（ChatView の isStreaming）。
+					setState((prevState) => ({ ...prevState, currentTaskStatus: message.taskStatus }))
+					break
+				}
 				case "messageUpdated": {
 					const clineMessage = message.clineMessage!
 					setState((prevState) => {

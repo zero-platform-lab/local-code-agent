@@ -74,6 +74,28 @@ describe("executeCommand", () => {
 		;(TerminalRegistry.getOrCreateTerminal as any).mockResolvedValue(mockTerminal)
 	})
 
+	describe("止めた後に起動しない", () => {
+		it("ターミナルを用意している間に止められたら、コマンドを起動しない", async () => {
+			// 承認の後、ターミナルを用意する間に停止が押された状況。この時点では
+			// task.terminalProcess が無いので、abort の側からはコマンドを止められない。
+			;(TerminalRegistry.getOrCreateTerminal as any).mockImplementation(async () => {
+				mockTask.abort = true
+				return mockTerminal
+			})
+
+			const [rejected, result] = await executeCommandInTerminal(mockTask, {
+				executionId: "cancelled-1",
+				command: "sleep 300",
+				terminalShellIntegrationDisabled: true,
+			})
+
+			expect(mockTerminal.runCommand).not.toHaveBeenCalled()
+			expect(mockTask.terminalProcess).toBeUndefined()
+			expect(rejected).toBe(false)
+			expect(String(result)).toContain("task was cancelled")
+		})
+	})
+
 	describe("Working Directory Behavior", () => {
 		it("should use terminal.getCurrentWorkingDirectory() in the output message for completed commands", async () => {
 			// Setup: Mock terminal to return a different current working directory

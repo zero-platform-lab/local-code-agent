@@ -57,6 +57,8 @@ interface ExecuteCommandHost extends ToolTaskContext, ToolTaskSay {
 		didToolFailInCurrentTurn: boolean
 	}
 	terminalProcess?: AgentTerminalProcess
+	/** 停止が押されたか。立っていたらコマンドを起動しない。 */
+	readonly abort: boolean
 	supersedePendingAsk(): void
 	readonly rooIgnoreController?: { validateCommand(command: string): string | undefined }
 	readonly providerRef: WeakRef<ExecuteCommandProvider>
@@ -402,6 +404,12 @@ export async function executeCommandInTerminal(
 		workingDir = terminal.getCurrentWorkingDirectory()
 	}
 
+	// 承認からここまでの間に止められていたら、起動しない。この時点ではまだ
+	// task.terminalProcess が無いので、abort の側からはコマンドを止められない。
+	if (task.abort) {
+		return [false, "The command was not run because the task was cancelled."]
+	}
+
 	const process = terminal.runCommand(command, callbacks)
 	task.terminalProcess = process
 
@@ -466,6 +474,7 @@ export async function executeCommandInTerminal(
 		task.terminalProcess = undefined
 	}
 
+	/* v8 ignore next 3 -- 到達不能: shellIntegrationError は宣言だけで、どこからも代入されない（ExecuteCommandTool.invariants.spec.ts の「シェル統合エラーからの復帰」を参照） */
 	if (shellIntegrationError) {
 		throw new ShellIntegrationError(shellIntegrationError)
 	}

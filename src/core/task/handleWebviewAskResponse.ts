@@ -25,7 +25,6 @@ export interface HandleWebviewAskResponseDeps {
 /**
  * webview からユーザー応答（yes / no / messageResponse）を受けた時の状態更新。
  *
- * - auto-approval タイマーを取り消す
  * - askResponse 3 フィールドを反映
  * - messageResponse なら checkpoint を1つ作る（timeline を汚さないよう chatRow は抑制）
  * - 直近の未回答 followup ask を answered にマーク
@@ -41,9 +40,6 @@ export function handleWebviewAskResponse(
 	images: string[] | undefined,
 ): void {
 	const { host } = deps
-
-	// Clear any pending auto-approval timeout when user responds
-	host.askState.cancelAutoApprovalTimeout()
 
 	host.askState.askResponse = askResponse
 	host.askState.askResponseText = text

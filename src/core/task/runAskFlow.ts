@@ -14,7 +14,7 @@ import type { AskState } from "./AskState"
  *
  * 1. abort ガード（呼び出し側の Task から throw を渡してもらう）
  * 2. `upsertAskMessage` で clineMessages に追加/更新
- * 3. `checkAutoApproval` + `applyAutoApprovalDecision`（timeout も含む）
+ * 3. `checkAutoApproval` + `applyAutoApprovalDecision`（Autopilot の自動の返事も含む）
  * 4. status mutable なら `scheduleAskStatusMutation`、そうでなく queue drain 対象なら
  *    `drainQueuedMessageForAsk`
  * 5. `awaitAskResponseAndFinalize` で pWaitFor + cleanup + return
@@ -81,10 +81,7 @@ export async function runAskFlow(
 	const state = provider ? await provider.getState() : undefined
 	const approval = await checkAutoApproval({ state, ask: type, text, isProtected })
 
-	const autoApprovalTimeout = applyAutoApprovalDecision(host, approval)
-	if (autoApprovalTimeout) {
-		timeouts.push(autoApprovalTimeout)
-	}
+	applyAutoApprovalDecision(host, approval)
 
 	// The state is mutable if the message is complete and the task will
 	// block (via the `pWaitFor`).

@@ -86,9 +86,6 @@ interface ChatRowProps {
 	onHeightChange: (isTaller: boolean) => void
 	onSuggestionClick?: (suggestion: SuggestionItem, event?: React.MouseEvent) => void
 	onBatchFileResponse?: (response: { [key: string]: boolean }) => void
-	onFollowUpUnmount?: () => void
-	isFollowUpAnswered?: boolean
-	isFollowUpAutoApprovalPaused?: boolean
 	editable?: boolean
 	hasCheckpoint?: boolean
 	onJumpToPreviousCheckpoint?: () => void
@@ -141,10 +138,7 @@ export const ChatRowContent = ({
 	isStreaming,
 	onToggleExpand,
 	onSuggestionClick,
-	onFollowUpUnmount,
 	onBatchFileResponse,
-	isFollowUpAnswered,
-	isFollowUpAutoApprovalPaused,
 	onJumpToPreviousCheckpoint,
 }: ChatRowContentProps) => {
 	const { t, i18n } = useTranslation()
@@ -1593,9 +1587,6 @@ export const ChatRowContent = ({
 									suggestions={followUpData?.suggest}
 									onSuggestionClick={onSuggestionClick}
 									ts={message?.ts}
-									onCancelAutoApproval={onFollowUpUnmount}
-									isAnswered={isFollowUpAnswered}
-									isFollowUpAutoApprovalPaused={isFollowUpAutoApprovalPaused}
 								/>
 							</div>
 						</>

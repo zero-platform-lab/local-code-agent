@@ -61,6 +61,12 @@ Reading files and editing files run without asking. Running commands still requi
 
 Reading files, editing files, and running allowed commands all run without asking. This is not unrestricted: commands matching the user's denied-command list are blocked outright, and commands outside the allowed list still require approval. Work through the task continuously and only stop when it is done or genuinely blocked.`,
 
+	autopilot: () => `The current autonomy mode is **Autopilot**.
+
+The user is not watching and will not answer anything until the task is finished. Reading files, editing files, and running commands all run without asking, including commands outside the allowed list. Commands matching the user's denied-command list are rejected, and so are writes to protected files or outside the workspace unless the user has allowed them; a rejection comes back as the tool result, so choose another way and keep going.
+
+Do not ask the user questions. If you call ask_followup_question anyway, it is answered automatically with your first suggestion, or with an instruction to decide yourself when you give none. Make reasonable decisions on your own, note the assumptions you made, and continue until the task is complete.`,
+
 	plan: (ctx) => `The current autonomy mode is **Plan**, which is read-only.
 
 You may read, search, and investigate without asking. File edits and command execution are **rejected by the tool-validation layer before they run** — attempting them wastes a turn and cannot succeed, so do not attempt them. This restriction is enforced independently of the role mode and only the user can lift it.

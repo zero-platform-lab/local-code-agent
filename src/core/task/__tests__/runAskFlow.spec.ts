@@ -27,7 +27,6 @@ const mockedAwait = vi.mocked(awaitAskResponseAndFinalize)
 
 const ASK_TS = 1000
 const STATE = { autoApprovalEnabled: true }
-const fakeTimeoutA = { tag: "A" } as unknown as NodeJS.Timeout
 const fakeTimeoutB = { tag: "B" } as unknown as NodeJS.Timeout
 
 // isStatusMutable=true の分岐で runAskFlow が組み立てた schedule 用 deps closure を
@@ -98,9 +97,8 @@ describe("runAskFlow", () => {
 		expect(mockedUpsert).not.toHaveBeenCalled()
 	})
 
-	it("provider あり・decision=ask で isStatusMutable：apply と schedule の timeout を積んで finalize に渡す", async () => {
+	it("provider あり・decision=ask で isStatusMutable：schedule の timeout を積んで finalize に渡す", async () => {
 		const { host, provider } = makeHost()
-		mockedApply.mockReturnValue(fakeTimeoutA)
 		mockedSchedule.mockImplementation((deps) => {
 			exerciseScheduleDeps(deps)
 			return fakeTimeoutB
@@ -116,10 +114,10 @@ describe("runAskFlow", () => {
 		expect(host.emit).toHaveBeenCalledWith(AgentEventName.TaskInteractive, "task-1")
 		expect(provider.postMessageToWebview).toHaveBeenCalledWith({ type: "interactionRequired" })
 		expect(host.askState.interactiveAsk).toEqual({ ts: ASK_TS })
-		// apply / schedule の両 timeout が timeouts に積まれた状態で finalize が呼ばれる
+		// schedule の timeout が timeouts に積まれた状態で finalize が呼ばれる
 		expect(mockedAwait).toHaveBeenCalledWith(host, {
 			askTs: ASK_TS,
-			timeouts: [fakeTimeoutA, fakeTimeoutB],
+			timeouts: [fakeTimeoutB],
 			type: "followup",
 			shouldDrainQueuedMessageForAsk: true,
 		})

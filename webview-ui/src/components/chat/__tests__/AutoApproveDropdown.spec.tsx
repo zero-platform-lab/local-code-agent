@@ -22,14 +22,12 @@ const state = vi.hoisted(() => ({
 	alwaysAllowExecute: false,
 	alwaysAllowMcp: false,
 	alwaysAllowSubtasks: false,
-	alwaysAllowFollowupQuestions: false,
 	setAutoApprovalEnabled: vi.fn(),
 	setAlwaysAllowReadOnly: vi.fn(),
 	setAlwaysAllowWrite: vi.fn(),
 	setAlwaysAllowExecute: vi.fn(),
 	setAlwaysAllowMcp: vi.fn(),
 	setAlwaysAllowSubtasks: vi.fn(),
-	setAlwaysAllowFollowupQuestions: vi.fn(),
 }))
 
 vi.mock("@/context/ExtensionStateContext", () => ({ useExtensionState: () => state }))
@@ -44,7 +42,6 @@ const reset = (overrides: Partial<typeof state> = {}) => {
 		alwaysAllowExecute: false,
 		alwaysAllowMcp: false,
 		alwaysAllowSubtasks: false,
-		alwaysAllowFollowupQuestions: false,
 		...overrides,
 	})
 }
@@ -70,7 +67,6 @@ describe("AutoApproveDropdown — the trigger", () => {
 			alwaysAllowExecute: true,
 			alwaysAllowMcp: true,
 			alwaysAllowSubtasks: true,
-			alwaysAllowFollowupQuestions: true,
 		})
 
 		render(<AutoApproveDropdown />)
@@ -163,19 +159,13 @@ describe("AutoApproveDropdown — changing permissions", () => {
 		render(<AutoApproveDropdown />)
 		open()
 
-		for (const key of [
-			"alwaysAllowExecute",
-			"alwaysAllowMcp",
-			"alwaysAllowSubtasks",
-			"alwaysAllowFollowupQuestions",
-		] as const) {
+		for (const key of ["alwaysAllowExecute", "alwaysAllowMcp", "alwaysAllowSubtasks"] as const) {
 			fireEvent.click(screen.getByTestId(`auto-approve-${key}`))
 		}
 
 		expect(state.setAlwaysAllowExecute).toHaveBeenCalledWith(true)
 		expect(state.setAlwaysAllowMcp).toHaveBeenCalledWith(true)
 		expect(state.setAlwaysAllowSubtasks).toHaveBeenCalledWith(true)
-		expect(state.setAlwaysAllowFollowupQuestions).toHaveBeenCalledWith(true)
 	})
 
 	it("leaves the master switch alone when a permission is turned off", () => {
@@ -194,7 +184,7 @@ describe("AutoApproveDropdown — changing permissions", () => {
 		fireEvent.click(screen.getByRole("button", { name: "chat:autoApprove.selectAll" }))
 
 		expect(state.setAlwaysAllowWrite).toHaveBeenCalledWith(true)
-		expect(state.setAlwaysAllowFollowupQuestions).toHaveBeenCalledWith(true)
+		expect(state.setAlwaysAllowSubtasks).toHaveBeenCalledWith(true)
 	})
 
 	it("turns the master switch on when everything is selected while it was off", () => {

@@ -517,6 +517,42 @@ describe("presentToolUse - 繰り返し検出", () => {
 		expect(handle).not.toHaveBeenCalled()
 	})
 
+	it("Autopilot では、上限に達する繰り返しでも判定せずに実行する", async () => {
+		const blocked = {
+			allowExecution: false,
+			askUser: { messageKey: "mistake_limit_reached", messageDetail: "repeated {toolName}" },
+		}
+		const { cline } = makeHost({
+			state: { mode: "code", customModes: [], autonomyMode: "autopilot" },
+			repetition: blocked,
+		})
+		const handle = vi.fn(async () => undefined)
+		mocks.toolDispatch.read_file = { handle }
+
+		await presentToolUse(cline as never, makeBlock())
+
+		expect(cline.toolRepetitionDetector.check).not.toHaveBeenCalled()
+		expect(cline.ask).not.toHaveBeenCalledWith("mistake_limit_reached", expect.anything())
+		expect(handle).toHaveBeenCalledTimes(1)
+	})
+
+	it("Auto では、同じ繰り返しを判定して止める（Autopilot との対比）", async () => {
+		const { cline } = makeHost({
+			state: { mode: "code", customModes: [], autonomyMode: "auto" },
+			repetition: {
+				allowExecution: false,
+				askUser: { messageKey: "mistake_limit_reached", messageDetail: "repeated {toolName}" },
+			},
+		})
+		const handle = vi.fn(async () => undefined)
+		mocks.toolDispatch.read_file = { handle }
+
+		await presentToolUse(cline as never, makeBlock())
+
+		expect(cline.toolRepetitionDetector.check).toHaveBeenCalledTimes(1)
+		expect(handle).not.toHaveBeenCalled()
+	})
+
 	it("allowExecution=false でも askUser が無ければ通常どおり dispatch する", async () => {
 		const { cline } = makeHost({ repetition: { allowExecution: false } })
 		const handle = vi.fn(async () => undefined)

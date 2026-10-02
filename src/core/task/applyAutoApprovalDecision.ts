@@ -1,48 +1,40 @@
 import type { ClineAskResponse } from "@openai-agent/types"
 
 import type { CheckAutoApprovalResult } from "../auto-approval"
-import type { AskState } from "./AskState"
 
 /**
  * `checkAutoApproval` の判定結果を実際に Task に反映するモジュール。
  *
  * - "approve" / "deny" は即時に approveAsk / denyAsk を呼ぶ
- * - "timeout" は auto-approval Timeout を仕込み、`askState.autoApprovalTimeoutRef`
- *   にセットする（ユーザー操作があれば呼び出し側で clear 可能にするため返り値も返す）
+ * - "respond" は返事を即時に渡す（Autopilot が質問に答える）。待ち時間は置かない
  * - "ask" は何もしない（呼び出し側の pWaitFor へ）
+ *
+ * どれも人の応答ではないので、繰り返しの判定の回数を残す handleWebviewAskResponse を使う
+ * （userAskResponse.invariants.spec.ts）。
  */
 export interface ApplyAutoApprovalDecisionHost {
 	approveAsk: () => void
 	denyAsk: () => void
-	askState: AskState
 	handleWebviewAskResponse: (askResponse: ClineAskResponse, text?: string, images?: string[]) => void
 }
 
 export function applyAutoApprovalDecision(
 	host: ApplyAutoApprovalDecisionHost,
 	approval: CheckAutoApprovalResult,
-): NodeJS.Timeout | undefined {
+): void {
 	if (approval.decision === "approve") {
 		host.approveAsk()
-		return undefined
+		return
 	}
 
 	if (approval.decision === "deny") {
 		host.denyAsk()
-		return undefined
+		return
 	}
 
-	if (approval.decision === "timeout") {
-		// Store the auto-approval timeout so it can be cancelled if user interacts
-		const timeout = setTimeout(() => {
-			const { askResponse, text, images } = approval.fn()
-			host.handleWebviewAskResponse(askResponse, text, images)
-			host.askState.autoApprovalTimeoutRef = undefined
-		}, approval.timeout)
-		host.askState.autoApprovalTimeoutRef = timeout
-		return timeout
+	if (approval.decision === "respond") {
+		host.handleWebviewAskResponse(approval.askResponse, approval.text)
 	}
 
 	// decision === "ask" → nothing to do
-	return undefined
 }

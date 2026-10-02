@@ -8,7 +8,7 @@ import { z } from "zod"
  * IMPORTANT: autonomy is user-controlled ONLY. The model must never be able to raise its
  * own autonomy level — otherwise the destructive-command denylist could be bypassed.
  */
-export const autonomyModes = ["manual", "autoEdit", "auto", "plan"] as const
+export const autonomyModes = ["manual", "autoEdit", "auto", "autopilot", "plan"] as const
 
 export const autonomyModeSchema = z.enum(autonomyModes)
 
@@ -17,7 +17,7 @@ export type AutonomyMode = z.infer<typeof autonomyModeSchema>
 export const DEFAULT_AUTONOMY_MODE: AutonomyMode = "manual"
 
 /** Order used when cycling with the keyboard shortcut / badge click. */
-export const AUTONOMY_MODE_CYCLE: readonly AutonomyMode[] = ["manual", "autoEdit", "auto", "plan"] as const
+export const AUTONOMY_MODE_CYCLE: readonly AutonomyMode[] = ["manual", "autoEdit", "auto", "autopilot", "plan"] as const
 
 /**
  * Read-only autonomy modes. In these modes the agent may investigate (read/search) but
@@ -28,6 +28,16 @@ export const READ_ONLY_AUTONOMY_MODES: readonly AutonomyMode[] = ["plan"] as con
 
 export function isReadOnlyAutonomyMode(mode: AutonomyMode | undefined): boolean {
 	return !!mode && READ_ONLY_AUTONOMY_MODES.includes(mode)
+}
+
+/**
+ * Autopilot never stops to ask the user. Every blocking ask is answered automatically
+ * (src/core/auto-approval), and the stop-and-ask limits (consecutive mistakes, tool
+ * repetition, max requests / cost) are not checked. Only the user's cancel button stops it.
+ * Commands on deniedCommands are still denied.
+ */
+export function isAutopilotMode(mode: AutonomyMode | undefined): boolean {
+	return mode === "autopilot"
 }
 
 /**
@@ -69,6 +79,16 @@ export const AUTONOMY_PRESETS: Record<AutonomyMode, AutonomyPreset> = {
 	// Destructive commands remain blocked by deniedCommands; running arbitrary commands
 	// still requires the user to opt in via allowedCommands (e.g. "*").
 	auto: {
+		autoApprovalEnabled: true,
+		alwaysAllowReadOnly: true,
+		alwaysAllowWrite: true,
+		alwaysAllowExecute: true,
+		alwaysAllowMcp: true,
+		alwaysAllowSubtasks: true,
+	},
+	// Like auto, but never stops to ask: unlisted commands run, followup questions are
+	// answered automatically, and anything not allowed is denied instead of asked.
+	autopilot: {
 		autoApprovalEnabled: true,
 		alwaysAllowReadOnly: true,
 		alwaysAllowWrite: true,

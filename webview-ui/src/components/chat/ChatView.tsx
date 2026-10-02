@@ -127,7 +127,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	// 「一度表示したか」の記憶とその寿命管理（タスク切替/非表示/アンマウントでの破棄、
 	// 定期間引き）は useEverVisibleMessages が所有する。
 	const everVisibleMessages = useEverVisibleMessages({ isHidden, taskTs: task?.ts })
-	const [currentFollowUpTs, setCurrentFollowUpTs] = useState<number | null>(null)
 	const [aggregatedCostsMap, setAggregatedCostsMap] = useState<
 		Map<
 			string,
@@ -148,20 +147,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	useEffect(() => {
 		inputValueRef.current = inputValue
 	}, [inputValue])
-
-	// Compute whether auto-approval is paused (user is typing in a followup)
-	const isFollowUpAutoApprovalPaused = useMemo(() => {
-		return !!(inputValue && inputValue.trim().length > 0 && clineAsk === "followup")
-	}, [inputValue, clineAsk])
-
-	// Cancel auto-approval timeout when user starts typing
-	useEffect(() => {
-		// Only send cancel if there's actual input (user is typing)
-		// and we have a pending follow-up question
-		if (isFollowUpAutoApprovalPaused) {
-			vscode.postMessage({ type: "cancelAutoApproval" })
-		}
-	}, [isFollowUpAutoApprovalPaused])
 
 	const isProfileDisabled = useMemo(
 		() => !!apiConfiguration && !ProfileValidator.isProfileAllowed(apiConfiguration, organizationAllowList),
@@ -238,7 +223,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 	// useScrollLifecycle which has its own effect keyed on taskTs.
 	useEffect(() => {
 		setExpandedRows({})
-		setCurrentFollowUpTs(null)
 		setIsCondensing(false)
 	}, [task?.ts])
 
@@ -298,13 +282,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 		return false
 	}, [modifiedMessages, clineAsk, enableButtons, primaryButtonText])
 
-	const markFollowUpAsAnswered = useCallback(() => {
-		const lastFollowUpMessage = messagesRef.current.findLast((msg: ClineMessage) => msg.ask === "followup")
-		if (lastFollowUpMessage) {
-			setCurrentFollowUpTs(lastFollowUpMessage.ts)
-		}
-	}, [])
-
 	const handleChatReset = useCallback(() => {
 		// Only reset message-specific state, preserving mode.
 		setInputValue("")
@@ -355,10 +332,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				if (messagesRef.current.length === 0) {
 					vscode.postMessage({ type: "newTask", text, images })
 				} else if (clineAskRef.current) {
-					if (clineAskRef.current === "followup") {
-						markFollowUpAsAnswered()
-					}
-
 					// Use clineAskRef.current
 					switch (
 						clineAskRef.current // Use clineAskRef.current
@@ -388,7 +361,7 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				handleChatReset()
 			}
 		},
-		[handleChatReset, markFollowUpAsAnswered, sendingDisabled, isStreaming, messageQueue.length], // messagesRef and clineAskRef are stable
+		[handleChatReset, sendingDisabled, isStreaming, messageQueue.length], // messagesRef and clineAskRef are stable
 	)
 
 	const handleSetChatBoxMessage = useCallback(
@@ -782,11 +755,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 
 	const handleSuggestionClickInRow = useCallback(
 		(suggestion: SuggestionItem, event?: React.MouseEvent) => {
-			// Mark the current follow-up question as answered when a suggestion is clicked
-			if (clineAsk === "followup" && !event?.shiftKey) {
-				markFollowUpAsAnswered()
-			}
-
 			// Check if we need to switch modes
 			if (suggestion.mode) {
 				// モード切替はユーザーの明示的なクリックのときだけ行う。
@@ -811,18 +779,12 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 				setInputValue(preservedInput)
 			}
 		},
-		[handleSendMessage, setInputValue, switchToMode, clineAsk, markFollowUpAsAnswered],
+		[handleSendMessage, setInputValue, switchToMode],
 	)
 
 	const handleBatchFileResponse = useCallback((response: { [key: string]: boolean }) => {
 		// Handle batch file response, e.g., for file uploads
 		vscode.postMessage({ type: "askResponse", askResponse: "objectResponse", text: JSON.stringify(response) })
-	}, [])
-
-	// Cancel backend auto-approval timeout when FollowUpSuggest's countdown effect cleans up.
-	// This is called when auto-approve is toggled off, a suggestion is clicked, or the component unmounts.
-	const handleFollowUpUnmount = useCallback(() => {
-		vscode.postMessage({ type: "cancelAutoApproval" })
 	}, [])
 
 	const handleScrollToBottomAndResetCheckpointCursor = useCallback(() => {
@@ -865,9 +827,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 					isStreaming={isStreaming}
 					onSuggestionClick={handleSuggestionClickInRow} // This was already stabilized
 					onBatchFileResponse={handleBatchFileResponse}
-					onFollowUpUnmount={handleFollowUpUnmount}
-					isFollowUpAnswered={messageOrGroup.isAnswered === true || messageOrGroup.ts === currentFollowUpTs}
-					isFollowUpAutoApprovalPaused={isFollowUpAutoApprovalPaused}
 					editable={
 						messageOrGroup.type === "ask" &&
 						messageOrGroup.ask === "tool" &&
@@ -897,9 +856,6 @@ const ChatViewComponent: React.ForwardRefRenderFunction<ChatViewRef, ChatViewPro
 			isStreaming,
 			handleSuggestionClickInRow,
 			handleBatchFileResponse,
-			handleFollowUpUnmount,
-			currentFollowUpTs,
-			isFollowUpAutoApprovalPaused,
 			enableButtons,
 			primaryButtonText,
 			handleScrollToLatestCheckpoint,

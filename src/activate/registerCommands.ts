@@ -162,6 +162,7 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 	setAutonomyModeManual: () => setAutonomyModeCommand(outputChannel, "manual"),
 	setAutonomyModeAutoEdit: () => setAutonomyModeCommand(outputChannel, "autoEdit"),
 	setAutonomyModeAuto: () => setAutonomyModeCommand(outputChannel, "auto"),
+	setAutonomyModeAutopilot: () => setAutonomyModeCommand(outputChannel, "autopilot"),
 	setAutonomyModePlan: () => setAutonomyModeCommand(outputChannel, "plan"),
 })
 

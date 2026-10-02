@@ -91,22 +91,18 @@ describe("ExtensionStateContextProvider messages", () => {
 			expect(context.didHydrateState).toBe(true)
 		})
 
-		it("adopts the auto-approve and enhance flags when they are present", () => {
+		it("adopts the enhance flags when they are present", () => {
 			renderProvider()
 
 			post({
 				type: "state",
 				state: {
-					alwaysAllowFollowupQuestions: true,
-					followupAutoApproveTimeoutMs: 4321,
 					includeTaskHistoryInEnhance: false,
 					includeCurrentTime: false,
 					includeCurrentCost: false,
 				},
 			})
 
-			expect(context.alwaysAllowFollowupQuestions).toBe(true)
-			expect(context.followupAutoApproveTimeoutMs).toBe(4321)
 			expect(context.includeTaskHistoryInEnhance).toBe(false)
 			expect(context.includeCurrentTime).toBe(false)
 			expect(context.includeCurrentCost).toBe(false)
@@ -118,8 +114,6 @@ describe("ExtensionStateContextProvider messages", () => {
 			post({
 				type: "state",
 				state: {
-					alwaysAllowFollowupQuestions: true,
-					followupAutoApproveTimeoutMs: 4321,
 					includeTaskHistoryInEnhance: false,
 					includeCurrentTime: false,
 					includeCurrentCost: false,
@@ -127,8 +121,6 @@ describe("ExtensionStateContextProvider messages", () => {
 			})
 			post({ type: "state", state: { version: "2.0.0" } })
 
-			expect(context.alwaysAllowFollowupQuestions).toBe(true)
-			expect(context.followupAutoApproveTimeoutMs).toBe(4321)
 			expect(context.includeTaskHistoryInEnhance).toBe(false)
 			expect(context.includeCurrentTime).toBe(false)
 			expect(context.includeCurrentCost).toBe(false)
@@ -425,8 +417,6 @@ describe("ExtensionStateContextProvider setters", () => {
 		["setAlwaysAllowExecute", "alwaysAllowExecute", true],
 		["setAlwaysAllowMcp", "alwaysAllowMcp", true],
 		["setAlwaysAllowSubtasks", "alwaysAllowSubtasks", true],
-		["setAlwaysAllowFollowupQuestions", "alwaysAllowFollowupQuestions", true],
-		["setFollowupAutoApproveTimeoutMs", "followupAutoApproveTimeoutMs", 1234],
 		["setAllowedCommands", "allowedCommands", ["ls"]],
 		["setDeniedCommands", "deniedCommands", ["rm -rf"]],
 		["setAllowedMaxRequests", "allowedMaxRequests", 7],

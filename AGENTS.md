@@ -138,7 +138,7 @@
 ## 方針と既定の決定事項
 
 - **モードは 2 軸ある。名前が似ているだけの別機構なので混同しないこと。**
-    - **自律モード**（Manual / Auto-Edit / Auto / Plan）＝**権限**。Claude Code 型の権限モードで、
+    - **自律モード**（Manual / Auto-Edit / Auto / Autopilot / Plan）＝**権限**。Claude Code 型の権限モードで、
       `packages/types/src/autonomy.ts` の `AUTONOMY_PRESETS` が承認の要否（`alwaysAllow*`）を
       決める。Plan だけは承認を求めるのではなく、`src/core/tools/validateToolUse.ts` が
       edit / command グループのツールをすべて拒否する。適用は `ClineProvider.setAutonomyMode`。

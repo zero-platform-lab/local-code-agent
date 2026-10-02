@@ -49,10 +49,6 @@ export interface ExtensionStateContextType extends ExtensionState {
 	organizationAllowList: OrganizationAllowList
 	hasOpenedModeSelector: boolean // New property to track if user has opened mode selector
 	setHasOpenedModeSelector: (value: boolean) => void // Setter for the new property
-	alwaysAllowFollowupQuestions: boolean // New property for follow-up questions auto-approve
-	setAlwaysAllowFollowupQuestions: (value: boolean) => void // Setter for the new property
-	followupAutoApproveTimeoutMs: number | undefined // Timeout in ms for auto-approving follow-up questions
-	setFollowupAutoApproveTimeoutMs: (value: number) => void // Setter for the timeout
 	profileThresholds: Record<string, number>
 	setProfileThresholds: (value: Record<string, number>) => void
 	setApiConfiguration: (config: ProviderSettings) => void
@@ -244,8 +240,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 	const [commands, setCommands] = useState<Command[]>([])
 	const [mcpServers, setMcpServers] = useState<McpServer[]>([])
 	const [currentCheckpoint, setCurrentCheckpoint] = useState<string>()
-	const [alwaysAllowFollowupQuestions, setAlwaysAllowFollowupQuestions] = useState(false) // Add state for follow-up questions auto-approve
-	const [followupAutoApproveTimeoutMs, setFollowupAutoApproveTimeoutMs] = useState<number | undefined>(undefined) // Will be set from global settings
 	const [skills, setSkills] = useState<SkillMetadata[]>([])
 	const [includeTaskHistoryInEnhance, setIncludeTaskHistoryInEnhance] = useState(true)
 	const [includeCurrentTime, setIncludeCurrentTime] = useState(true)
@@ -274,14 +268,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 					const newState = message.state ?? {}
 					setState((prevState) => mergeExtensionState(prevState, newState))
 					setDidHydrateState(true)
-					// Update alwaysAllowFollowupQuestions if present in state message
-					if ((newState as any).alwaysAllowFollowupQuestions !== undefined) {
-						setAlwaysAllowFollowupQuestions((newState as any).alwaysAllowFollowupQuestions)
-					}
-					// Update followupAutoApproveTimeoutMs if present in state message
-					if ((newState as any).followupAutoApproveTimeoutMs !== undefined) {
-						setFollowupAutoApproveTimeoutMs((newState as any).followupAutoApproveTimeoutMs)
-					}
 					// Update includeTaskHistoryInEnhance if present in state message
 					if ((newState as any).includeTaskHistoryInEnhance !== undefined) {
 						setIncludeTaskHistoryInEnhance((newState as any).includeTaskHistoryInEnhance)
@@ -429,8 +415,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		commands,
 		writeDelayMs: state.writeDelayMs,
 		profileThresholds: state.profileThresholds ?? {},
-		alwaysAllowFollowupQuestions,
-		followupAutoApproveTimeoutMs,
 		setExperimentEnabled: (id, enabled) =>
 			setState((prevState) => ({ ...prevState, experiments: { ...prevState.experiments, [id]: enabled } })),
 		setApiConfiguration,
@@ -444,11 +428,6 @@ export const ExtensionStateContextProvider: React.FC<{ children: React.ReactNode
 		setAlwaysAllowExecute: (value) => setState((prevState) => ({ ...prevState, alwaysAllowExecute: value })),
 		setAlwaysAllowMcp: (value) => setState((prevState) => ({ ...prevState, alwaysAllowMcp: value })),
 		setAlwaysAllowSubtasks: (value) => setState((prevState) => ({ ...prevState, alwaysAllowSubtasks: value })),
-		setAlwaysAllowFollowupQuestions,
-		// contextValue は下の `followupAutoApproveTimeoutMs`（useState 側）を公開するので、
-		// setState 経由で state.followupAutoApproveTimeoutMs を書いても読み手からは見えない。
-		// alwaysAllowFollowupQuestions と同じく useState のセッターをそのまま渡す。
-		setFollowupAutoApproveTimeoutMs,
 		setAllowedCommands: (value) => setState((prevState) => ({ ...prevState, allowedCommands: value })),
 		setDeniedCommands: (value) => setState((prevState) => ({ ...prevState, deniedCommands: value })),
 		setAllowedMaxRequests: (value) => setState((prevState) => ({ ...prevState, allowedMaxRequests: value })),

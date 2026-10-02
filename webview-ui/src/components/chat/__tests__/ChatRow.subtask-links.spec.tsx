@@ -66,8 +66,6 @@ function renderChatRow(message: any, currentTaskItem?: Partial<HistoryItem>, cli
 				onToggleExpand={() => {}}
 				onSuggestionClick={() => {}}
 				onBatchFileResponse={() => {}}
-				onFollowUpUnmount={() => {}}
-				isFollowUpAnswered={false}
 			/>
 		</QueryClientProvider>,
 	)

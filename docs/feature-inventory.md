@@ -40,7 +40,7 @@
 **code / research** の 2 件。
 
 - **済**（PR #19・#21）: architect / ask / debug / orchestrator と `switch_mode` ツールを削除。
-  役割の軸を集約し、権限は自律モード（Manual / Auto-Edit / Auto / Plan）へ移した。
+  役割の軸を集約し、権限は自律モード（Manual / Auto-Edit / Auto / Autopilot / Plan）へ移した。
   計画の作法は plan 自律モードが引き継いでいる（`sections/autonomy.ts`）。
 - **済**（2026-08-29）: research（調査・運用）を追加して 2 件構成に戻した。groups は code と
   同一で、差は役割文のみである。
@@ -90,11 +90,11 @@
 - プロファイル一覧の項目は別スキーマである（`providerSettingsEntrySchema` の id / name /
   apiProvider / modelId）。上の 28 キーには含まれない。
 
-### B2. グローバル設定（`packages/types/src/global-settings.ts`、75キー）
+### B2. グローバル設定（`packages/types/src/global-settings.ts`、73キー）
 
 - **自動承認（~16）**: autoApprovalEnabled, alwaysAllow{ReadOnly, ReadOnlyOutsideWorkspace, Write,
-  WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks, FollowupQuestions},
-  allowedCommands, deniedCommands, allowedMaxCost, allowedMaxRequests, followupAutoApproveTimeoutMs, requestDelaySeconds
+  WriteOutsideWorkspace, WriteProtected, Execute, Mcp, Subtasks},
+  allowedCommands, deniedCommands, allowedMaxCost, allowedMaxRequests, requestDelaySeconds
 - **コンテキスト / 要約（~12）**: autoCondenseContext, autoCondenseContextPercent, customCondensingPrompt,
   maxOpenTabsContext, maxWorkspaceFiles, maxGitStatusFiles, includeCurrentCost, includeCurrentTime,
   includeDiagnosticMessages, maxDiagnosticMessages, diagnosticsEnabled, includeTaskHistoryInEnhance
@@ -127,13 +127,13 @@ codeIndex.embeddingBatchSize, debug, debugProxy.{enabled, serverUrl, tlsInsecure
 
 ## C. VS Code UI 面
 
-### C1. コマンド（contributes.commands、29）
+### C1. コマンド（contributes.commands、30）
 
 - タスク / 画面: plusButtonClicked, historyButtonClicked, popoutButtonClicked, settingsButtonClicked,
   openInNewTab, newTask, focusInput, acceptInput
 - コードアクション: explainCode, fixCode, improveCode, addToContext
 - ターミナル: terminalAddToContext, terminalFixCommand, terminalExplainCommand
-- 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Plan}（5コマンド）
+- 自律モード: toggleAutoApprove, cycleAutonomyMode, setAutonomyMode{Manual, AutoEdit, Auto, Autopilot, Plan}（7コマンド）
   → **核**。役割モードを畳んだ結果、モード制御はこの軸だけになった。
 - 機密情報の伏せ字: maskSecretsInFile, restoreSecretsInFile, addToDictionary, exportDictionary（4コマンド）
 - ファイル対応表: clearSelectedFileMapping, clearAllFileMapping（2コマンド。入/切は右下のトグル）

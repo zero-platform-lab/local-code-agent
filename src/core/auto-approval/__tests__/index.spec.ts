@@ -6,7 +6,7 @@
 // 不変条件として固定する。
 import type { ClineAsk, ClineSayTool, McpServer } from "@openai-agent/types"
 
-import { checkAutoApproval, type CheckAutoApprovalResult } from "../index"
+import { AUTOPILOT_NO_SUGGESTION_ANSWER, checkAutoApproval } from "../index"
 
 type CheckArgs = Parameters<typeof checkAutoApproval>[0]
 type AutoApprovalStateInput = NonNullable<CheckArgs["state"]>
@@ -38,8 +38,6 @@ const ALL_TOGGLES_ON = {
 	alwaysAllowMcp: true,
 	alwaysAllowSubtasks: true,
 	alwaysAllowExecute: true,
-	alwaysAllowFollowupQuestions: true,
-	followupAutoApproveTimeoutMs: 1000,
 	allowedCommands: ["*"],
 	deniedCommands: [],
 	mcpServers: MCP_SERVERS,
@@ -52,14 +50,6 @@ const toolText = (tool: Partial<ClineSayTool> & Pick<ClineSayTool, "tool">): str
 
 const mcpText = (use: { type: string; serverName?: string; toolName?: string; uri?: string }): string =>
 	JSON.stringify(use)
-
-/** timeout 判定を型で絞り込みつつ、そうでなければ落とす。 */
-const expectTimeout = (result: CheckAutoApprovalResult): Extract<CheckAutoApprovalResult, { decision: "timeout" }> => {
-	if (result.decision !== "timeout") {
-		throw new Error(`timeout を期待したが ${result.decision} が返った`)
-	}
-	return result
-}
 
 /**
  * 「全開設定なら承認される」要求の一覧。
@@ -143,7 +133,7 @@ describe("checkAutoApproval", () => {
 			})
 		}
 
-		it("followup も設定が無ければ ask（timeout 自動応答をしない）", async () => {
+		it("followup も設定が無ければ ask（自動で答えない）", async () => {
 			const text = JSON.stringify({ question: "?", suggest: [{ answer: "はい" }] })
 
 			expect((await checkAutoApproval({ state: undefined, ask: "followup", text })).decision).toBe("ask")
@@ -298,64 +288,194 @@ describe("checkAutoApproval", () => {
 		)
 	})
 
-	describe("followup（提案の自動選択）", () => {
+	describe("followup（Autopilot 以外は必ず人に聞く）", () => {
 		const suggestText = JSON.stringify({ question: "どちら?", suggest: [{ answer: "はい" }, { answer: "いいえ" }] })
 
-		it("トグル on + 提案あり + timeout>0 なら timeout 判定を返し、fn は先頭の提案を返す", async () => {
-			const result = expectTimeout(
-				await checkAutoApproval({
-					state: {
-						autoApprovalEnabled: true,
-						alwaysAllowFollowupQuestions: true,
-						followupAutoApproveTimeoutMs: 1500,
-					},
+		// 待ち時間で勝手に答える仕組み（カウントダウン）は削除した。全開の設定でも、
+		// 自動で答えるのは Autopilot だけである。
+		it.each(["manual", "autoEdit", "auto", "plan", undefined] as const)(
+			"自律モード %s では、全開の設定で提案があっても ask",
+			async (autonomyMode) => {
+				const result = await checkAutoApproval({
+					state: { ...ALL_TOGGLES_ON, autoApprovalEnabled: true, autonomyMode },
 					ask: "followup",
 					text: suggestText,
-				}),
-			)
+				})
 
-			expect(result.timeout).toBe(1500)
-			expect(result.fn()).toEqual({ askResponse: "messageResponse", text: "はい" })
+				expect(result.decision).toBe("ask")
+			},
+		)
+	})
+
+	describe("Autopilot（人に聞かずに答える）", () => {
+		/** Autopilot のプリセットだけを当てた状態。個別の設定（外側・保護対象）は付けない。 */
+		const AUTOPILOT: AutoApprovalStateInput = {
+			autonomyMode: "autopilot",
+			autoApprovalEnabled: true,
+			alwaysAllowReadOnly: true,
+			alwaysAllowWrite: true,
+			alwaysAllowExecute: true,
+			alwaysAllowMcp: true,
+			alwaysAllowSubtasks: true,
+			allowedCommands: [],
+			deniedCommands: ["rm -rf"],
+		}
+		const suggestText = JSON.stringify({ question: "どちら?", suggest: [{ answer: "はい" }, { answer: "いいえ" }] })
+
+		it("質問には、待たずに最初の候補で答える", async () => {
+			expect(await checkAutoApproval({ state: AUTOPILOT, ask: "followup", text: suggestText })).toEqual({
+				decision: "respond",
+				askResponse: "messageResponse",
+				text: "はい",
+			})
 		})
 
-		it("トグル off なら timeout にならず ask", async () => {
+		it.each([
+			{ name: "候補が空", text: JSON.stringify({ suggest: [] }) },
+			{ name: "text が無い", text: undefined },
+			{ name: "JSON が壊れている", text: "{壊れた" },
+			{ name: "JSON が null", text: "null" },
+		])("$name の質問には、自分で決めて進めるよう答える", async ({ text }) => {
+			expect(await checkAutoApproval({ state: AUTOPILOT, ask: "followup", text })).toEqual({
+				decision: "respond",
+				askResponse: "messageResponse",
+				text: AUTOPILOT_NO_SUGGESTION_ANSWER,
+			})
+		})
+
+		it("autoApprovalEnabled が false でも Autopilot の判定が優先する", async () => {
 			const result = await checkAutoApproval({
-				state: {
-					autoApprovalEnabled: true,
-					alwaysAllowFollowupQuestions: false,
-					followupAutoApproveTimeoutMs: 1500,
-				},
+				state: { ...AUTOPILOT, autoApprovalEnabled: false },
 				ask: "followup",
 				text: suggestText,
 			})
-
-			expect(result.decision).toBe("ask")
+			expect(result.decision).toBe("respond")
 		})
 
-		const followupAskCases: Array<{ name: string; text?: string; timeout?: unknown }> = [
-			{ name: "text が undefined（提案なし）", text: undefined, timeout: 1500 },
-			{ name: "suggest が空配列", text: JSON.stringify({ suggest: [] }), timeout: 1500 },
-			{ name: "suggest キー自体が無い", text: JSON.stringify({ question: "?" }), timeout: 1500 },
-			{ name: "timeout が未設定", text: suggestText, timeout: undefined },
-			{ name: "timeout が 0", text: suggestText, timeout: 0 },
-			{ name: "timeout が負値", text: suggestText, timeout: -1 },
-			{ name: "timeout が数値でない文字列", text: suggestText, timeout: "1500" },
-			{ name: "JSON として壊れている", text: "{壊れた JSON", timeout: 1500 },
-			{ name: "JSON が null", text: "null", timeout: 1500 },
-		]
+		it.each([
+			"api_req_failed",
+			"mistake_limit_reached",
+			"auto_approval_max_req_reached",
+			"use_mcp_server",
+		] as const)("%s では止まらずに承認する", async (ask) => {
+			expect((await checkAutoApproval({ state: AUTOPILOT, ask, text: "{}" })).decision).toBe("approve")
+		})
 
-		it.each(followupAskCases)("$name のときは ask", async ({ text, timeout }) => {
-			const result = await checkAutoApproval({
-				state: {
-					autoApprovalEnabled: true,
-					alwaysAllowFollowupQuestions: true,
-					followupAutoApproveTimeoutMs: timeout as number | undefined,
-				},
-				ask: "followup",
-				text,
+		it.each(["completion_result", "resume_task", "resume_completed_task"] as const)(
+			"%s は止める操作ではないので、人を待つ",
+			async (ask) => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask, text: "" })).decision).toBe("ask")
+			},
+		)
+
+		describe("コマンド", () => {
+			it("許可リストに無いコマンドも実行する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "command", text: "npm test" })).decision).toBe(
+					"approve",
+				)
 			})
 
-			expect(result.decision).toBe("ask")
+			it("拒否リストに当たるコマンドは拒否する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "command", text: "rm -rf /" })).decision).toBe(
+					"deny",
+				)
+			})
+
+			it("連結した後ろ側が拒否リストに当たれば拒否する", async () => {
+				const result = await checkAutoApproval({
+					state: AUTOPILOT,
+					ask: "command",
+					text: "npm test && rm -rf /",
+				})
+				expect(result.decision).toBe("deny")
+			})
+
+			it("許可リストと拒否リストが未設定でも、拒否せずに実行する", async () => {
+				const { allowedCommands: _a, deniedCommands: _d, ...noLists } = AUTOPILOT
+				expect((await checkAutoApproval({ state: noLists, ask: "command", text: "npm test" })).decision).toBe(
+					"approve",
+				)
+			})
+
+			it("コマンドが空なら拒否する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "command", text: "" })).decision).toBe("deny")
+			})
+		})
+
+		describe("ファイル操作", () => {
+			const read = (isOutsideWorkspace: boolean) =>
+				toolText({ tool: "readFile", path: "a.ts", isOutsideWorkspace })
+			const write = (isOutsideWorkspace: boolean) =>
+				toolText({ tool: "editedExistingFile", path: "a.ts", isOutsideWorkspace })
+
+			it("ワークスペース内の読み取りと書き込みは承認する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text: read(false) })).decision).toBe(
+					"approve",
+				)
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text: write(false) })).decision).toBe(
+					"approve",
+				)
+			})
+
+			it("外側の読み取りは、個別の設定が on のときだけ承認し、off なら拒否する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text: read(true) })).decision).toBe(
+					"deny",
+				)
+				const allowed = { ...AUTOPILOT, alwaysAllowReadOnlyOutsideWorkspace: true }
+				expect((await checkAutoApproval({ state: allowed, ask: "tool", text: read(true) })).decision).toBe(
+					"approve",
+				)
+			})
+
+			it("外側への書き込みは、個別の設定が on のときだけ承認し、off なら拒否する", async () => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text: write(true) })).decision).toBe(
+					"deny",
+				)
+				const allowed = { ...AUTOPILOT, alwaysAllowWriteOutsideWorkspace: true }
+				expect((await checkAutoApproval({ state: allowed, ask: "tool", text: write(true) })).decision).toBe(
+					"approve",
+				)
+			})
+
+			it("保護対象への書き込みは、個別の設定が on のときだけ承認し、off なら拒否する", async () => {
+				const denied = await checkAutoApproval({
+					state: AUTOPILOT,
+					ask: "tool",
+					text: write(false),
+					isProtected: true,
+				})
+				expect(denied.decision).toBe("deny")
+				const allowed = { ...AUTOPILOT, alwaysAllowWriteProtected: true }
+				const ok = await checkAutoApproval({
+					state: allowed,
+					ask: "tool",
+					text: write(false),
+					isProtected: true,
+				})
+				expect(ok.decision).toBe("approve")
+			})
+
+			it("外側かつ保護対象では、片方の設定だけ on でも拒否する", async () => {
+				const onlyOutside = { ...AUTOPILOT, alwaysAllowWriteOutsideWorkspace: true }
+				const onlyProtected = { ...AUTOPILOT, alwaysAllowWriteProtected: true }
+				for (const state of [onlyOutside, onlyProtected]) {
+					const result = await checkAutoApproval({ state, ask: "tool", text: write(true), isProtected: true })
+					expect(result.decision).toBe("deny")
+				}
+			})
+
+			it("読み取りにも書き込みにも分類されないツールは承認する", async () => {
+				const text = toolText({ tool: "webFetch" } as never)
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text })).decision).toBe("approve")
+			})
+
+			it.each([
+				{ name: "JSON が壊れている", text: "{壊れた" },
+				{ name: "JSON が null", text: "null" },
+				{ name: "text が無い", text: undefined },
+			])("$name ツールは拒否する", async ({ text }) => {
+				expect((await checkAutoApproval({ state: AUTOPILOT, ask: "tool", text })).decision).toBe("deny")
+			})
 		})
 	})
 

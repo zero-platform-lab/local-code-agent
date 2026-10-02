@@ -6,12 +6,7 @@ import { Button, StandardTooltip } from "@/components/ui"
 
 type AutoApproveToggles = Pick<
 	GlobalSettings,
-	| "alwaysAllowReadOnly"
-	| "alwaysAllowWrite"
-	| "alwaysAllowMcp"
-	| "alwaysAllowSubtasks"
-	| "alwaysAllowExecute"
-	| "alwaysAllowFollowupQuestions"
+	"alwaysAllowReadOnly" | "alwaysAllowWrite" | "alwaysAllowMcp" | "alwaysAllowSubtasks" | "alwaysAllowExecute"
 >
 
 export type AutoApproveSetting = keyof AutoApproveToggles
@@ -59,13 +54,6 @@ export const autoApproveSettingsConfig: Record<AutoApproveSetting, AutoApproveCo
 		descriptionKey: "settings:autoApprove.execute.description",
 		icon: "terminal",
 		testId: "always-allow-execute-toggle",
-	},
-	alwaysAllowFollowupQuestions: {
-		key: "alwaysAllowFollowupQuestions",
-		labelKey: "settings:autoApprove.followupQuestions.label",
-		descriptionKey: "settings:autoApprove.followupQuestions.description",
-		icon: "question",
-		testId: "always-allow-followup-questions-toggle",
 	},
 }
 

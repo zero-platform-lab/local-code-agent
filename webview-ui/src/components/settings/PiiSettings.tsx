@@ -20,6 +20,18 @@ import { vscode } from "@/utils/vscode"
 import { SectionHeader } from "./SectionHeader"
 import { Section } from "./Section"
 
+/**
+ * 入力欄のイベントから値を取り出す。`target` の無いものを受けたら空文字を返す。
+ *
+ * `VSCodeTextField` の `onInput` は型の上では `unknown` を渡すので、取り出し方を
+ * 3 つの欄で揃えるために 1 か所にまとめている。
+ */
+export function inputValue(event: unknown): string {
+	return typeof event === "object" && event !== null && "target" in event
+		? (event as { target: { value: string } }).target.value
+		: ""
+}
+
 type PiiSettingsProps = {
 	piiMasking: PiiMasking | undefined
 	setPiiMasking: (value: PiiMasking) => void
@@ -293,10 +305,7 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 								value={String(properNouns.timeBudgetMs ?? 10000)}
 								data-testid="pii-time-budget"
 								onInput={(event: unknown) => {
-									const value =
-										typeof event === "object" && event !== null && "target" in event
-											? (event as { target: { value: string } }).target.value
-											: ""
+									const value = inputValue(event)
 									// **数でないものは捨てる。** 途中まで書いた値で設定を壊さない。
 									// 空欄も捨てる。捨てないと `NaN` が保存され、既定にも
 									// 戻らないまま第 2 層が毎回すぐ切られる。
@@ -317,10 +326,7 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 									placeholder={t("settings:pii.properNouns.modelPathPlaceholder")}
 									data-testid="pii-model-path"
 									onInput={(event: unknown) => {
-										const value =
-											typeof event === "object" && event !== null && "target" in event
-												? (event as { target: { value: string } }).target.value
-												: ""
+										const value = inputValue(event)
 										updateProperNouns({ modelPath: value })
 										// 書き換えたら、その場所を見に行き直す。
 										askModel(value)
@@ -359,10 +365,7 @@ export const PiiSettings = ({ piiMasking, setPiiMasking }: PiiSettingsProps) => 
 								placeholder={t("settings:pii.properNouns.modelUrlPlaceholder")}
 								data-testid="pii-model-url"
 								onInput={(event: unknown) => {
-									const value =
-										typeof event === "object" && event !== null && "target" in event
-											? (event as { target: { value: string } }).target.value
-											: ""
+									const value = inputValue(event)
 									updateProperNouns({ modelUrl: value })
 								}}
 							/>

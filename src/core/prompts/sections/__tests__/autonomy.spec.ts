@@ -92,6 +92,26 @@ describe("getAutonomySection", () => {
 		})
 	})
 
+	describe("autopilot", () => {
+		const section = getAutonomySection("autopilot")
+
+		it("利用者が答えないことと、質問が自動で答えられることを伝える", () => {
+			expect(section).toContain("will not answer anything")
+			expect(section).toContain("answered automatically")
+		})
+
+		it("許可リストの外のコマンドも実行され、拒否リストは効くことを伝える", () => {
+			// checkAutopilot の "command" 分岐と一致させる。
+			expect(section).toContain("including commands outside the allowed list")
+			expect(section).toContain("denied-command list are rejected")
+		})
+
+		it("拒否はツールの結果として返り、止まらずに続けるよう伝える", () => {
+			expect(section).toContain("comes back as the tool result")
+			expect(section).toContain("keep going")
+		})
+	})
+
 	describe("プリセットとの整合", () => {
 		it("コマンド実行を自動化しないモードは、承認が要ることを文面でも伝える", () => {
 			for (const mode of autonomyModes) {

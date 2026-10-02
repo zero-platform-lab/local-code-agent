@@ -10,7 +10,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: false,
 				alwaysAllowMcp: false,
 				alwaysAllowSubtasks: false,
-				alwaysAllowFollowupQuestions: false,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))
@@ -25,7 +24,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: undefined,
 				alwaysAllowMcp: undefined,
 				alwaysAllowSubtasks: undefined,
-				alwaysAllowFollowupQuestions: undefined,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))
@@ -40,7 +38,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: false,
 				alwaysAllowMcp: false,
 				alwaysAllowSubtasks: false,
-				alwaysAllowFollowupQuestions: false,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))
@@ -55,7 +52,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: true,
 				alwaysAllowMcp: false,
 				alwaysAllowSubtasks: false,
-				alwaysAllowFollowupQuestions: false,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))
@@ -70,7 +66,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: true,
 				alwaysAllowMcp: true,
 				alwaysAllowSubtasks: true,
-				alwaysAllowFollowupQuestions: true,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))
@@ -111,7 +106,6 @@ describe("useAutoApprovalState", () => {
 				alwaysAllowExecute: false,
 				alwaysAllowMcp: false,
 				alwaysAllowSubtasks: false,
-				alwaysAllowFollowupQuestions: false,
 			}
 
 			const { result } = renderHook(() => useAutoApprovalState(toggles, true))

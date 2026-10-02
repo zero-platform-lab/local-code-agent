@@ -33,8 +33,6 @@ function renderChatRow(message: ClineMessage) {
 					onToggleExpand={() => {}}
 					onSuggestionClick={() => {}}
 					onBatchFileResponse={() => {}}
-					onFollowUpUnmount={() => {}}
-					isFollowUpAnswered={false}
 				/>
 			</QueryClientProvider>
 		</ExtensionStateContextProvider>,

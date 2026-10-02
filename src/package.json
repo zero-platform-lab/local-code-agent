@@ -176,6 +176,11 @@
 				"category": "%configuration.title%"
 			},
 			{
+				"command": "openai-agent.setAutonomyModeAutopilot",
+				"title": "%command.setAutonomyModeAutopilot.title%",
+				"category": "%configuration.title%"
+			},
+			{
 				"command": "openai-agent.setAutonomyModePlan",
 				"title": "%command.setAutonomyModePlan.title%",
 				"category": "%configuration.title%"

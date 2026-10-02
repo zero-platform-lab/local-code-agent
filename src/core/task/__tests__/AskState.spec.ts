@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 
 import { AskState } from "../AskState"
 
@@ -15,7 +15,6 @@ describe("AskState", () => {
 		expect(state.askResponseText).toBeUndefined()
 		expect(state.askResponseImages).toBeUndefined()
 		expect(state.lastMessageTs).toBeUndefined()
-		expect(state.autoApprovalTimeoutRef).toBeUndefined()
 		expect(state.idleAsk).toBeUndefined()
 		expect(state.resumableAsk).toBeUndefined()
 		expect(state.interactiveAsk).toBeUndefined()
@@ -54,30 +53,6 @@ describe("AskState", () => {
 		expect(state.interactiveAsk).toBeUndefined()
 		// 応答は保持される
 		expect(state.askResponse).toBe("yesButtonClicked")
-	})
-
-	it("cancelAutoApprovalTimeout: ref があれば clearTimeout してから undefined に落とす", () => {
-		const state = new AskState()
-		const timer = setTimeout(() => {}, 10_000)
-		state.autoApprovalTimeoutRef = timer
-		const clearSpy = vi.spyOn(globalThis, "clearTimeout")
-
-		state.cancelAutoApprovalTimeout()
-
-		expect(clearSpy).toHaveBeenCalledWith(timer)
-		expect(state.autoApprovalTimeoutRef).toBeUndefined()
-		clearSpy.mockRestore()
-	})
-
-	it("cancelAutoApprovalTimeout: ref が無いときは clearTimeout を呼ばず何もしない", () => {
-		const state = new AskState()
-		const clearSpy = vi.spyOn(globalThis, "clearTimeout")
-
-		state.cancelAutoApprovalTimeout()
-
-		expect(clearSpy).not.toHaveBeenCalled()
-		expect(state.autoApprovalTimeoutRef).toBeUndefined()
-		clearSpy.mockRestore()
 	})
 
 	it("currentAsk は idleAsk があれば resumable/interactive を差し置いて idle を返す", () => {

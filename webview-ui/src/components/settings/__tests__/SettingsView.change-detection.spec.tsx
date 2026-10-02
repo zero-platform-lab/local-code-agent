@@ -281,8 +281,6 @@ describe("SettingsView - Change Detection Fix", () => {
 		customCondensingPrompt: "",
 		customSupportPrompts: {},
 		profileThresholds: {},
-		alwaysAllowFollowupQuestions: false,
-		followupAutoApproveTimeoutMs: undefined,
 		includeDiagnosticMessages: false,
 		maxDiagnosticMessages: 50,
 		includeTaskHistoryInEnhance: true,

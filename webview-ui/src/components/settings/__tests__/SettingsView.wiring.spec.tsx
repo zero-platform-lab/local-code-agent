@@ -276,8 +276,6 @@ const fullState = () => ({
 	maxTotalImageSize: 40,
 	includeDiagnosticMessages: false,
 	maxDiagnosticMessages: 10,
-	alwaysAllowFollowupQuestions: true,
-	followupAutoApproveTimeoutMs: 1000,
 	includeTaskHistoryInEnhance: false,
 	reasoningBlockCollapsed: false,
 	enterBehavior: "newline",

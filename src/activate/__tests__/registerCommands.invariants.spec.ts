@@ -230,6 +230,7 @@ describe("registerCommands - 見えている provider が無いとき", () => {
 		"setAutonomyModeManual",
 		"setAutonomyModeAutoEdit",
 		"setAutonomyModeAuto",
+		"setAutonomyModeAutopilot",
 		"setAutonomyModePlan",
 	]
 
@@ -381,6 +382,7 @@ describe("registerCommands - 各コマンドの振る舞い", () => {
 		["setAutonomyModeManual", "manual"],
 		["setAutonomyModeAutoEdit", "autoEdit"],
 		["setAutonomyModeAuto", "auto"],
+		["setAutonomyModeAutopilot", "autopilot"],
 		["setAutonomyModePlan", "plan"],
 	]
 

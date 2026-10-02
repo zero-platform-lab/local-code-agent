@@ -40,8 +40,6 @@ function renderChatRow(message: any) {
 					onToggleExpand={() => {}}
 					onSuggestionClick={() => {}}
 					onBatchFileResponse={() => {}}
-					onFollowUpUnmount={() => {}}
-					isFollowUpAnswered={false}
 				/>
 			</QueryClientProvider>
 		</ExtensionStateContextProvider>,

@@ -80,7 +80,6 @@ const state = vi.hoisted(() => ({
 	alwaysAllowExecute: false,
 	alwaysAllowMcp: false,
 	alwaysAllowSubtasks: false,
-	alwaysAllowFollowupQuestions: false,
 }))
 
 vi.mock("@/context/ExtensionStateContext", () => ({ useExtensionState: () => state }))
@@ -233,32 +232,6 @@ describe("AutoApproveSettings — command lists", () => {
 		fireEvent.keyDown(screen.getByTestId("command-input"), { key: "a" })
 
 		expect(setCachedStateField).not.toHaveBeenCalled()
-	})
-})
-
-describe("AutoApproveSettings — follow-up questions", () => {
-	beforeEach(() => {
-		vi.clearAllMocks()
-		state.autoApprovalEnabled = true
-	})
-
-	it("shows the timeout only when follow-up questions are auto-approved", () => {
-		const { rerender } = renderSettings()
-		expect(screen.queryByTestId("followup-timeout-slider")).not.toBeInTheDocument()
-
-		rerender(<AutoApproveSettings setCachedStateField={setCachedStateField} alwaysAllowFollowupQuestions />)
-
-		expect(screen.getByTestId("followup-timeout-slider")).toBeInTheDocument()
-	})
-
-	it("shows the timeout in seconds and saves what the slider reports", () => {
-		renderSettings({ alwaysAllowFollowupQuestions: true, followupAutoApproveTimeoutMs: 30000 })
-
-		expect(screen.getByText("30s")).toBeInTheDocument()
-
-		fireEvent.change(screen.getByTestId("followup-timeout-slider"), { target: { value: "45000" } })
-
-		expect(setCachedStateField).toHaveBeenCalledWith("followupAutoApproveTimeoutMs", 45000)
 	})
 })
 

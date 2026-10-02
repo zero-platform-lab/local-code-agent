@@ -6,14 +6,8 @@ import { useExtensionState } from "@src/context/ExtensionStateContext"
  * This encapsulates the logic for creating the toggles object from extension state
  */
 export function useAutoApprovalToggles() {
-	const {
-		alwaysAllowReadOnly,
-		alwaysAllowWrite,
-		alwaysAllowExecute,
-		alwaysAllowMcp,
-		alwaysAllowSubtasks,
-		alwaysAllowFollowupQuestions,
-	} = useExtensionState()
+	const { alwaysAllowReadOnly, alwaysAllowWrite, alwaysAllowExecute, alwaysAllowMcp, alwaysAllowSubtasks } =
+		useExtensionState()
 
 	const toggles = useMemo(
 		() => ({
@@ -22,16 +16,8 @@ export function useAutoApprovalToggles() {
 			alwaysAllowExecute,
 			alwaysAllowMcp,
 			alwaysAllowSubtasks,
-			alwaysAllowFollowupQuestions,
 		}),
-		[
-			alwaysAllowReadOnly,
-			alwaysAllowWrite,
-			alwaysAllowExecute,
-			alwaysAllowMcp,
-			alwaysAllowSubtasks,
-			alwaysAllowFollowupQuestions,
-		],
+		[alwaysAllowReadOnly, alwaysAllowWrite, alwaysAllowExecute, alwaysAllowMcp, alwaysAllowSubtasks],
 	)
 
 	return toggles

@@ -55,8 +55,6 @@ export function buildState(stateValues: AgentSettings, extras: StateExtras): Sta
 		alwaysAllowExecute: stateValues.alwaysAllowExecute ?? false,
 		alwaysAllowMcp: stateValues.alwaysAllowMcp ?? false,
 		alwaysAllowSubtasks: stateValues.alwaysAllowSubtasks ?? false,
-		alwaysAllowFollowupQuestions: stateValues.alwaysAllowFollowupQuestions ?? false,
-		followupAutoApproveTimeoutMs: stateValues.followupAutoApproveTimeoutMs ?? 60000,
 		diagnosticsEnabled: stateValues.diagnosticsEnabled ?? true,
 		allowedMaxRequests: stateValues.allowedMaxRequests,
 		allowedMaxCost: stateValues.allowedMaxCost,

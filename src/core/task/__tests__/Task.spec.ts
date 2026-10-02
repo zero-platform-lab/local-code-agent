@@ -1993,13 +1993,6 @@ describe("Cline", () => {
 			expect((task as any).messageStore.findMessageByTimestamp).toHaveBeenCalledWith(42)
 		})
 
-		it("cancelAutoApprovalTimeout は askState へ委譲する", () => {
-			const task = makeTask()
-			;(task as any).askState.cancelAutoApprovalTimeout = vi.fn()
-			task.cancelAutoApprovalTimeout()
-			expect((task as any).askState.cancelAutoApprovalTimeout).toHaveBeenCalledTimes(1)
-		})
-
 		it("denyAsk は noButtonClicked で handleWebviewAskResponse を呼ぶ", () => {
 			const task = makeTask()
 			const spy = vi.spyOn(task, "handleWebviewAskResponse").mockImplementation(() => {})

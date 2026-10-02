@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { Lock, FilePen, Zap, ClipboardList, type LucideIcon } from "lucide-react"
+import { Lock, FilePen, Zap, Plane, ClipboardList, type LucideIcon } from "lucide-react"
 
 import { type AutonomyMode, nextAutonomyMode } from "@openai-agent/types"
 
@@ -13,12 +13,13 @@ const MODE_META: Record<AutonomyMode, { icon: LucideIcon; labelKey: string; clas
 	manual: { icon: Lock, labelKey: "chat:autonomy.manual", className: "text-vscode-descriptionForeground" },
 	autoEdit: { icon: FilePen, labelKey: "chat:autonomy.autoEdit", className: "text-vscode-charts-blue" },
 	auto: { icon: Zap, labelKey: "chat:autonomy.auto", className: "text-vscode-charts-yellow" },
+	autopilot: { icon: Plane, labelKey: "chat:autonomy.autopilot", className: "text-vscode-charts-red" },
 	plan: { icon: ClipboardList, labelKey: "chat:autonomy.plan", className: "text-vscode-charts-green" },
 }
 
 /**
  * Chat-bar badge showing the current autonomy mode (Claude Code-style permission modes).
- * Click cycles Manual -> Auto-Edit -> Auto -> Plan, following AUTONOMY_MODE_CYCLE. Also
+ * Click cycles Manual -> Auto-Edit -> Auto -> Autopilot -> Plan, following AUTONOMY_MODE_CYCLE. Also
  * switchable via Ctrl+Shift+A and the command palette. Autonomy is user-controlled only;
  * the model can never change it.
  */

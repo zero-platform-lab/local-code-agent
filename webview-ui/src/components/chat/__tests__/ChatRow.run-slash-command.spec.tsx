@@ -44,8 +44,6 @@ const renderChatRowWithProviders = (message: any, isExpanded = false) => {
 					onToggleExpand={mockOnToggleExpand}
 					onSuggestionClick={mockOnSuggestionClick}
 					onBatchFileResponse={mockOnBatchFileResponse}
-					onFollowUpUnmount={mockOnFollowUpUnmount}
-					isFollowUpAnswered={false}
 				/>
 			</QueryClientProvider>
 		</ExtensionStateContextProvider>,
@@ -55,7 +53,6 @@ const renderChatRowWithProviders = (message: any, isExpanded = false) => {
 const mockOnToggleExpand = vi.fn()
 const mockOnSuggestionClick = vi.fn()
 const mockOnBatchFileResponse = vi.fn()
-const mockOnFollowUpUnmount = vi.fn()
 
 describe("ChatRow - runSlashCommand tool", () => {
 	beforeEach(() => {

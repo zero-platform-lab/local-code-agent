@@ -67,6 +67,7 @@ export const commandIds = [
 	"setAutonomyModeManual",
 	"setAutonomyModeAutoEdit",
 	"setAutonomyModeAuto",
+	"setAutonomyModeAutopilot",
 	"setAutonomyModePlan",
 ] as const
 

@@ -6,7 +6,6 @@ interface AutoApprovalToggles {
 	alwaysAllowExecute?: boolean
 	alwaysAllowMcp?: boolean
 	alwaysAllowSubtasks?: boolean
-	alwaysAllowFollowupQuestions?: boolean
 }
 
 export function useAutoApprovalState(toggles: AutoApprovalToggles, autoApprovalEnabled?: boolean) {

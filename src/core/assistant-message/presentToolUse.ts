@@ -1,7 +1,7 @@
 import type { TextBlockParam, ImageBlockParam } from "@openai-agent/types"
 import { serializeError } from "serialize-error"
 
-import type { ToolName, ClineAsk, ToolProgressStatus } from "@openai-agent/types"
+import { isAutopilotMode, type ToolName, type ClineAsk, type ToolProgressStatus } from "@openai-agent/types"
 
 import { t } from "../../i18n"
 
@@ -272,7 +272,8 @@ export async function presentToolUse(cline: PresentAssistantMessageCline, block:
 	}
 
 	// Check for identical consecutive tool calls.
-	if (!block.partial) {
+	// Autopilot は繰り返しでも止めない。止めるのは利用者の停止ボタンだけである。
+	if (!block.partial && !isAutopilotMode(autonomyMode)) {
 		// Use the detector to check for repetition, passing the ToolUse
 		// block directly.
 		const repetitionCheck = cline.toolRepetitionDetector.check(block)

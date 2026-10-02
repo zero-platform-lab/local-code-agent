@@ -67,13 +67,10 @@ vi.mock("../ChatRow", () => ({
 		isExpanded,
 		editable,
 		hasCheckpoint,
-		isFollowUpAnswered,
-		isFollowUpAutoApprovalPaused,
 		isLast,
 		onToggleExpand,
 		onSuggestionClick,
 		onBatchFileResponse,
-		onFollowUpUnmount,
 		onJumpToPreviousCheckpoint,
 		onHeightChange,
 	}: any) => (
@@ -82,8 +79,6 @@ vi.mock("../ChatRow", () => ({
 			data-expanded={String(isExpanded)}
 			data-editable={String(editable)}
 			data-has-checkpoint={String(hasCheckpoint)}
-			data-answered={String(isFollowUpAnswered)}
-			data-paused={String(isFollowUpAutoApprovalPaused)}
 			data-last={String(isLast)}>
 			<button data-testid={`row-${message.ts}-expand`} onClick={() => onToggleExpand(message.ts)} />
 			<button
@@ -103,7 +98,6 @@ vi.mock("../ChatRow", () => ({
 				onClick={() => onSuggestionClick({ answer: "auto", mode: "second-mode" })}
 			/>
 			<button data-testid={`row-${message.ts}-batch`} onClick={() => onBatchFileResponse({ "a.ts": true })} />
-			<button data-testid={`row-${message.ts}-unmount`} onClick={() => onFollowUpUnmount()} />
 			<button data-testid={`row-${message.ts}-jump`} onClick={() => onJumpToPreviousCheckpoint()} />
 			<button data-testid={`row-${message.ts}-height`} onClick={() => onHeightChange(true)} />
 		</div>
@@ -481,17 +475,6 @@ describe("ChatView wiring", () => {
 			})
 		})
 
-		it("marks the question as answered when the reply is typed instead of picked", () => {
-			renderChatView(withAsk("followup"))
-
-			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-answered", "false")
-
-			type("typed answer")
-			fireEvent.click(screen.getByTestId("textarea-send"))
-
-			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-answered", "true")
-		})
-
 		it("sends a plain message when no ask is pending", () => {
 			renderChatView({
 				clineMessages: [task(), { ts: 1001, type: "say", say: "text", text: "hi" } as ClineMessage],
@@ -506,15 +489,6 @@ describe("ChatView wiring", () => {
 				text: "another message",
 				images: [],
 			})
-		})
-
-		it("pauses auto approval while the user types an answer", () => {
-			renderChatView(withAsk("followup"))
-
-			type("thinking...")
-
-			expect(posted()).toContainEqual({ type: "cancelAutoApproval" })
-			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-paused", "true")
 		})
 	})
 
@@ -910,14 +884,6 @@ describe("ChatView wiring", () => {
 			})
 		})
 
-		it("cancels the backend auto approval when a follow-up unmounts", () => {
-			renderChatView(withRows())
-
-			fireEvent.click(screen.getByTestId("row-1001-unmount"))
-
-			expect(posted()).toContainEqual({ type: "cancelAutoApproval" })
-		})
-
 		it("tells the rows whether a checkpoint exists", () => {
 			renderChatView(withRows())
 			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-has-checkpoint", "false")
@@ -989,7 +955,6 @@ describe("ChatView wiring", () => {
 				images: [],
 			})
 			expect(textArea().querySelector("input")).toHaveValue("my draft")
-			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-answered", "true")
 		})
 
 		it("appends the answer to the draft when shift is held", () => {
@@ -1432,17 +1397,6 @@ describe("ChatView wiring", () => {
 			renderChatView({ clineMessages: [task()], currentTaskItem: { id: "task-1", childIds: [] } })
 
 			expect(posted()).not.toContainEqual(expect.objectContaining({ type: "getTaskWithAggregatedCosts" }))
-		})
-
-		it("marks the followup as answered only when one exists", () => {
-			renderChatView({
-				clineMessages: [task(), { ts: 1001, type: "say", say: "text", text: "hi" } as ClineMessage],
-			})
-
-			type("plain message")
-			fireEvent.click(screen.getByTestId("textarea-send"))
-
-			expect(screen.queryByTestId("chat-row-1001")).toHaveAttribute("data-answered", "false")
 		})
 	})
 

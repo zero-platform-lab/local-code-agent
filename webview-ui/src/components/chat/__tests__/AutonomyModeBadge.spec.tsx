@@ -39,9 +39,17 @@ describe("AutonomyModeBadge", () => {
 		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "setAutonomyMode", autonomyMode: "autoEdit" })
 	})
 
-	it("cycles auto -> plan on click", () => {
+	it("cycles auto -> autopilot on click", () => {
 		mockAutonomyMode = "auto"
 		render(<AutonomyModeBadge />)
+		fireEvent.click(screen.getByTestId("autonomy-mode-badge"))
+		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "setAutonomyMode", autonomyMode: "autopilot" })
+	})
+
+	it("renders autopilot and cycles autopilot -> plan on click", () => {
+		mockAutonomyMode = "autopilot"
+		render(<AutonomyModeBadge />)
+		expect(screen.getByTestId("autonomy-mode-badge")).toHaveTextContent("chat:autonomy.autopilot")
 		fireEvent.click(screen.getByTestId("autonomy-mode-badge"))
 		expect(vscode.postMessage).toHaveBeenCalledWith({ type: "setAutonomyMode", autonomyMode: "plan" })
 	})

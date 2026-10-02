@@ -172,7 +172,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	abort: boolean = false
 
 	// TaskStatus + ask 系状態は AskState 集約（idleAsk/resumableAsk/interactiveAsk +
-	// askResponse/askResponseText/askResponseImages + lastMessageTs + autoApprovalTimeoutRef）。
+	// askResponse/askResponseText/askResponseImages + lastMessageTs）。
 	// 内部モジュールは全て `host.askState.foo` 経由でアクセス、Task 側の proxy は撤去済み。
 	readonly askState = new AskState()
 
@@ -458,11 +458,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	handleUserAskResponse(askResponse: ClineAskResponse, text?: string, images?: string[]) {
 		this.toolRepetitionDetector.reset()
 		this.handleWebviewAskResponse(askResponse, text, images)
-	}
-
-	/** ユーザー操作で auto-approval timer をキャンセルする（発火前の抑止）。 */
-	public cancelAutoApprovalTimeout(): void {
-		this.askState.cancelAutoApprovalTimeout()
 	}
 
 	public approveAsk({ text, images }: { text?: string; images?: string[] } = {}) {

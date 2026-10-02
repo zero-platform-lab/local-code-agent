@@ -3,6 +3,7 @@
 		"manual": "Manual",
 		"autoEdit": "Auto-Edit",
 		"auto": "Auto",
+		"autopilot": "Autopilot",
 		"plan": "Plan",
 		"tooltip": "Autonomy: {{mode}}. Click to switch to {{next}} (Ctrl+Shift+A)."
 	},
@@ -351,8 +352,7 @@
 		"seconds": "{{count}}s"
 	},
 	"followUpSuggest": {
-		"copyToInput": "Copy to input (same as shift + click)",
-		"timerPrefix": "Auto-approve enabled. Selecting in {{seconds}}s…"
+		"copyToInput": "Copy to input (same as shift + click)"
 	},
 	"costs": {
 		"totalWithSubtasks": "Total Cost (including subtasks): ${{cost}}",

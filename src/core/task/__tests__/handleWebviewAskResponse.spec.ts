@@ -31,7 +31,7 @@ afterEach(() => {
 })
 
 describe("handleWebviewAskResponse", () => {
-	it("messageResponse: 応答3フィールドを反映し auto-approval タイマーを取り消し、checkpoint を chatRow 抑制付きで作り、直近未回答 followup を answered にして保存する", () => {
+	it("messageResponse: 応答3フィールドを反映し、checkpoint を chatRow 抑制付きで作り、直近未回答 followup を answered にして保存する", () => {
 		// 降順スキャンで followup predicate の各分岐（type!=ask / ask!=followup / 既回答）を通す並び
 		const messages: TestMsg[] = [
 			{ type: "ask", ask: "followup", isAnswered: false }, // マッチ（最後に評価される最下位 index）
@@ -40,14 +40,12 @@ describe("handleWebviewAskResponse", () => {
 			{ type: "say", say: "hello" }, // type!=ask
 		]
 		const { host, askState, checkpointSave, saveClineMessages } = makeHost(messages)
-		askState.autoApprovalTimeoutRef = setTimeout(() => {}, 100000)
 
 		handleWebviewAskResponse({ host }, "messageResponse", "hi there", ["img-a"])
 
 		expect(askState.askResponse).toBe("messageResponse")
 		expect(askState.askResponseText).toBe("hi there")
 		expect(askState.askResponseImages).toEqual(["img-a"])
-		expect(askState.autoApprovalTimeoutRef).toBeUndefined()
 		expect(checkpointSave).toHaveBeenCalledWith(false, true)
 		expect(messages[0].isAnswered).toBe(true)
 		expect(saveClineMessages).toHaveBeenCalledTimes(1)

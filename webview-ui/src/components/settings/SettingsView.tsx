@@ -196,8 +196,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 		maxTotalImageSize,
 		customSupportPrompts,
 		profileThresholds,
-		alwaysAllowFollowupQuestions,
-		followupAutoApproveTimeoutMs,
 		includeDiagnosticMessages,
 		maxDiagnosticMessages,
 		includeTaskHistoryInEnhance,
@@ -341,8 +339,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 						includeDiagnosticMessages !== undefined ? includeDiagnosticMessages : true,
 					maxDiagnosticMessages: maxDiagnosticMessages ?? DEFAULT_MAX_DIAGNOSTIC_MESSAGES,
 					alwaysAllowSubtasks,
-					alwaysAllowFollowupQuestions: alwaysAllowFollowupQuestions ?? false,
-					followupAutoApproveTimeoutMs,
 					includeTaskHistoryInEnhance: includeTaskHistoryInEnhance ?? true,
 					reasoningBlockCollapsed: reasoningBlockCollapsed ?? true,
 					enterBehavior: enterBehavior ?? "send",
@@ -719,8 +715,6 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 								alwaysAllowMcp={alwaysAllowMcp}
 								alwaysAllowSubtasks={alwaysAllowSubtasks}
 								alwaysAllowExecute={alwaysAllowExecute}
-								alwaysAllowFollowupQuestions={alwaysAllowFollowupQuestions}
-								followupAutoApproveTimeoutMs={followupAutoApproveTimeoutMs}
 								allowedCommands={allowedCommands}
 								allowedMaxRequests={allowedMaxRequests ?? undefined}
 								allowedMaxCost={allowedMaxCost ?? undefined}

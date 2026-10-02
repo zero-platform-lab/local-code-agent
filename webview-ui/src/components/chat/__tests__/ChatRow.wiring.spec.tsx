@@ -104,8 +104,8 @@ vi.mock("../checkpoints/CheckpointSaved", () => ({
 	CheckpointSaved: (props: any) => <div data-testid="checkpoint-saved" data-current={String(props.checkpoint?.to)} />,
 }))
 vi.mock("../FollowUpSuggest", () => ({
-	FollowUpSuggest: ({ suggestions, onSuggestionClick, isAnswered }: any) => (
-		<div data-testid="follow-up" data-answered={String(isAnswered)} data-count={suggestions?.length ?? 0}>
+	FollowUpSuggest: ({ suggestions, onSuggestionClick }: any) => (
+		<div data-testid="follow-up" data-count={suggestions?.length ?? 0}>
 			<button data-testid="follow-up-pick" onClick={(event) => onSuggestionClick?.({ answer: "yes" }, event)} />
 		</div>
 	),
@@ -206,7 +206,6 @@ const baseProps = {
 	onToggleExpand: vi.fn(),
 	onSuggestionClick: vi.fn(),
 	onBatchFileResponse: vi.fn(),
-	onFollowUpUnmount: vi.fn(),
 }
 
 const renderRow = (message: Partial<ClineMessage>, props: Record<string, unknown> = {}, state = {}) => {
@@ -1241,18 +1240,14 @@ describe("ChatRow wiring", () => {
 		})
 
 		it("renders a follow-up question with its suggestions", () => {
-			renderRow(
-				{
-					type: "ask",
-					ask: "followup",
-					text: JSON.stringify({ question: "which one?", suggest: [{ answer: "a" }, { answer: "b" }] }),
-				},
-				{ isFollowUpAnswered: true },
-			)
+			renderRow({
+				type: "ask",
+				ask: "followup",
+				text: JSON.stringify({ question: "which one?", suggest: [{ answer: "a" }, { answer: "b" }] }),
+			})
 
 			expect(screen.getByTestId("markdown")).toHaveTextContent("which one?")
 			expect(screen.getByTestId("follow-up")).toHaveAttribute("data-count", "2")
-			expect(screen.getByTestId("follow-up")).toHaveAttribute("data-answered", "true")
 		})
 
 		it("shows the partial text while the question is still streaming", () => {

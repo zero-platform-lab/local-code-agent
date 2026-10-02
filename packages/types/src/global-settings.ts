@@ -287,8 +287,6 @@ export const globalSettingsSchema = z.object({
 	alwaysAllowMcp: z.boolean().optional(),
 	alwaysAllowSubtasks: z.boolean().optional(),
 	alwaysAllowExecute: z.boolean().optional(),
-	alwaysAllowFollowupQuestions: z.boolean().optional(),
-	followupAutoApproveTimeoutMs: z.number().optional(),
 	allowedCommands: z.array(z.string()).optional(),
 	deniedCommands: z.array(z.string()).optional(),
 	commandExecutionTimeout: z.number().optional(),

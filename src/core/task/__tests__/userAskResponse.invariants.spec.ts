@@ -73,7 +73,7 @@ describe("ask への応答の入口", () => {
 			"core/task/Task.ts",
 			"core/task/Task.ts",
 			"core/task/Task.ts",
-			// 自動承認のタイマーが切れたときの応答
+			// 自動の返事（Autopilot が質問に答える "respond"）
 			"core/task/applyAutoApprovalDecision.ts",
 		])
 	})

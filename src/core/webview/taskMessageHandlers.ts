@@ -650,11 +650,6 @@ export const taskMessageHandlers: Partial<Record<WebviewMessage["type"], TaskMes
 		await setPendingTodoList(todos)
 	},
 
-	cancelAutoApproval: async (provider) => {
-		// Cancel any pending auto-approval timeout for the current task
-		provider.getCurrentTask()?.cancelAutoApprovalTimeout()
-	},
-
 	autoApprovalEnabled: async (provider, message) => {
 		await provider.contextProxy.setValue("autoApprovalEnabled", message.bool ?? false)
 		await provider.postStateToWebview()

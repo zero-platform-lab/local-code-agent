@@ -3,6 +3,7 @@
 		"manual": "手動",
 		"autoEdit": "自動編集",
 		"auto": "自動",
+		"autopilot": "オートパイロット",
 		"plan": "計画",
 		"tooltip": "自律モード: {{mode}}。クリックで {{next}} に切替（Ctrl+Shift+A）"
 	},
@@ -321,8 +322,7 @@
 		"didLoad": "Agentはスキルを読み込みました"
 	},
 	"followUpSuggest": {
-		"copyToInput": "入力欄にコピー（またはShift + クリック）",
-		"timerPrefix": "自動承認が有効です。{{seconds}}秒後に選択中…"
+		"copyToInput": "入力欄にコピー（またはShift + クリック）"
 	},
 	"costs": {
 		"totalWithSubtasks": "合計コスト（サブタスク含む）: ${{cost}}",

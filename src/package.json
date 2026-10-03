@@ -500,7 +500,7 @@
 		"vsix:universal": "node package-vsix.mjs universal"
 	},
 	"dependencies": {
-		"@huggingface/transformers": "^4.2.0",
+		"@huggingface/transformers": "^4.3.0",
 		"@modelcontextprotocol/sdk": "^1.31.0",
 		"@openai-agent/core": "workspace:^",
 		"@openai-agent/ipc": "workspace:^",

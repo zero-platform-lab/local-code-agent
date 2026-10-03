@@ -30,4 +30,14 @@ describe("CopyButton", () => {
 
 		expect(mockCopy).toHaveBeenCalledWith("Test task content")
 	})
+
+	it("does not copy again while the check mark from the last copy is still shown", () => {
+		;(useClipboard as any).mockReturnValue({ isCopied: true, copy: mockCopy })
+		render(<CopyButton itemTask="Test task content" />)
+
+		fireEvent.click(screen.getByRole("button"))
+
+		expect(mockCopy).not.toHaveBeenCalled()
+		expect(document.querySelector(".codicon-check")).toBeInTheDocument()
+	})
 })

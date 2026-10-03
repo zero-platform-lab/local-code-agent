@@ -328,6 +328,25 @@ describe("ModelPicker", () => {
 			expect(screen.getByTestId("model-option-model1")).toBeInTheDocument()
 		})
 
+		it("warns that the selected model is deprecated", () => {
+			renderModelPicker({
+				apiConfiguration: {
+					openAiModelId: "old",
+					openAiCustomModelInfo: { ...modelInfo, deprecated: true },
+				},
+			})
+
+			expect(screen.getByText("settings:validation.modelDeprecated")).toBeInTheDocument()
+		})
+
+		it("does not warn about a selected model that is not deprecated", () => {
+			renderModelPicker({
+				apiConfiguration: { openAiModelId: "model1", openAiCustomModelInfo: { ...modelInfo } },
+			})
+
+			expect(screen.queryByText("settings:validation.modelDeprecated")).not.toBeInTheDocument()
+		})
+
 		it("explains the simplified settings instead of the model details", () => {
 			renderModelPicker({ simplifySettings: true })
 

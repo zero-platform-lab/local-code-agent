@@ -108,6 +108,18 @@ describe("consolidateTokenUsage", () => {
 			expect(result.contextTokens).toBe(0)
 		})
 
+		it("末尾の api_req_started でも condense_context でもないメッセージは飛ばし、その前の要求から数える", () => {
+			// 逆順ループで、末尾の text メッセージは両方の条件に当たらない（else if の false 分岐）
+			const messages: ClineMessage[] = [
+				createApiReqMessage(1000, { tokensIn: 100, tokensOut: 50 }),
+				{ ts: 1001, type: "say", say: "text", text: "done" },
+			]
+
+			const result = consolidateTokenUsage(messages)
+
+			expect(result.contextTokens).toBe(150)
+		})
+
 		it("疎な配列（穴）を含んでも逆順ループの undefined ガードで落ちない", () => {
 			// index 0 のみ実体を持ち index 1,2 は穴。forEach は穴を飛ばし、
 			// 逆順ループ側は先頭で `if (!message) continue` に入る。

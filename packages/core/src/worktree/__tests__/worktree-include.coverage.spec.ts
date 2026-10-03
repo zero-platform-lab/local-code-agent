@@ -289,6 +289,25 @@ describe("copyDirectoryWithProgress", () => {
 		expect(result).toBe(0)
 	})
 
+	it("コピーの完了後に進捗の通知が投げても、結果を返す（最後の巡回の失敗を握る）", async () => {
+		Object.defineProperty(process, "platform", { value: "linux", configurable: true })
+		primeSpawn({ close: 0 }) // cp は setImmediate で終わる
+		// 巡回 1 回目のサイズ計測を cp の終了より遅らせる。巡回はコピーの完了後に通知を出して投げ、
+		// その失敗は finally の pollPromise.catch が受ける。
+		vi.mocked(fs.access).mockImplementationOnce(
+			() => new Promise<void>((resolve) => setTimeout(resolve, 20)) as never,
+		)
+		const onProgress = vi.fn(() => {
+			throw new Error("progress listener failed")
+		})
+
+		const result = await service["copyDirectoryWithProgress"]("/src/nm", "/dst/nm", "nm", 5, onProgress)
+
+		expect(onProgress).toHaveBeenCalledTimes(1)
+		expect(onProgress).toHaveBeenCalledWith({ bytesCopied: 5, itemName: "nm" })
+		expect(result).toBe(5)
+	})
+
 	it("Windows で robocopy が code >= 8 なら reject する", async () => {
 		Object.defineProperty(process, "platform", { value: "win32", configurable: true })
 		primeSpawn({ close: 8 })

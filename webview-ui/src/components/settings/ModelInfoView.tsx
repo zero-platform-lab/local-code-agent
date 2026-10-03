@@ -62,8 +62,12 @@ export const ModelInfoView = ({
 		modelInfo?.supportsPromptCache && modelInfo.cacheReadsPrice && (
 			<>
 				<span className="font-medium">{t("settings:modelInfo.cacheReadsPrice")}:</span>{" "}
-				{/* v8 ignore next -- 到達不能: 直前の && が cacheReadsPrice を truthy に保証するため || 0 の右辺は踏めない防御既定 */}
-				{formatPrice(modelInfo.cacheReadsPrice || 0)} / 1M tokens
+				{formatPrice(
+					// vitest 4 の注記は、直後の式に付く。JSX の {/* */} に置くと式に届かない。
+					/* v8 ignore next -- 到達不能: 直前の && が cacheReadsPrice を truthy に保証するため || 0 の右辺は踏めない防御既定 */
+					modelInfo.cacheReadsPrice || 0,
+				)}{" "}
+				/ 1M tokens
 			</>
 		),
 	].filter(Boolean)

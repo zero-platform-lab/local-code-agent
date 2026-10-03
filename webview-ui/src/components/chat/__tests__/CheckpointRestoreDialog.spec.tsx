@@ -4,7 +4,11 @@ import React from "react"
 import { render, screen, fireEvent } from "@/utils/test-utils"
 import { vi } from "vitest"
 
-import { CheckpointRestoreDialog } from "../CheckpointRestoreDialog"
+import {
+	CheckpointRestoreDialog,
+	DeleteMessageWithCheckpointDialog,
+	EditMessageWithCheckpointDialog,
+} from "../CheckpointRestoreDialog"
 
 // Mock the translation context
 vi.mock("@src/i18n/TranslationContext", () => ({
@@ -238,6 +242,22 @@ describe("CheckpointRestoreDialog", () => {
 
 		it("shows correct title for delete type", () => {
 			render(<CheckpointRestoreDialog {...defaultProps} type="delete" />)
+
+			expect(screen.getByText("Delete Message")).toBeInTheDocument()
+		})
+	})
+
+	describe("type を固定した互換のコンポーネント", () => {
+		it("EditMessageWithCheckpointDialog は edit の文面で開く", () => {
+			const { type: _type, ...props } = defaultProps
+			render(<EditMessageWithCheckpointDialog {...props} />)
+
+			expect(screen.getByText("Edit Message")).toBeInTheDocument()
+		})
+
+		it("DeleteMessageWithCheckpointDialog は delete の文面で開く", () => {
+			const { type: _type, ...props } = defaultProps
+			render(<DeleteMessageWithCheckpointDialog {...props} />)
 
 			expect(screen.getByText("Delete Message")).toBeInTheDocument()
 		})

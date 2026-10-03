@@ -35,6 +35,7 @@ export function extractPatternsFromCommand(command: string): string[] {
 		console.warn("Failed to parse command:", error)
 		// Fallback: just extract the first word
 		const firstWord = command.trim().split(/\s+/)[0]
+		/* v8 ignore else -- 到達不能: 冒頭で空白だけのコマンドを返しているため、trim 後の先頭語は必ず 1 文字以上ある。防御ガードは残す */
 		if (firstWord) patterns.add(firstWord)
 	}
 

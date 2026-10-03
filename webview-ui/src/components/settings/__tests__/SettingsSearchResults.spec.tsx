@@ -71,6 +71,27 @@ describe("SettingsSearchResults", () => {
 		expect(marks.length).toBeGreaterThan(0)
 	})
 
+	it("renders no highlight for an empty label whose match fell on the section label", () => {
+		// fzf は `${label} ${sectionLabel}` に当てるため、label が空でも位置は空にならない。
+		const result = makeResult({ settingId: "e", label: "", sectionLabel: "Browser", positions: new Set([1, 2]) })
+
+		render(<SettingsSearchResults results={[result]} query="br" onSelectResult={vi.fn()} sections={sections} />)
+
+		expect(document.getElementById("settings-search-result-e")).toBeInTheDocument()
+		expect(document.querySelectorAll("mark")).toHaveLength(0)
+	})
+
+	it("splits a label into alternating highlighted and plain segments", () => {
+		const result = makeResult({ settingId: "s", label: "abcd", positions: new Set([1, 2]) })
+
+		render(<SettingsSearchResults results={[result]} query="bc" onSelectResult={vi.fn()} sections={sections} />)
+
+		const marks = document.querySelectorAll("mark")
+		expect(marks).toHaveLength(1)
+		expect(marks[0]).toHaveTextContent(/^bc$/)
+		expect(document.getElementById("settings-search-result-s")).toHaveTextContent("abcd")
+	})
+
 	it("invokes onSelectResult on click and prevents default on mousedown", () => {
 		const onSelectResult = vi.fn()
 		const result = makeResult({

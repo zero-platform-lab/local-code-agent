@@ -390,6 +390,22 @@ describe("ContextMenu", () => {
 		expect(menuEl.scrollTop).toBe(-40)
 	})
 
+	it("選択位置に項目が無い（-1 など）ときは、寸法を測らずスクロールもしない", () => {
+		const items: ContextMenuQueryItem[] = Array.from({ length: 3 }, (_, i) => ({
+			type: ContextMenuOptionType.Terminal,
+			value: `item${i}`,
+		}))
+		const { container, rerender } = render(<ContextMenu {...defaultProps} queryItems={items} selectedIndex={0} />)
+		const menuEl = container.querySelector("[style]")!.firstElementChild as HTMLElement
+		const measure = vi.spyOn(menuEl, "getBoundingClientRect")
+		menuEl.scrollTop = 7
+
+		rerender(<ContextMenu {...defaultProps} queryItems={items} selectedIndex={-1} />)
+
+		expect(measure).not.toHaveBeenCalled()
+		expect(menuEl.scrollTop).toBe(7)
+	})
+
 	// ---------- Chevron icons ----------
 	it("renders chevron-right for File option without value", () => {
 		const items: ContextMenuQueryItem[] = [{ type: ContextMenuOptionType.File }]

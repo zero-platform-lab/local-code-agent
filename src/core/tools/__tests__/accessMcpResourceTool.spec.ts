@@ -12,9 +12,9 @@
 // McpHub は実体を起動せず、readResource を含めて丸ごと贋物にして
 // 「readResource が呼ばれていないこと」をアサートできるようにしている。
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 
-import type { ToolUse } from "../../../shared/tools"
+import type { AskApproval, HandleError, PushToolResult, ToolUse } from "../../../shared/tools"
 
 // formatResponse を差し替え（生成文字列を単純化して観測しやすくする）。
 vi.mock("../../prompts/responses", () => ({
@@ -39,9 +39,9 @@ function expectResourceNeverRead(readResource: ReturnType<typeof vi.fn>, label: 
 
 describe("accessMcpResourceTool", () => {
 	let task: any
-	let askApproval: ReturnType<typeof vi.fn>
-	let handleError: ReturnType<typeof vi.fn>
-	let pushToolResult: ReturnType<typeof vi.fn>
+	let askApproval: Mock<AskApproval>
+	let handleError: Mock<HandleError>
+	let pushToolResult: Mock<PushToolResult>
 	let readResource: ReturnType<typeof vi.fn>
 
 	const cbs = () => ({ askApproval, handleError, pushToolResult })

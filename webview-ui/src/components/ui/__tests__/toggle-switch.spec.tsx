@@ -63,6 +63,17 @@ describe("ToggleSwitch", () => {
 		expect(onChange).not.toHaveBeenCalled()
 	})
 
+	it("ignores keys other than Enter and Space, and leaves their default action alone", () => {
+		const onChange = vi.fn()
+		render(<ToggleSwitch checked={false} onChange={onChange} aria-label="Test toggle" />)
+
+		const toggle = screen.getByRole("switch")
+		// fireEvent returns false when preventDefault was called; Tab must keep moving focus.
+		expect(fireEvent.keyDown(toggle, { key: "Tab" })).toBe(true)
+
+		expect(onChange).not.toHaveBeenCalled()
+	})
+
 	it("has correct tabIndex when disabled", () => {
 		const onChange = vi.fn()
 		render(<ToggleSwitch checked={false} onChange={onChange} disabled={true} aria-label="Test toggle" />)

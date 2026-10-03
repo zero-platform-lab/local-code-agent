@@ -10,6 +10,9 @@ export default defineConfig({
 			// 目標は .agent/rules のとおり「触ったファイルは C1 100%」。
 			// ここを引き上げるのは歓迎、下げるのは要相談。
 			thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
+			// vitest 4 で coverage.all が無くなり、include を書かないと「試験が読み込んだファイル」
+			// だけが母数になる。どの試験も読まないファイルを床から外さないよう、母数を明示する。
+			include: ["src/**/*.ts"],
 		},
 	},
 })

@@ -358,6 +358,28 @@ describe("ModesView wiring", () => {
 			expect(posted()).not.toContainEqual(expect.objectContaining({ type: "openFile" }))
 		})
 
+		it("sends no reset, preview or copy request for a mode slug it does not know", () => {
+			renderModes({ mode: "ghost-mode" })
+
+			fireEvent.click(screen.getByTestId("role-definition-reset"))
+			fireEvent.click(screen.getByTestId("description-reset"))
+			fireEvent.click(screen.getByTestId("when-to-use-reset"))
+			fireEvent.click(screen.getByTestId("custom-instructions-reset"))
+			fireEvent.click(screen.getByTestId("preview-prompt-button"))
+			fireEvent.click(screen.getByTestId("copy-prompt-button"))
+
+			expect(posted()).toEqual([])
+		})
+
+		it("ignores messages other than the system prompt", () => {
+			renderModes()
+
+			post({ type: "state", text: "not a prompt", mode: "code" })
+
+			expect(screen.queryByText("not a prompt")).not.toBeInTheDocument()
+			expect(screen.queryByText("prompts:createModeDialog.close")).not.toBeInTheDocument()
+		})
+
 		it("closes the prompt preview from the corner button", () => {
 			renderModes()
 

@@ -44,7 +44,9 @@ vi.mock("vscode", () => {
 		EventEmitter: vi.fn().mockImplementation(() => mockEventEmitter),
 		Disposable: { from: vi.fn() },
 		// 注入なしの経路（実 AgentIgnoreController）でのみ必要になる surface。
-		RelativePattern: vi.fn().mockImplementation((base: unknown, pattern: string) => ({ base, pattern })),
+		RelativePattern: vi.fn().mockImplementation(function (base: unknown, pattern: string) {
+			return { base, pattern }
+		}),
 		version: "1.85.0",
 	}
 })

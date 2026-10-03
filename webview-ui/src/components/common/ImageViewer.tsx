@@ -96,12 +96,15 @@ export function ImageViewer({
 				type: "openImage",
 				text: imagePath,
 			})
-		} else if (imageUri) {
+		} else {
 			// Fallback to opening image URI if no path is available (for diagrams)
-			vscode.postMessage({
-				type: "openImage",
-				text: imageUri,
-			})
+			/* v8 ignore else -- 到達不能: この handler を持つ <img> は imageUri が空なら描画されない（下の `if (!imageUri)` で先に返す）ため、ここでは imageUri は常に真値。防御ガードは残す */
+			if (imageUri) {
+				vscode.postMessage({
+					type: "openImage",
+					text: imageUri,
+				})
+			}
 		}
 	}
 

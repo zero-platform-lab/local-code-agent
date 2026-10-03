@@ -940,6 +940,105 @@ describe("ChatRow wiring", () => {
 
 			expect(screen.getByTestId("codebase-results")).toHaveAttribute("data-count", "0")
 		})
+
+		it("本文の無いコードベース検索の結果は、解析せずに空の一覧を出す", () => {
+			const error = vi.spyOn(console, "error").mockImplementation(() => {})
+
+			renderRow({ say: "codebase_search_result" })
+
+			expect(screen.getByTestId("codebase-results")).toHaveAttribute("data-count", "0")
+			expect(error).not.toHaveBeenCalled()
+			error.mockRestore()
+		})
+
+		it("本文の無い再試行の通知は、既定の失敗の文言だけを出す", () => {
+			renderRow({ say: "api_req_retry_delayed" })
+
+			expect(screen.getByTestId("error-row")).toHaveTextContent("chat:apiRequest.failed")
+		})
+	})
+
+	describe("file and directory tools", () => {
+		it("asks to insert content, choosing the wording by protection, workspace and line", () => {
+			renderRow(tool({ tool: "insertContent", path: "a.ts", diff: "+x", isProtected: true }))
+			expect(screen.getByText("chat:fileOperations.wantsToEditProtected")).toBeInTheDocument()
+			expect(document.querySelector(".codicon-lock")).toBeInTheDocument()
+			expect(screen.getByTestId("code-accordion")).toHaveTextContent("+x")
+
+			renderRow(tool({ tool: "insertContent", path: "a.ts", isOutsideWorkspace: true }))
+			expect(screen.getByText("chat:fileOperations.wantsToEditOutsideWorkspace")).toBeInTheDocument()
+			expect(document.querySelector(".codicon-insert")).toBeInTheDocument()
+
+			renderRow(tool({ tool: "insertContent", path: "a.ts", lineNumber: 0 }))
+			expect(screen.getByText("chat:fileOperations.wantsToInsertAtEnd")).toBeInTheDocument()
+
+			renderRow(tool({ tool: "insertContent", path: "a.ts", lineNumber: 7 }))
+			expect(
+				screen.getByText('chat:fileOperations.wantsToInsertWithLineNumber:{"lineNumber":7}'),
+			).toBeInTheDocument()
+		})
+
+		it("toggles the inserted content open", () => {
+			const onToggleExpand = vi.fn()
+			renderRow(tool({ tool: "insertContent", path: "a.ts", content: "+y" }), { onToggleExpand })
+
+			fireEvent.click(screen.getByTestId("code-accordion-toggle"))
+
+			expect(onToggleExpand).toHaveBeenCalled()
+			expect(screen.getByTestId("code-accordion")).toHaveTextContent("+y")
+		})
+
+		it.each([
+			["listFilesTopLevel", "ask", false, "chat:directoryOperations.wantsToViewTopLevel"],
+			["listFilesTopLevel", "ask", true, "chat:directoryOperations.wantsToViewTopLevelOutsideWorkspace"],
+			["listFilesTopLevel", "say", false, "chat:directoryOperations.didViewTopLevel"],
+			["listFilesTopLevel", "say", true, "chat:directoryOperations.didViewTopLevelOutsideWorkspace"],
+			["listFilesRecursive", "ask", false, "chat:directoryOperations.wantsToViewRecursive"],
+			["listFilesRecursive", "ask", true, "chat:directoryOperations.wantsToViewRecursiveOutsideWorkspace"],
+			["listFilesRecursive", "say", false, "chat:directoryOperations.didViewRecursive"],
+			["listFilesRecursive", "say", true, "chat:directoryOperations.didViewRecursiveOutsideWorkspace"],
+		])("%s (%s, outside=%s) says %s and shows the listing", (toolName, type, isOutsideWorkspace, wording) => {
+			renderRow(
+				tool(
+					{ tool: toolName, path: "src", content: "a.ts\nb.ts", isOutsideWorkspace },
+					type === "say" ? { type: "say", say: "tool" as any } : {},
+				),
+			)
+
+			expect(screen.getByText(wording)).toBeInTheDocument()
+			expect(screen.getByTestId("code-accordion")).toHaveAttribute("data-path", "src")
+			expect(screen.getByTestId("code-accordion")).toHaveTextContent("a.ts")
+		})
+
+		it.each([
+			["ask", false, "chat:directoryOperations.wantsToSearch"],
+			["ask", true, "chat:directoryOperations.wantsToSearchOutsideWorkspace"],
+			["say", false, "chat:directoryOperations.didSearch"],
+			["say", true, "chat:directoryOperations.didSearchOutsideWorkspace"],
+		])("searchFiles (%s, outside=%s) says %s", (type, isOutsideWorkspace, wording) => {
+			renderRow(
+				tool(
+					{ tool: "searchFiles", path: "src", regex: "TODO", content: "hit", isOutsideWorkspace },
+					type === "say" ? { type: "say", say: "tool" as any } : {},
+				),
+			)
+
+			expect(screen.getByTestId(`trans-${wording}`)).toBeInTheDocument()
+			expect(screen.getByTestId("code-accordion")).toHaveAttribute("data-path", "src")
+		})
+
+		it("appends the file pattern to the searched path", () => {
+			renderRow(tool({ tool: "searchFiles", path: "src", regex: "TODO", filePattern: "*.ts" }))
+
+			expect(screen.getByTestId("code-accordion")).toHaveAttribute("data-path", "src/(*.ts)")
+		})
+
+		it("asks to finish the subtask with the completion instructions", () => {
+			renderRow(tool({ tool: "finishTask" }))
+
+			expect(screen.getByText("chat:subtasks.wantsToFinish")).toBeInTheDocument()
+			expect(screen.getByTestId("markdown-block")).toHaveTextContent("chat:subtasks.completionInstructions")
+		})
 	})
 
 	describe("final touches", () => {

@@ -206,6 +206,7 @@ const CodeBlock = memo(
 			const highlight = async () => {
 				// Show plain text if language needs to be loaded.
 				if (!isLanguageLoaded(currentLanguage)) {
+					/* v8 ignore else -- 到達不能: highlight() は effect の中で isMountedRef を true にした直後に同期で呼ばれ、最初の await より前のここまで同期で進むため常に true。防御ガードは残す */
 					if (isMountedRef.current) {
 						setHighlightedCode(fallback)
 					}
@@ -254,6 +255,7 @@ const CodeBlock = memo(
 					}
 				} catch (error) {
 					console.error("[CodeBlock] Error converting HAST to JSX:", error)
+					/* v8 ignore else -- 到達不能: 直前の `if (!isMountedRef.current) return` から toJsxRuntime の例外までの間に await が無く、同期で進むため常に true。防御ガードは残す */
 					if (isMountedRef.current) {
 						setHighlightedCode(fallback)
 					}
@@ -357,14 +359,17 @@ const CodeBlock = memo(
 				// If height is 0 due to styling, estimate from children
 				if (copyRect.height > 0) {
 					wrapperHeight = copyRect.height
-				} else if (copyWrapper.children.length > 0) {
-					// Try to get height from the button inside
-					const buttonRect = copyWrapper.children[0].getBoundingClientRect()
-					const buttonStyle = window.getComputedStyle(copyWrapper.children[0] as Element)
-					const buttonPadding =
-						parseInt(buttonStyle.getPropertyValue("padding-top") || "0", 10) +
-						parseInt(buttonStyle.getPropertyValue("padding-bottom") || "0", 10)
-					wrapperHeight = buttonRect.height + buttonPadding
+				} else {
+					/* v8 ignore else -- 到達不能: copyButtonWrapperRef を付けた CodeBlockButtonWrapper は、条件なしでコピーのボタンを子に持つため children は常に 1 つ以上ある。防御ガードは残す */
+					if (copyWrapper.children.length > 0) {
+						// Try to get height from the button inside
+						const buttonRect = copyWrapper.children[0].getBoundingClientRect()
+						const buttonStyle = window.getComputedStyle(copyWrapper.children[0] as Element)
+						const buttonPadding =
+							parseInt(buttonStyle.getPropertyValue("padding-top") || "0", 10) +
+							parseInt(buttonStyle.getPropertyValue("padding-bottom") || "0", 10)
+						wrapperHeight = buttonRect.height + buttonPadding
+					}
 				}
 			}
 
@@ -441,6 +446,7 @@ const CodeBlock = memo(
 				// Scroll to bottom if needed (immediately after Shiki updates)
 				if (shouldScrollAfterHighlightRef.current) {
 					// Scroll inner container
+					/* v8 ignore else -- 到達不能: このフラグは preRef.current があるときだけ true になり、pre を外す描画（source が空）では同じコミットの先の effect が false に戻すため、ここでは ref が必ず入っている。防御ガードは残す */
 					if (preRef.current) {
 						preRef.current.scrollTop = preRef.current.scrollHeight
 						wasScrolledUpRef.current = false
@@ -635,6 +641,7 @@ const CodeBlock = memo(
 										// After UI updates, ensure code block is visible and update button position
 										collapseTimeout1Ref.current = setTimeout(
 											() => {
+												/* v8 ignore else -- 到達不能: このボタンは codeBlockRef を付けた CodeBlockContainer の中にしか描画されないため、押した時点で取った codeBlock は必ず入っている。防御ガードは残す */
 												if (codeBlock) {
 													// Check if codeBlock element still exists
 													codeBlock.scrollIntoView({ behavior: "smooth", block: "nearest" })

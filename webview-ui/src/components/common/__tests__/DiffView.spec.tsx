@@ -98,6 +98,33 @@ describe("DiffView", () => {
 		expect(vi.mocked(highlightHunks).mock.calls[1].slice(0, 4)).toEqual(["", "c", "typescript", "dark"])
 	})
 
+	it("leaves additions out of the old side of a hunk that ends at a gap", async () => {
+		vi.mocked(parseUnifiedDiff).mockReturnValue([
+			line({ type: "addition", content: "x", newLineNum: 1 }),
+			line({ type: "gap", content: "", hiddenCount: 4 }),
+			line({ type: "deletion", content: "y", oldLineNum: 6 }),
+		])
+
+		render(<DiffView source="diff" filePath="src/app.ts" />)
+
+		await waitFor(() => expect(highlightHunks).toHaveBeenCalledTimes(2))
+		expect(vi.mocked(highlightHunks).mock.calls[0].slice(0, 2)).toEqual(["", "x"])
+		expect(vi.mocked(highlightHunks).mock.calls[1].slice(0, 2)).toEqual(["y", ""])
+	})
+
+	it("does not emit an empty hunk for a gap with nothing before it", async () => {
+		vi.mocked(parseUnifiedDiff).mockReturnValue([
+			line({ type: "gap", content: "", hiddenCount: 2 }),
+			line({ type: "context", content: "a", oldLineNum: 3, newLineNum: 3 }),
+		])
+
+		render(<DiffView source="diff" filePath="src/app.ts" />)
+
+		await waitFor(() => expect(highlightHunks).toHaveBeenCalledTimes(1))
+		expect(vi.mocked(highlightHunks).mock.calls[0].slice(0, 2)).toEqual(["a", "a"])
+		expect(rows()).toHaveLength(2)
+	})
+
 	it("does not emit a hunk for a trailing gap on its own", async () => {
 		vi.mocked(parseUnifiedDiff).mockReturnValue([
 			line({ type: "context", content: "a", oldLineNum: 1, newLineNum: 1 }),

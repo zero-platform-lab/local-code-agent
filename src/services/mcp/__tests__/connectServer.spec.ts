@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 
 import type { McpServer } from "@openai-agent/types"
 
@@ -173,7 +173,7 @@ const connectionFor = (name: string, status: McpServer["status"]): McpConnection
 	}) as unknown as McpConnection
 
 describe("makeConnectionTransportHandlers", () => {
-	let notify: ReturnType<typeof vi.fn>
+	let notify: Mock<() => Promise<void>>
 
 	beforeEach(() => {
 		notify = vi.fn().mockResolvedValue(undefined)

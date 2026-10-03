@@ -15,6 +15,7 @@ const Thumbnails = ({ images, style, setImages, onHeightChange }: ThumbnailsProp
 	const { width } = useWindowSize()
 
 	useLayoutEffect(() => {
+		/* v8 ignore else -- 到達不能: ref を付けた外側の div は常に描画され、layout effect はコミット後に動くため containerRef.current は必ず入っている。防御ガードは残す */
 		if (containerRef.current) {
 			let height = containerRef.current.clientHeight
 			// some browsers return 0 for clientHeight

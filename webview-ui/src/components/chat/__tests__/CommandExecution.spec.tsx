@@ -501,6 +501,20 @@ Running tests...
 			expect(selector.textContent).toMatch(/echo/)
 		})
 
+		it("空のサブシェルが空のコマンドとして分かれても、空の候補は出さない", () => {
+			render(
+				<ExtensionStateWrapper>
+					<CommandExecution executionId="test-empty-subshell" text="echo $( )" />
+				</ExtensionStateWrapper>,
+			)
+
+			const patterns = Array.from(screen.getByTestId("command-pattern-selector").querySelectorAll("span")).map(
+				(span) => span.textContent,
+			)
+			expect(patterns.length).toBeGreaterThan(0)
+			expect(patterns).not.toContain("")
+		})
+
 		it("should handle empty or whitespace-only commands", () => {
 			render(
 				<ExtensionStateWrapper>

@@ -8,7 +8,9 @@ const { mockInitialize } = vi.hoisted(() => ({ mockInitialize: vi.fn(() => Promi
 
 // 重い collaborator は全てモックして、TaskBuilder のオーケストレーション部だけを検証する。
 vi.mock("../../ignore/AgentIgnoreController", () => ({
-	AgentIgnoreController: vi.fn().mockImplementation(() => ({ initialize: mockInitialize })),
+	AgentIgnoreController: vi.fn().mockImplementation(function () {
+		return { initialize: mockInitialize }
+	}),
 }))
 vi.mock("../../protect/AgentProtectedController", () => ({ AgentProtectedController: vi.fn() }))
 vi.mock("../../../api", () => ({ buildApiHandler: vi.fn(() => ({ id: "api" })) }))

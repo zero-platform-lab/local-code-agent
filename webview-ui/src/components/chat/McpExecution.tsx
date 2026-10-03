@@ -154,10 +154,11 @@ export const McpExecution = ({
 							}
 						}
 					}
-					/* v8 ignore next 3 -- 到達不能: safeJsonParse と zod の safeParse はどちらも投げないため、この catch には入らない。防御は残す */
+					/* v8 ignore start -- 到達不能: safeJsonParse と zod の safeParse はどちらも投げないため、この catch には入らない。防御は残す */
 				} catch (e) {
 					console.error("Failed to parse MCP execution status", e)
 				}
+				/* v8 ignore stop */
 			}
 		},
 		[executionId],

@@ -39,6 +39,7 @@ export function TodoListDisplay({ todos }: { todos: any[] }) {
 		if (!ulRef.current) return
 		if (scrollIndex === -1) return
 		const target = itemRefs.current[scrollIndex]
+		/* v8 ignore else -- 到達不能: 展開時は safeTodos の全要素に li を描き、scrollIndex はその範囲内の添字なので target も ul も必ずある。防御は残す */
 		if (target && ulRef.current) {
 			const ul = ulRef.current
 			const targetTop = target.offsetTop - ul.offsetTop

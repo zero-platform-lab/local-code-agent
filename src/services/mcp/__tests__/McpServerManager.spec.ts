@@ -9,7 +9,7 @@ import type { McpProviderRef } from "../mcpProviderRef"
 const hubInstances: Array<{ waitUntilReady: ReturnType<typeof vi.fn>; dispose: ReturnType<typeof vi.fn> }> = []
 
 vi.mock("../McpHub", () => ({
-	McpHub: vi.fn().mockImplementation(() => {
+	McpHub: vi.fn().mockImplementation(function () {
 		const instance = {
 			waitUntilReady: vi.fn().mockResolvedValue(undefined),
 			dispose: vi.fn().mockResolvedValue(undefined),

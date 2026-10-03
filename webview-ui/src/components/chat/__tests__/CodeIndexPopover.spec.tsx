@@ -551,6 +551,16 @@ describe("CodeIndexPopover", () => {
 
 			expect(field(API_KEY)).toHaveValue("sk-typing")
 		})
+
+		it("Qdrant の API キーも、入力中の値は上書きしない", () => {
+			renderPopover({ config: fullConfig })
+			openSetup()
+			fireEvent.change(field(QDRANT_KEY), { target: { value: "qdrant-typing" } })
+
+			post({ type: "codeIndexSecretStatus", values: { hasQdrantApiKey: true } })
+
+			expect(field(QDRANT_KEY)).toHaveValue("qdrant-typing")
+		})
 	})
 
 	describe("indexing actions", () => {

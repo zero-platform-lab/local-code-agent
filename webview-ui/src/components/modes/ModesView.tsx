@@ -576,11 +576,12 @@ const ModesView = () => {
 								<span className="codicon codicon-close"></span>
 							</Button>
 							<h2 className="mb-4">
-								{/* v8 ignore next 4 -- 到達不能: このダイアログを開く systemPrompt メッセージが必ずタイトルも設定するため、既定文言側は踏まない */}
+								{/* v8 ignore start -- 到達不能: このダイアログを開く systemPrompt メッセージが必ずタイトルも設定するため、既定文言側は踏まない */}
 								{selectedPromptTitle ||
 									t("prompts:systemPrompt.title", {
 										modeName: getCurrentMode()?.name || "Code",
 									})}
+								{/* v8 ignore stop */}
 							</h2>
 							<pre className="p-2 whitespace-pre-wrap break-words font-mono text-vscode-editor-font-size text-vscode-editor-foreground bg-vscode-editor-background border border-vscode-editor-lineHighlightBorder rounded overflow-y-auto">
 								{selectedPromptContent}

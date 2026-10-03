@@ -96,6 +96,7 @@ const HistoryView = ({ onDone }: HistoryViewProps) => {
 
 	// Handle batch delete button click
 	const handleBatchDelete = () => {
+		/* v8 ignore else -- 到達不能: この handler を持つ削除ボタンは `selectedTaskIds.length > 0` のときだけ描画される。防御ガードは残す */
 		if (selectedTaskIds.length > 0) {
 			setShowBatchDeleteDialog(true)
 		}

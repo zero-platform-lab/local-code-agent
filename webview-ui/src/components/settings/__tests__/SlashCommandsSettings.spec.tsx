@@ -32,11 +32,15 @@ vi.mock("@/utils/docLinks", () => ({
 	buildDocLink: (path: string, anchor?: string) => `https://docs.example.com/${path}${anchor ? `#${anchor}` : ""}`,
 }))
 
+// 本物のダイアログ（Radix）は閉じるアニメーション（200ms）の間、中身を DOM に残す。
+// その間にもう一度押された場合を再現するため、閉じた後も中身を残せるようにする。
+const closingDialog = vi.hoisted(() => ({ keepMounted: false }))
+
 // Mock UI components
 vi.mock("@/components/ui", () => ({
 	AlertDialog: ({ children, open }: any) => (
 		<div data-testid="alert-dialog" data-open={open}>
-			{open && children}
+			{(open || closingDialog.keepMounted) && children}
 		</div>
 	),
 	AlertDialogContent: ({ children }: any) => <div data-testid="alert-dialog-content">{children}</div>,
@@ -288,6 +292,27 @@ describe("SlashCommandsSettings", () => {
 				values: { source: expect.any(String) },
 			})
 		})
+	})
+
+	it("deletes the command only once when confirm is clicked again while the dialog is closing", () => {
+		closingDialog.keepMounted = true
+
+		try {
+			renderSlashCommandsSettings()
+			const deleteButtons = screen
+				.getAllByTestId("button")
+				.filter((btn) => btn.querySelector(".text-destructive"))
+			fireEvent.click(deleteButtons[0])
+
+			const confirmButton = screen.getByTestId("alert-dialog-action")
+			fireEvent.click(confirmButton)
+			fireEvent.click(confirmButton)
+
+			const deletes = vi.mocked(vscode.postMessage).mock.calls.filter(([m]) => m.type === "deleteCommand")
+			expect(deletes).toHaveLength(1)
+		} finally {
+			closingDialog.keepMounted = false
+		}
 	})
 
 	it("cancels deletion when cancel is clicked", () => {

@@ -482,6 +482,21 @@ describe("getContextMenuOptions", () => {
 		expect(result[1].value).toBe("code")
 	})
 
+	it("モードがあっても slash の問い合わせに合うものが無ければ、Modes の見出しを出さず NoResults を返す", () => {
+		const mockModes = [
+			{
+				slug: "code",
+				name: "Code",
+				roleDefinition: "You are a coding assistant",
+				groups: ["read" as const, "edit" as const],
+			},
+		]
+
+		const result = getContextMenuOptions("/zzzz", null, [], [], mockModes)
+
+		expect(result).toEqual([{ type: ContextMenuOptionType.NoResults }])
+	})
+
 	it("should not process slash commands when query starts with slash but inputValue doesn't", () => {
 		// Use a completely non-matching query to ensure we get NoResults
 		// and provide empty query items to avoid any matches

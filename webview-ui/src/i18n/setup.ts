@@ -13,6 +13,7 @@ Object.entries(localeFiles).forEach(([path, module]) => {
 	// Example path: './locales/en/common.json' -> language: 'en', namespace: 'common'
 	const match = path.match(/\.\/locales\/([^/]+)\/([^/]+)\.json/)
 
+	/* v8 ignore else -- 到達不能: import.meta.glob はビルド時に展開され、現在の locales は <言語>/<名前空間>.json の 2 階層だけなので必ず一致する。階層の深いファイルへの防御は残す */
 	if (match) {
 		const [, language, namespace] = match
 

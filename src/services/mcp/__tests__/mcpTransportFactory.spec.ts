@@ -19,6 +19,15 @@ const makeTransportStub = () => ({
 	onclose: undefined as (() => void) | undefined,
 })
 
+/**
+ * transport は `new` で作られる。vitest 4 では `new` で呼ぶ vi.fn に mockReturnValue を
+ * 使えないため、`function` の実装でスタブを返す。
+ */
+const constructedAs = (stub: unknown) =>
+	function () {
+		return stub as never
+	}
+
 vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({
 	StdioClientTransport: vi.fn(),
 	getDefaultEnvironment: vi.fn().mockReturnValue({ BASE: "1" }),
@@ -97,7 +106,7 @@ describe("createMcpTransport", () => {
 
 	it("stdio は既定環境変数に設定の env を重ねて起動する", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StdioClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs(stub))
 
 		await createMcpTransport("srv", stdioConfig({ env: { EXTRA: "2" } }), handlers(), "linux")
 
@@ -114,7 +123,7 @@ describe("createMcpTransport", () => {
 
 	it("stdio は connect 前に自分で起動し、start を no-op に差し替える", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StdioClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs(stub))
 
 		// factory が transport.start を差し替えるので、spy の参照を先に押さえておく
 		const originalStart = stub.start
@@ -130,7 +139,7 @@ describe("createMcpTransport", () => {
 
 	it("stderr のチャンクを INFO 判定つきでハンドラに渡す", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StdioClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs(stub))
 		const h = handlers()
 
 		await createMcpTransport("srv", stdioConfig(), h, "linux")
@@ -144,14 +153,14 @@ describe("createMcpTransport", () => {
 	})
 
 	it("stderr ストリームが無くても throw しない", async () => {
-		vi.mocked(StdioClientTransport).mockReturnValue({ ...makeTransportStub(), stderr: null } as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs({ ...makeTransportStub(), stderr: null }))
 
 		await expect(createMcpTransport("srv", stdioConfig(), handlers(), "linux")).resolves.toBeDefined()
 	})
 
 	it("onerror はメッセージつきで、onclose はメッセージ無しで切断を通知する", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StdioClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs(stub))
 		const h = handlers()
 
 		await createMcpTransport("srv", stdioConfig(), h, "linux")
@@ -165,7 +174,7 @@ describe("createMcpTransport", () => {
 
 	it("Error でない値も文字列化して通知する", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StdioClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StdioClientTransport).mockImplementation(constructedAs(stub))
 		const h = handlers()
 
 		await createMcpTransport("srv", stdioConfig(), h, "linux")
@@ -176,7 +185,7 @@ describe("createMcpTransport", () => {
 
 	it("streamable-http は URL とヘッダを渡す", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(StreamableHTTPClientTransport).mockReturnValue(stub as never)
+		vi.mocked(StreamableHTTPClientTransport).mockImplementation(constructedAs(stub))
 
 		await createMcpTransport(
 			"srv",
@@ -193,7 +202,7 @@ describe("createMcpTransport", () => {
 
 	it("sse は Authorization ヘッダがあるときだけ credentials を有効にする", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(SSEClientTransport).mockReturnValue(stub as never)
+		vi.mocked(SSEClientTransport).mockImplementation(constructedAs(stub))
 
 		await createMcpTransport(
 			"srv",
@@ -213,7 +222,7 @@ describe("createMcpTransport", () => {
 
 	it("sse の fetch ラッパは設定ヘッダを init ヘッダに重ねて global fetch へ委譲する", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(SSEClientTransport).mockReturnValue(stub as never)
+		vi.mocked(SSEClientTransport).mockImplementation(constructedAs(stub))
 
 		const originalFetch = global.fetch
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response)
@@ -257,7 +266,7 @@ describe("createMcpTransport", () => {
 
 	it("sse で設定ヘッダが無い場合でも fetch ラッパは動く（config.headers || {} の既定側）", async () => {
 		const stub = makeTransportStub()
-		vi.mocked(SSEClientTransport).mockReturnValue(stub as never)
+		vi.mocked(SSEClientTransport).mockImplementation(constructedAs(stub))
 
 		const originalFetch = global.fetch
 		const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response)

@@ -40,11 +40,15 @@ vi.mock("@agent/modes", () => ({
 	],
 }))
 
+// 本物のダイアログ（Radix）は閉じるアニメーション（200ms）の間、中身を DOM に残す。
+// その間にもう一度押された場合を再現するため、閉じた後も中身を残せるようにする。
+const closingDialog = vi.hoisted(() => ({ keepMounted: false }))
+
 // Mock UI components
 vi.mock("@/components/ui", () => ({
 	AlertDialog: ({ children, open }: any) => (
 		<div data-testid="alert-dialog" data-open={open}>
-			{open && children}
+			{(open || closingDialog.keepMounted) && children}
 		</div>
 	),
 	AlertDialogContent: ({ children }: any) => <div data-testid="alert-dialog-content">{children}</div>,
@@ -76,7 +80,7 @@ vi.mock("@/components/ui", () => ({
 	StandardTooltip: ({ children }: any) => <>{children}</>,
 	Dialog: ({ children, open, _onOpenChange }: any) => (
 		<div data-testid="mode-dialog" data-open={open}>
-			{open && children}
+			{(open || closingDialog.keepMounted) && children}
 		</div>
 	),
 	DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
@@ -306,6 +310,43 @@ describe("SkillsSettings", () => {
 				source: "project",
 				skillMode: undefined,
 			})
+		})
+	})
+
+	describe("a second click while the dialog is closing", () => {
+		beforeEach(() => {
+			closingDialog.keepMounted = true
+		})
+		afterEach(() => {
+			closingDialog.keepMounted = false
+		})
+
+		it("deletes the skill only once", () => {
+			renderSkillsSettings()
+			const buttons = screen.getAllByTestId("button")
+			const deleteButtons = buttons.filter((btn) => btn.querySelector('[class*="text-destructive"]'))
+			fireEvent.click(deleteButtons[0])
+
+			const confirmButton = screen.getByTestId("alert-dialog-action")
+			fireEvent.click(confirmButton)
+			fireEvent.click(confirmButton)
+
+			const deletes = vi.mocked(vscode.postMessage).mock.calls.filter(([m]) => m.type === "deleteSkill")
+			expect(deletes).toHaveLength(1)
+		})
+
+		it("saves the modes only once", () => {
+			renderSkillsSettings()
+			const row = screen.getByText("project-skill").closest("div.flex")!.parentElement!.parentElement!
+			fireEvent.click(row.querySelectorAll("button")[0])
+			fireEvent.click(screen.getByTestId("checkbox-mode-code"))
+
+			const save = screen.getByText("settings:skills.modeDialog.save")
+			fireEvent.click(save)
+			fireEvent.click(save)
+
+			const updates = vi.mocked(vscode.postMessage).mock.calls.filter(([m]) => m.type === "updateSkillModes")
+			expect(updates).toHaveLength(1)
 		})
 	})
 

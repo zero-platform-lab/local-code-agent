@@ -37,21 +37,25 @@ vi.mock("vscode", () => ({
 }))
 
 vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({
-	StdioClientTransport: vi.fn().mockImplementation(() => ({
-		start: vi.fn().mockResolvedValue(undefined),
-		close: vi.fn().mockResolvedValue(undefined),
-		stderr: null,
-	})),
+	StdioClientTransport: vi.fn().mockImplementation(function () {
+		return {
+			start: vi.fn().mockResolvedValue(undefined),
+			close: vi.fn().mockResolvedValue(undefined),
+			stderr: null,
+		}
+	}),
 	getDefaultEnvironment: vi.fn().mockReturnValue({ PATH: "/usr/bin" }),
 }))
 
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
-	Client: vi.fn().mockImplementation(() => ({
-		connect: vi.fn().mockResolvedValue(undefined),
-		close: vi.fn().mockResolvedValue(undefined),
-		getInstructions: vi.fn().mockReturnValue(undefined),
-		request: vi.fn().mockResolvedValue({ tools: [], resources: [], resourceTemplates: [] }),
-	})),
+	Client: vi.fn().mockImplementation(function () {
+		return {
+			connect: vi.fn().mockResolvedValue(undefined),
+			close: vi.fn().mockResolvedValue(undefined),
+			getInstructions: vi.fn().mockReturnValue(undefined),
+			request: vi.fn().mockResolvedValue({ tools: [], resources: [], resourceTemplates: [] }),
+		}
+	}),
 }))
 
 vi.mock("chokidar", () => ({

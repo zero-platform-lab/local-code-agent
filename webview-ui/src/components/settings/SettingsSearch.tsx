@@ -70,6 +70,7 @@ export function SettingsSearch({ index, onNavigate, sections }: SettingsSearchPr
 			if (event.key === "Enter" && highlightedResultId) {
 				event.preventDefault()
 				const selected = results.find((r) => r.settingId === highlightedResultId)
+				/* v8 ignore else -- 到達不能: 下の効果が highlightedResultId を常に results の中へ合わせるため、見つからない場合は無い。防御は残す */
 				if (selected) {
 					handleSelectResult(selected)
 				}

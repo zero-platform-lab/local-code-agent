@@ -9,6 +9,7 @@ import * as ExtensionStateContext from "@src/context/ExtensionStateContext"
 const { ExtensionStateContextProvider } = ExtensionStateContext
 
 import { vscode } from "@/utils/vscode"
+import { useSelectedModel } from "@src/components/ui/hooks/useSelectedModel"
 
 import ApiOptions, { ApiOptionsProps } from "../ApiOptions"
 
@@ -639,6 +640,58 @@ describe("ApiOptions", () => {
 			fireEvent.change(sliders[sliders.length - 1].querySelector("input")!, { target: { value: "7" } })
 
 			expect(setApiConfigurationField).toHaveBeenCalledWith("consecutiveMistakeLimit", 7)
+		})
+	})
+
+	describe("provider and model capabilities", () => {
+		beforeEach(() => {
+			vi.clearAllMocks()
+		})
+
+		it("does not ask for OpenAI models when the saved provider is not OpenAI Compatible", async () => {
+			// 削除済みのプロバイダ名が保存されたプロファイルを開いた場合。
+			vi.useFakeTimers()
+
+			try {
+				renderApiOptions({
+					apiConfiguration: {
+						apiProvider: "anthropic" as ProviderSettings["apiProvider"],
+						openAiBaseUrl: "http://x/v1",
+					},
+				})
+
+				await act(async () => {
+					vi.advanceTimersByTime(300)
+				})
+
+				expect(vscode.postMessage).not.toHaveBeenCalledWith(
+					expect.objectContaining({ type: "requestOpenAiModels" }),
+				)
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
+		it("shows the verbosity control only for a model that supports it", () => {
+			vi.mocked(useSelectedModel).mockReturnValue({
+				id: "gpt-5",
+				provider: "openai",
+				info: { contextWindow: 4000, supportsPromptCache: false, supportsVerbosity: true },
+			} as ReturnType<typeof useSelectedModel>)
+
+			try {
+				renderApiOptions({ apiConfiguration: { apiProvider: "openai", apiModelId: "gpt-5" } })
+
+				expect(screen.getByTestId("verbosity")).toBeInTheDocument()
+			} finally {
+				vi.mocked(useSelectedModel).mockReset()
+			}
+		})
+
+		it("hides the verbosity control for a model that does not support it", () => {
+			renderApiOptions({ apiConfiguration: { apiProvider: "openai", apiModelId: "gpt-4" } })
+
+			expect(screen.queryByTestId("verbosity")).not.toBeInTheDocument()
 		})
 	})
 })

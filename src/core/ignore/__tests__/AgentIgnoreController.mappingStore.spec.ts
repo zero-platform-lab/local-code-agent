@@ -13,7 +13,9 @@ vi.mock("vscode", () => {
 				dispose: vi.fn(),
 			})),
 		},
-		RelativePattern: vi.fn().mockImplementation((base: unknown, pattern: unknown) => ({ base, pattern })),
+		RelativePattern: vi.fn().mockImplementation(function (base: unknown, pattern: unknown) {
+			return { base, pattern }
+		}),
 	}
 })
 

@@ -85,6 +85,32 @@ describe("parseUnifiedDiff", () => {
 		expect(gaps[0].hiddenCount).toBeGreaterThan(0)
 	})
 
+	it("does not insert a gap between hunks that are directly adjacent", () => {
+		// The second hunk starts on the line right after the first ends: nothing is hidden.
+		const diff = `--- a/file.ts
++++ b/file.ts
+@@ -1,2 +1,2 @@
+ line1
+-old2
++new2
+@@ -3,2 +3,2 @@
+ line3
+-old4
++new4
+`
+		const result = parseUnifiedDiff(diff)
+
+		expect(result.filter((l) => l.type === "gap")).toEqual([])
+		expect(result.map((l) => [l.type, l.oldLineNum, l.newLineNum])).toEqual([
+			["context", 1, 1],
+			["deletion", 2, null],
+			["addition", null, 2],
+			["context", 3, 3],
+			["deletion", 4, null],
+			["addition", null, 4],
+		])
+	})
+
 	it("finds the correct patch by filePath", () => {
 		const diff = `--- a/first.ts
 +++ b/first.ts

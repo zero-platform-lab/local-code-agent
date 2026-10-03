@@ -1,3 +1,5 @@
+import type { Mock } from "vitest"
+
 import { AgentEventName, TodoItem } from "@openai-agent/types"
 
 import { AttemptCompletionToolUse, ToolUse } from "../../../shared/tools"
@@ -34,12 +36,13 @@ import * as vscode from "vscode"
 
 describe("attemptCompletionTool", () => {
 	let mockTask: Partial<Task>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockToolDescription: ReturnType<typeof vi.fn>
-	let mockAskFinishSubTaskApproval: ReturnType<typeof vi.fn>
-	let mockGetConfiguration: ReturnType<typeof vi.fn>
+	let mockPushToolResult: Mock<AttemptCompletionCallbacks["pushToolResult"]>
+	let mockAskApproval: Mock<AttemptCompletionCallbacks["askApproval"]>
+	let mockHandleError: Mock<AttemptCompletionCallbacks["handleError"]>
+	let mockToolDescription: Mock<AttemptCompletionCallbacks["toolDescription"]>
+	let mockAskFinishSubTaskApproval: Mock<AttemptCompletionCallbacks["askFinishSubTaskApproval"]>
+	// 設定の get は試験ごとに部分的な形で差し替えるため、引数と戻り値は緩く置く（vitest 3 の既定と同じ）。
+	let mockGetConfiguration: Mock<(...args: any[]) => any>
 
 	beforeEach(() => {
 		mockPushToolResult = vi.fn()
@@ -548,9 +551,9 @@ describe("attemptCompletionTool", () => {
 
 describe("attemptCompletionTool - 委譲/必須param/例外/partial", () => {
 	let task: any
-	let pushToolResult: ReturnType<typeof vi.fn>
-	let handleError: ReturnType<typeof vi.fn>
-	let askFinishSubTaskApproval: ReturnType<typeof vi.fn>
+	let pushToolResult: Mock<AttemptCompletionCallbacks["pushToolResult"]>
+	let handleError: Mock<AttemptCompletionCallbacks["handleError"]>
+	let askFinishSubTaskApproval: Mock<AttemptCompletionCallbacks["askFinishSubTaskApproval"]>
 	let getTaskWithId: ReturnType<typeof vi.fn>
 	let reopenParentFromDelegation: ReturnType<typeof vi.fn>
 

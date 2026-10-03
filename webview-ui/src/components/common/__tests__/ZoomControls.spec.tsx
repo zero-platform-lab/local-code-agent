@@ -118,6 +118,28 @@ describe("ZoomControls", () => {
 			expect(adjustZoom).toHaveBeenCalledTimes(1)
 		})
 
+		it("passing the pointer over the button without pressing it neither zooms nor breaks a later press", () => {
+			const adjustZoom = vi.fn()
+			const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval")
+			const { container } = render(
+				<ZoomControls zoomLevel={1} useContinuousZoom={true} adjustZoom={adjustZoom} zoomInStep={0.2} />,
+			)
+
+			const zoomInBtn = container.querySelector(".codicon-zoom-in")!.closest("button")!
+			// mouseLeave / mouseUp with no zoom running: there is no interval to clear.
+			fireEvent.mouseLeave(zoomInBtn)
+			fireEvent.mouseUp(zoomInBtn)
+			expect(adjustZoom).not.toHaveBeenCalled()
+			expect(clearIntervalSpy).not.toHaveBeenCalled()
+
+			fireEvent.mouseDown(zoomInBtn)
+			act(() => {
+				vi.advanceTimersByTime(300)
+			})
+			expect(adjustZoom).toHaveBeenCalledTimes(3)
+			clearIntervalSpy.mockRestore()
+		})
+
 		it("stops continuous zoom on mouseLeave", () => {
 			const adjustZoom = vi.fn()
 			const { container } = render(

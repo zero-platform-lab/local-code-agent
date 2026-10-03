@@ -159,6 +159,7 @@ export const ErrorRow = memo(
 		}
 
 		const handleToggleExpand = useCallback(() => {
+			/* v8 ignore else -- 到達不能: 開閉のボタンは type === "diff_error" かつ expandable のときだけ描かれる。防御は残す */
 			if (expandable) {
 				setIsExpanded(!isExpanded)
 			}
@@ -181,6 +182,7 @@ export const ErrorRow = memo(
 		const handleCopyDetails = useCallback(
 			async (e: React.MouseEvent) => {
 				e.stopPropagation()
+				/* v8 ignore else -- 到達不能: 詳細のコピーボタンは formattedErrorDetails があるときだけ描かれるダイアログ内にしかない。防御は残す */
 				if (formattedErrorDetails) {
 					const success = await copyWithFeedback(formattedErrorDetails)
 					if (success) {

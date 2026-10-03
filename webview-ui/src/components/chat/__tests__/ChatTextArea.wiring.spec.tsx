@@ -9,6 +9,7 @@ import { useExtensionState } from "@src/context/ExtensionStateContext"
 import { vscode } from "@src/utils/vscode"
 
 import { ChatTextArea } from "../ChatTextArea"
+import { MAX_IMAGES_PER_MESSAGE } from "../ChatView"
 
 vi.mock("@src/utils/vscode", () => ({ vscode: { postMessage: vi.fn() } }))
 vi.mock("@src/context/ExtensionStateContext")
@@ -335,6 +336,22 @@ describe("ChatTextArea wiring", () => {
 			}
 		})
 
+		it("検索と関係のないメッセージでは、検索中の表示を解かない", async () => {
+			vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+			try {
+				renderTextArea({ inputValue: "" })
+				fireEvent.change(textarea(), { target: { value: "@src", selectionStart: 4 } })
+				act(() => vi.advanceTimersByTime(200))
+				expect(screen.getByTestId("context-menu")).toHaveAttribute("data-loading", "true")
+
+				post({ type: "state" })
+
+				expect(screen.getByTestId("context-menu")).toHaveAttribute("data-loading", "true")
+			} finally {
+				vi.useRealTimers()
+			}
+		})
+
 		it("tolerates a result set without results", async () => {
 			vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
 			try {
@@ -467,6 +484,52 @@ describe("ChatTextArea wiring", () => {
 			expect(textarea().value).not.toContain("@/src/app.ts")
 		})
 
+		it("メンション直後の空白の先も空白なら、既定の削除に任せてキャレットを動かさない", () => {
+			renderTextArea({ inputValue: "@/src/app.ts a b" })
+			const element = putCaretAt(13)
+
+			// fireEvent は preventDefault されなかったとき true を返す。
+			expect(fireEvent.keyDown(element, { key: "Backspace" })).toBe(true)
+			expect(defaultProps.setInputValue).not.toHaveBeenCalled()
+		})
+
+		it("空白を畳んだあと、消せるメンションが無い位置での Backspace は何も消さない", () => {
+			renderStateful({ initialValue: "@/src/app.ts x" })
+			const element = putCaretAt(13)
+
+			// 1 回目: メンション直後の空白を畳む（既定の削除は止める）。
+			expect(fireEvent.keyDown(element, { key: "Backspace" })).toBe(false)
+
+			// 2 回目: キャレットを先頭へ移してから押す。消せるメンションが無いので既定の動作に任せる。
+			putCaretAt(0)
+			expect(fireEvent.keyDown(element, { key: "Backspace" })).toBe(true)
+			expect(textarea().value).toBe("@/src/app.ts x")
+		})
+
+		it("メニューを開いたまま普通の文字を打っても、選択はせずメニューを保つ", () => {
+			const { setInputValue } = openMenu()
+			setInputValue.mockClear() // "@" の入力そのものの分は数えない
+
+			expect(fireEvent.keyDown(textarea(), { key: "a" })).toBe(true)
+
+			expect(setInputValue).not.toHaveBeenCalled()
+			expect(screen.getByTestId("context-menu")).toBeInTheDocument()
+		})
+
+		it("強調中の候補が選べない項目（該当なし）なら、Enter で何も挿入しない", () => {
+			const { setInputValue } = openMenu()
+			// ファイルの一覧へ降りる。候補が無いので「該当なし」だけが 0 番目に並ぶ。
+			fireEvent.click(screen.getByTestId("select-file-type"))
+			expect(screen.getByTestId("context-menu")).toHaveAttribute("data-selected-index", "0")
+			setInputValue.mockClear() // "@" の入力そのものの分は数えない
+
+			fireEvent.keyDown(textarea(), { key: "Enter" })
+
+			expect(setInputValue).not.toHaveBeenCalled()
+			expect(defaultProps.onSend).not.toHaveBeenCalled()
+			expect(screen.getByTestId("context-menu")).toHaveAttribute("data-type", "file")
+		})
+
 		it("leaves ordinary text alone", () => {
 			const { setInputValue } = renderTextArea({ inputValue: "plain text" })
 			const element = putCaretAt(10)
@@ -566,6 +629,24 @@ describe("ChatTextArea wiring", () => {
 			fireEvent.paste(textarea(), clipboard({ items: [{ type: "image/png", getAsFile: () => file }] }))
 
 			await waitFor(() => expect(setSelectedImages).toHaveBeenCalled())
+		})
+
+		it("貼り付けた画像は既存の画像の後ろに足し、1 通あたりの上限で切る", async () => {
+			const setSelectedImages = vi.fn()
+			renderTextArea({ inputValue: "", setSelectedImages })
+			const file = new File(["x"], "shot.png", { type: "image/png" })
+
+			fireEvent.paste(textarea(), clipboard({ items: [{ type: "image/png", getAsFile: () => file }] }))
+			await waitFor(() => expect(setSelectedImages).toHaveBeenCalled())
+
+			const update = setSelectedImages.mock.calls[0][0] as (prev: string[]) => string[]
+			const added = update(["data:old"])
+			expect(added).toHaveLength(2)
+			expect(added[0]).toBe("data:old")
+			expect(added[1]).toMatch(/^data:image\/png;base64,/)
+
+			const full = Array.from({ length: MAX_IMAGES_PER_MESSAGE }, (_, i) => `data:${i}`)
+			expect(update(full)).toEqual(full)
 		})
 
 		it("ignores images when the model cannot read them", () => {
@@ -728,6 +809,14 @@ describe("ChatTextArea wiring", () => {
 			fireEvent.scroll(textarea())
 
 			expect(document.querySelector("mark.mention-context-textarea-highlight")).toBeInTheDocument()
+		})
+
+		it("強調の層へ写すとき、< > & をエスケープする", () => {
+			renderTextArea({ inputValue: "a<b> & c" })
+
+			const layer = screen.getByTestId("highlight-layer")
+			expect(layer.innerHTML).toContain("a&lt;b&gt; &amp; c")
+			expect(layer.querySelector("b")).toBeNull()
 		})
 
 		it("highlights known commands only", () => {
@@ -1215,6 +1304,51 @@ describe("ChatTextArea wiring", () => {
 
 			expect(setInputValue).toHaveBeenLastCalledWith(expected)
 		})
+
+		// 選んだあとのフォーカスは setTimeout(0) で戻す。タイマーが走る時点でテキストエリアが
+		// 残っているか（ref が付いているか）の両方を、偽のタイマーで決まった順に確かめる。
+		// 本物のタイマーだと、どちらの側を通るかが実行時の負荷で変わる。
+		it.each([["select-command"], ["select-file"]])(
+			"%s を選ぶと、次のタイマーでテキストエリアへフォーカスを戻す",
+			(testId) => {
+				vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+				try {
+					openMenu()
+					const focus = vi.fn()
+					textarea().focus = focus
+
+					fireEvent.click(screen.getByTestId(testId))
+					expect(focus).not.toHaveBeenCalled()
+					act(() => {
+						vi.runAllTimers()
+					})
+
+					expect(focus).toHaveBeenCalled()
+				} finally {
+					vi.useRealTimers()
+				}
+			},
+		)
+
+		it.each([["select-command"], ["select-file"]])(
+			"%s を選んだ直後に閉じられたら、タイマーはフォーカスに触れない",
+			(testId) => {
+				vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+				try {
+					const { unmount } = openMenu()
+					const focus = vi.fn()
+					textarea().focus = focus
+
+					fireEvent.click(screen.getByTestId(testId))
+					unmount()
+
+					expect(() => vi.runAllTimers()).not.toThrow()
+					expect(focus).not.toHaveBeenCalled()
+				} finally {
+					vi.useRealTimers()
+				}
+			},
+		)
 
 		it("does nothing when there is nothing to pick", () => {
 			const { setInputValue } = openMenu()

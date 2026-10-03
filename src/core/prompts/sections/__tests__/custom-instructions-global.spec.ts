@@ -71,6 +71,10 @@ describe("custom-instructions global .agent support", () => {
 	})
 
 	afterEach(() => {
+		// vitest 4 の restoreAllMocks は vi.spyOn の spy だけを戻し、vi.fn() の
+		// mockResolvedValueOnce の残りを消さない。消さないと次の試験へ持ち越されるため、
+		// resetAllMocks で試験ごとに捨てる（vitest 3 の restoreAllMocks と同じ効果）。
+		vi.resetAllMocks()
 		vi.restoreAllMocks()
 	})
 

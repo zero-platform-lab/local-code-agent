@@ -133,4 +133,17 @@ describe("extractPatternsFromCommand", () => {
 		expect(patterns).toEqual(["docker", "docker run"])
 		// Stops at -it flag
 	})
+
+	it("区切りの前にコマンドが無ければ、空のコマンドとして数えない", () => {
+		// 先頭の `;` と連続した `;` は、積んだ語が 0 個の状態で区切りに当たる
+		expect(extractPatternsFromCommand("; ls ; ; pwd")).toEqual(["ls", "pwd"])
+	})
+
+	it("区切りでない演算子（リダイレクト）は語に積まず、前後の語は同じコマンドとして扱う", () => {
+		expect(extractPatternsFromCommand("echo hi > out")).toEqual(["echo", "echo hi", "echo hi out"])
+	})
+
+	it("区切りで終わるコマンドは、最後に空のコマンドを数えない", () => {
+		expect(extractPatternsFromCommand("ls |")).toEqual(["ls"])
+	})
 })

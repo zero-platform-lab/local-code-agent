@@ -319,6 +319,22 @@ describe("モデルの置き場所を画面へ出す（FR-PII-23a）", () => {
 
 		expect(screen.queryByTestId("pii-model-status")).not.toBeInTheDocument()
 	})
+
+	it("ほかの種類のメッセージでは、状態を書き換えない", () => {
+		renderWith({ properNouns: { enabled: true } })
+		reply({ directory: "/home/x/.agent/pii-ner", present: true, missing: [], bytes: 295_000_000 })
+
+		fireEvent(
+			window,
+			new MessageEvent("message", {
+				data: { type: "state", piiNerModel: { runtime: true, directory: "/elsewhere", present: false } },
+			}),
+		)
+
+		const status = screen.getByTestId("pii-model-status")
+		expect(status).toHaveTextContent("/home/x/.agent/pii-ner")
+		expect(status).not.toHaveTextContent("/elsewhere")
+	})
 })
 
 describe("動かせない配布物（FR-PII-23g）", () => {

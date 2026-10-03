@@ -207,6 +207,16 @@ describe("AutoApproveSettings — command lists", () => {
 		expect(setCachedStateField).toHaveBeenCalledWith("deniedCommands", ["shutdown"])
 	})
 
+	it("does not add a denied command on keys other than Enter", () => {
+		renderSettings({ alwaysAllowExecute: true })
+
+		fireEvent.change(screen.getByTestId("denied-command-input"), { target: { value: "shutdown" } })
+		fireEvent.keyDown(screen.getByTestId("denied-command-input"), { key: "a" })
+
+		expect(setCachedStateField).not.toHaveBeenCalled()
+		expect(screen.getByTestId("denied-command-input")).toHaveValue("shutdown")
+	})
+
 	it("ignores an empty or duplicate denied command", () => {
 		renderSettings({ alwaysAllowExecute: true, deniedCommands: ["rm -rf"] })
 

@@ -1,7 +1,7 @@
 import * as path from "path"
 import fs from "fs/promises"
 
-import type { MockedFunction } from "vitest"
+import type { Mock, MockedFunction } from "vitest"
 
 import { DEFAULT_WRITE_DELAY_MS } from "@openai-agent/types"
 
@@ -11,7 +11,7 @@ import { getReadablePath } from "../../../utils/path"
 import { formatResponse } from "../../prompts/responses"
 import { unescapeHtmlEntities } from "../../../utils/text-normalization"
 import { everyLineHasLineNumbers, stripLineNumbers } from "../../../integrations/misc/extract-text"
-import { ToolUse, ToolResponse } from "../../../shared/tools"
+import { ToolUse, ToolResponse, type AskApproval, type HandleError, type PushToolResult } from "../../../shared/tools"
 import { writeToFileTool } from "../WriteToFileTool"
 import { makeMockTask } from "../../task/__tests__/makeMockTask"
 
@@ -120,9 +120,9 @@ describe("writeToFileTool", () => {
 	>
 
 	let mockCline: any
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
+	let mockAskApproval: Mock<AskApproval>
+	let mockHandleError: Mock<HandleError>
+	let mockPushToolResult: Mock<PushToolResult>
 	let toolResult: ToolResponse | undefined
 
 	beforeEach(() => {

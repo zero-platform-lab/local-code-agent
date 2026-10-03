@@ -1,6 +1,6 @@
 import EventEmitter from "events"
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest"
 
 import { AgentEventName, TaskStatus, type HistoryItem } from "@openai-agent/types"
 
@@ -35,9 +35,11 @@ const makeHost = (overrides: Partial<TaskEventForwardingHost> = {}) => {
 	return host
 }
 
+type ForwardingDeps = Parameters<typeof makeTaskCreationCallback>[1]
+
 describe("makeTaskCreationCallback", () => {
-	let emit: ReturnType<typeof vi.fn>
-	let setCleanup: ReturnType<typeof vi.fn>
+	let emit: Mock<ForwardingDeps["emit"]>
+	let setCleanup: Mock<ForwardingDeps["setCleanup"]>
 
 	beforeEach(() => {
 		emit = vi.fn()

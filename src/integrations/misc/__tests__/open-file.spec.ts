@@ -38,10 +38,13 @@ vi.mock("vscode", () => ({
 		Directory: 2,
 		File: 1,
 	},
-	Selection: vi.fn((startLine: number, startChar: number, endLine: number, endChar: number) => ({
-		start: { line: startLine, character: startChar },
-		end: { line: endLine, character: endChar },
-	})),
+	// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+	Selection: vi.fn(function (startLine: number, startChar: number, endLine: number, endChar: number) {
+		return {
+			start: { line: startLine, character: startChar },
+			end: { line: endLine, character: endChar },
+		}
+	}),
 	TabInputText: vi.fn(),
 }))
 

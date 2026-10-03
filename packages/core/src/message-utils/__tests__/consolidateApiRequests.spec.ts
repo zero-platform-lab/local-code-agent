@@ -144,6 +144,19 @@ describe("consolidateApiRequests", () => {
 		expect(JSON.parse(result[0]!.text || "{}").request).toBe("keep-me")
 	})
 
+	it("api_req_started の text が空なら parse を試みず、finished 側の内容だけでマージする", () => {
+		// startMessage.text が falsy → `if (startMessage.text)` の false 分岐（parse スキップ）
+		const messages: ClineMessage[] = [
+			{ ts: 1000, type: "say", say: "api_req_started", text: "" },
+			createApiReqFinished(1001, { cost: 0.01 }),
+		]
+
+		const result = consolidateApiRequests(messages)
+
+		expect(result.length).toBe(1)
+		expect(JSON.parse(result[0]!.text || "{}")).toEqual({ cost: 0.01 })
+	})
+
 	it("api_req_finished の text が空なら parse を試みずマージする", () => {
 		// message.text が falsy → `if (message.text)` の false 分岐（parse スキップ）
 		const messages: ClineMessage[] = [

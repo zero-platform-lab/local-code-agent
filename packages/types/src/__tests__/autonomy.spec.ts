@@ -9,6 +9,7 @@ import {
 	DEFAULT_DENIED_COMMANDS,
 	nextAutonomyMode,
 	isReadOnlyAutonomyMode,
+	isAutopilotMode,
 	type AutonomyMode,
 } from "../autonomy.js"
 
@@ -106,5 +107,13 @@ describe("default denied commands", () => {
 		for (const needle of ["rm -rf", "sudo", "dd", "mkfs", "git push --force"]) {
 			expect(DEFAULT_DENIED_COMMANDS).toContain(needle)
 		}
+	})
+})
+
+describe("isAutopilotMode", () => {
+	it("autopilot だけを真とし、ほかのモードと未指定は偽とする", () => {
+		// 真になるモードが増えると、人に聞かない判定がそのモードにも広がる。
+		expect(autonomyModes.filter((mode) => isAutopilotMode(mode))).toEqual(["autopilot"])
+		expect(isAutopilotMode(undefined)).toBe(false)
 	})
 })

@@ -12,7 +12,7 @@ export default defineConfig({
 			// 測り直した値へ引き上げた。vitest 3 は試験が読まない scripts/publish-npm.cjs を
 			// 文 289・分岐 1・関数 1 として母数に入れていたが、vitest 4 は中身を数える（文 179・分岐 22・
 			// 関数 14）。配布物に入らない公開用の script なので、母数から外し、src の床を上げる。
-			thresholds: { statements: 98.9, branches: 97.5, functions: 93.5, lines: 99.2 },
+			thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
 			// vitest 4 で coverage.all が無くなり、include を書かないと「試験が読み込んだファイル」
 			// だけが母数になる。どの試験も読まないファイルを床から外さないよう、母数を明示する。
 			include: ["src/**/*.ts"],

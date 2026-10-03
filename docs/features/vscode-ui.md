@@ -13,6 +13,7 @@
 | `FR-UI-26` `FR-UI-27` `FR-UI-27a`                      | 保存先の変更と、設定の書き出しおよび読み込み                                             |
 | `FR-UI-29` `FR-UI-29a`                                 | スキルの取得元と proxy を設定の画面から編集する。経路を示し、SSH では proxy を選ばせない |
 | `FR-UI-28`                                             | 識別子を実行時のパッケージ名と一致させる                                                 |
+| `FR-UI-30`                                             | 白い画面の調査のため、Webview の状態を出力パネルへ記録する                               |
 | `NFR-SEC-07`                                           | 設定画面に出す追加ヘッダーの値を、名前に関わらず伏せる                                   |
 | `NFR-SEC-09` `NFR-SEC-09a`                             | 配布する版の Webview は拡張自身の資源だけを読み込む。HMR の経路は開発モード専用          |
 | `NFR-PERF-01`                                          | 配布する成果物を圧縮する                                                                 |
@@ -61,6 +62,19 @@ GitHub Copilot と同じ配置にする。この配置は VS Code の `1.106.0` 
 「コマンドが見つからない」・押しても反応しない設定のボタン・初回の起動の繰り返しとして
 現れる。**
 
+### Webview の状態を出力パネルへ記録する
+
+チャットの画面が白くなり、開発者ツールにもエラーが出ないことがある。白くなった瞬間の記録が
+どこにも残らないため、出力パネル（「OpenAI Compatible Agent」）へ `[Webview]` で始まる行を残す。
+
+- Webview の `error`・`unhandledrejection`・ErrorBoundary が捕まえた描画のエラーを、拡張へ転送する
+  （`webview-ui/src/utils/forwardErrorsToExtension.ts`）。転送は ErrorBoundary の外で登録し、
+  画面が落ちた後も動く。本文は 4,000 字で切る。
+- Webview の読み込み（`webviewDidLaunch`）、表示の切り替え、破棄を記録する。タスクの途中で
+  読み込みが記録されていれば、Webview が作り直されている。
+- 状態を送るたびに、バイト数と `clineMessages` の件数を記録し、`STATE_POST_WARN_BYTES`（5 MB）を
+  超えたら警告を出す（`src/core/webview/webviewDiagnostics.ts`）。状態の送信はここ 1 か所に集めてある。
+
 ### 配布する成果物は圧縮する
 
 圧縮しないと拡張ホストの読み込みが目に見えて遅くなる。配布ビルドの手順は、別の
@@ -79,6 +93,8 @@ GitHub Copilot と同じ配置にする。この配置は VS Code の `1.106.0` 
 - **識別子の不一致は、型検査もテストも成功したまま起きる。** 一致を確かめる試験が
   `packages/build` にある。
 - 画面の状態を細かく送ると、更新のたびに再描画が走る。状態は 1 つのまとまりで送る。
+  例外はタスクの状態（`taskStatus`）で、停止ボタンのためだけに小さなメッセージで送る。
+  状態の全体を送り直すと、変わるたびに会話の全体を送ることになり重い（`FR-LOOP-04b`）。
 
 ## 確かめ方
 
@@ -90,8 +106,13 @@ GitHub Copilot と同じ配置にする。この配置は VS Code の `1.106.0` 
 | ヘッダーの値が伏せられること     | `webview-ui/src/components/settings/providers/__tests__/OpenAICompatible.spec.tsx` |
 | 設定の書き出しと読み込み         | `src/core/webview/__tests__/settingsMessageHandlers.spec.ts`                       |
 | 成果物の大きさ                   | `pnpm bundle:internal` の出力を測る                                                |
+| Webview の状態の記録             | `src/core/webview/__tests__/webviewDiagnostics.spec.ts`                            |
+| 状態の送信が 1 か所であること    | `src/core/webview/__tests__/webviewDiagnostics.invariants.spec.ts`                 |
+| Webview のエラーの転送           | `webview-ui/src/utils/__tests__/forwardErrorsToExtension.spec.ts`                  |
 
 ## できていないこと
 
 - 画面の実機での確認は、手順があるだけで自動化していない（`FR-UI-20`）。
 - 設定のタブの分け方に、まだ揺れがある（`FR-UI-21`）。
+- 画面が白くなる原因は、まだ分かっていない（`FR-UI-30`）。記録は調査のためのもので、
+  状態を送るたびに状態を 1 回余分に JSON にしている。原因が分かったら計測を外す。

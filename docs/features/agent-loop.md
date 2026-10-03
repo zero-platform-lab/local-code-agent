@@ -60,6 +60,24 @@ OpenAI の SDK を経由したリクエストでは、中断の要求が下層�
 | ツールの失敗 | 連続した回数を数え、上限で反復を止めて利用者へ渡す |
 
 同じツールを同じ引数で繰り返した場合も止める。再試行では抜けられないためである。
+回数は、人が応答した時点で数え直す（`Task.handleUserAskResponse`）。人が「もう一度」と
+頼んだ後の同じ呼び出しまで数えると、正当な繰り返しを止めてしまうためである。自動の承認と
+拒否では数え直さない。数え直すと、自動で拒否され続けるループを止められなくなる。
+`autopilot` では、この判定を行わない（[approval.md](approval.md)）。
+
+### ツールの実行中にも止める
+
+停止は、LLM の応答の受信中だけでなく、ツールの実行中にも効かせる。
+
+- **実行中のコマンドを止める。** `runAbortTask` が `terminalProcess.abort()` を呼ぶ。
+  後片付け（`dispose`）はターミナルとタスクの紐付けを外すだけで、プロセスは止めない。
+  止めないと、ツールはコマンドが終わるまで待ち続ける。
+- **止めた後にコマンドを起動しない。** 承認から起動までの間に止められた場合に備え、
+  起動の直前に `abort` を確かめる。この時点ではまだ止める対象のプロセスが無い。
+- **停止ボタンは、拡張が持つタスクの状態で出す。** 状態が変わるたびに `taskStatus` を
+  画面へ送り（`taskEventForwarding.ts`）、画面は実行中なら停止ボタンを出す（`canStop`）。
+  画面がメッセージから推測する方式では、LLM の応答が終わってツールだけが動く間に
+  停止ボタンが消えていた。
 
 ## 制約
 
@@ -76,21 +94,35 @@ OpenAI の SDK を経由したリクエストでは、中断の要求が下層�
 - **中断の要求が効かない接続先がある。** 中断の要求だけに頼る実装へ戻すと、応答の
   来ない接続先でタスクが終わらなくなる。
 - 連続した失敗の上限を 0 にすると、上限の判定が働かない。設定の下限を確かめる。
+- **停止ボタンを、画面の推測へ戻さない。** ツールの実行中に止める手段が無くなる。
+- **`canStop` と `isStreaming` を混ぜない。** `isStreaming` は「拒否」を「停止」に変えるのにも
+  使う。本物の承認待ちでは、状態が入力待ちへ変わるまで少し間があり、その間に拒否を押すと
+  タスクごと止まってしまう。
 
 ## 確かめ方
 
-| 何を                           | どこで                                                       |
-| ------------------------------ | ------------------------------------------------------------ |
-| 反復が完了で終わること         | `apps/vscode-e2e/src/suite/round-trip.test.ts`               |
-| ツールの副作用が会話へ戻ること | `apps/vscode-e2e/src/suite/tool-effects.test.ts`             |
-| 失敗したときの振る舞い         | `apps/vscode-e2e/src/suite/failure-paths.test.ts`            |
-| 応答の来ない接続先で終わること | `src/api/providers/__tests__/openaiHang.integration.spec.ts` |
-| 上限 0 で即座に失敗しないこと  | `src/api/providers/__tests__/openai-timeout.spec.ts`         |
-| 再試行の間隔が伸びること       | `src/core/task/__tests__/ApiRequestTimingController.spec.ts` |
-| 連続した失敗の上限             | `src/core/task/__tests__/checkMistakeLimit.spec.ts`          |
+| 何を                                 | どこで                                                              |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| 反復が完了で終わること               | `apps/vscode-e2e/src/suite/round-trip.test.ts`                      |
+| ツールの副作用が会話へ戻ること       | `apps/vscode-e2e/src/suite/tool-effects.test.ts`                    |
+| 失敗したときの振る舞い               | `apps/vscode-e2e/src/suite/failure-paths.test.ts`                   |
+| 応答の来ない接続先で終わること       | `src/api/providers/__tests__/openaiHang.integration.spec.ts`        |
+| 上限 0 で即座に失敗しないこと        | `src/api/providers/__tests__/openai-timeout.spec.ts`                |
+| 再試行の間隔が伸びること             | `src/core/task/__tests__/ApiRequestTimingController.spec.ts`        |
+| 連続した失敗の上限                   | `src/core/task/__tests__/checkMistakeLimit.spec.ts`                 |
+| 人の応答で繰り返しを数え直すこと     | `src/core/task/__tests__/ask-queued-message-drain.spec.ts`          |
+| 人の応答の経路の数                   | `src/core/task/__tests__/userAskResponse.invariants.spec.ts`        |
+| 実行中のコマンドを止めること         | `apps/vscode-e2e/src/suite/cancellation.test.ts`                    |
+| ツールの実行中に停止ボタンを出すこと | `webview-ui/src/components/chat/__tests__/ChatView.wiring.spec.tsx` |
 
 ## できていないこと
 
 - 費用の上限は、使用量を返さない接続先では効かない（`FR-LOOP-15`）。
 - 中断の要求は断片の境界でしか確認しない。1 つの断片の処理が長い場合、中断までの
   待ち時間が伸びる（`FR-LOOP-04`）。
+- 止めても、ツールが待っている処理そのものは止まらない箇所が残る（`FR-LOOP-04a`）。
+    - LLM への HTTP の接続は切らない。拡張は待つのをやめるが、接続は待機の上限まで残る。
+    - VS Code のターミナルで動くコマンドへは Ctrl+C を送るだけで、無視するプログラムは止まらない。
+    - `search_files` と、チェックポイントの保存（git）には、時間の上限も中断の確認も無い。
+    - MCP のツールの呼び出しは、止めてもサーバー側で最後まで実行される。
+    - 止めた時点で承認を待っていた ask は、古いタスクの中で待ち続ける（副作用は無い）。

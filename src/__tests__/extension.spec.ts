@@ -108,7 +108,10 @@ vi.mock("../utils/autoImportSettings", () => ({
 }))
 
 vi.mock("../extension/api", () => ({
-	API: vi.fn().mockImplementation(() => ({})),
+	// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+	API: vi.fn().mockImplementation(function () {
+		return {}
+	}),
 }))
 
 vi.mock("../activate", () => ({
@@ -118,9 +121,9 @@ vi.mock("../activate", () => ({
 	registerTerminalActions: vi.fn(),
 	registerPiiCommands: vi.fn(),
 	registerFileMappingCommands: vi.fn(),
-	CodeActionProvider: vi.fn().mockImplementation(() => ({
-		providedCodeActionKinds: [],
-	})),
+	CodeActionProvider: vi.fn().mockImplementation(function () {
+		return { providedCodeActionKinds: [] }
+	}),
 }))
 
 vi.mock("../i18n", () => ({
@@ -144,7 +147,9 @@ vi.mock("../core/webview/ClineProvider", async () => {
 	}
 	return {
 		ClineProvider: Object.assign(
-			vi.fn().mockImplementation(() => mockInstance),
+			vi.fn().mockImplementation(function () {
+				return mockInstance
+			}),
 			{
 				// Static method used by extension.ts
 				getVisibleInstance: vi.fn().mockReturnValue(mockInstance),

@@ -290,6 +290,23 @@ describe("highlightHunks — Shiki transformers", () => {
 		expect(result.oldLines).toEqual(["a", "b"])
 	})
 
+	it("skips the newline text nodes Shiki puts between line spans, without falling back per line", async () => {
+		// Real Shiki output interleaves `{ type: "text", value: "\n" }` between the line spans.
+		mockHighlighter.codeToHast.mockImplementation((text: string, options: any) =>
+			hastOf(
+				lineSpans(text).flatMap((span, i) => (i === 0 ? [span] : [{ type: "text", value: "\n" }, span])),
+				options.lang,
+			),
+		)
+
+		const result = await highlightHunks("a\nb", "c\nd", "javascript", "light")
+
+		expect(result.oldLines).toEqual(["highlighted(a)", "highlighted(b)"])
+		expect(result.newLines).toEqual(["highlighted(c)", "highlighted(d)"])
+		// Two whole-text calls only: the per-line fallback never ran.
+		expect(mockHighlighter.codeToHast).toHaveBeenCalledTimes(2)
+	})
+
 	it("tolerates line spans that carry no children", async () => {
 		mockHighlighter.codeToHast.mockImplementation((text: string, options: any) =>
 			hastOf(

@@ -27,6 +27,7 @@ export const ModelDescriptionMarkdown = memo(
 		useEffect(() => setContent(markdown), [markdown, setContent])
 
 		useEffect(() => {
+			/* v8 ignore else -- 到達不能: 2 つの ref は常に描く div に付くため、描画後の effect では必ず埋まっている。防御は残す */
 			if (textRef.current && textContainerRef.current) {
 				setIsExpandable(textRef.current.scrollHeight > textContainerRef.current.clientHeight)
 			}

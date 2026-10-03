@@ -1,3 +1,5 @@
+import type { Mock } from "vitest"
+
 import { ProviderSettings, ClineMessage } from "@openai-agent/types"
 
 import { MessageEnhancer } from "../messageEnhancer"
@@ -9,7 +11,7 @@ vi.mock("../../../utils/single-completion-handler")
 
 describe("MessageEnhancer", () => {
 	let mockProviderSettingsManager: ProviderSettingsManager
-	let mockSingleCompletionHandler: ReturnType<typeof vi.fn>
+	let mockSingleCompletionHandler: Mock<typeof singleCompletionHandlerModule.singleCompletionHandler>
 
 	const mockApiConfiguration: ProviderSettings = {
 		apiProvider: "openai",

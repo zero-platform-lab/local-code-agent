@@ -93,6 +93,7 @@ const TaskHeader = ({
 	const isSubtask = !!parentTaskId
 
 	const handleBackToParent = () => {
+		/* v8 ignore else -- 到達不能: 親へ戻るボタンは isSubtask（parentTaskId がある）のときだけ描かれる。防御は残す */
 		if (parentTaskId) {
 			vscode.postMessage({ type: "showTaskWithId", text: parentTaskId })
 		}

@@ -1,20 +1,25 @@
 // npx vitest src/components/settings/__tests__/ApiConfigManager.spec.tsx
 
-import { render, screen, fireEvent, within } from "@/utils/test-utils"
+import { render, screen, fireEvent, within, act } from "@/utils/test-utils"
 
 import ApiConfigManager from "../ApiConfigManager"
 
 // Mock VSCode components
+// 名前の入力欄へ focus を移す処理を確かめるため、入力欄のモックは本物と同じく ref を input へ渡す。
+const { forwardRef } = await vitest.hoisted(() => import("react"))
+
 vitest.mock("@vscode/webview-ui-toolkit/react", () => ({
-	VSCodeTextField: ({ value, onInput, placeholder, onKeyDown, "data-testid": dataTestId }: any) => (
-		<input
-			value={value}
-			onChange={(e) => onInput(e)}
-			placeholder={placeholder}
-			onKeyDown={onKeyDown}
-			data-testid={dataTestId}
-			ref={undefined} // Explicitly set ref to undefined to avoid warning
-		/>
+	VSCodeTextField: forwardRef<HTMLInputElement, any>(
+		({ value, onInput, placeholder, onKeyDown, "data-testid": dataTestId }, ref) => (
+			<input
+				ref={ref}
+				value={value}
+				onChange={(e) => onInput(e)}
+				placeholder={placeholder}
+				onKeyDown={onKeyDown}
+				data-testid={dataTestId}
+			/>
+		),
 	),
 }))
 
@@ -34,14 +39,17 @@ vitest.mock("@/components/ui", () => ({
 			{children}
 		</button>
 	),
-	Input: ({ value, onInput, placeholder, onKeyDown, "data-testid": dataTestId }: any) => (
-		<input
-			value={value}
-			onChange={(e) => onInput(e)}
-			placeholder={placeholder}
-			onKeyDown={onKeyDown}
-			data-testid={dataTestId}
-		/>
+	Input: forwardRef<HTMLInputElement, any>(
+		({ value, onInput, placeholder, onKeyDown, "data-testid": dataTestId }, ref) => (
+			<input
+				ref={ref}
+				value={value}
+				onChange={(e) => onInput(e)}
+				placeholder={placeholder}
+				onKeyDown={onKeyDown}
+				data-testid={dataTestId}
+			/>
+		),
 	),
 	StandardTooltip: ({ children, content }: any) => <div title={content}>{children}</div>,
 	// New components for searchable dropdown
@@ -426,6 +434,75 @@ describe("ApiConfigManager", () => {
 			)
 
 			expect(document.querySelector('[title="settings:validation.profileInvalid"]')).not.toBeInTheDocument()
+		})
+	})
+
+	describe("moving the focus to the name input", () => {
+		beforeEach(() => {
+			vitest.useFakeTimers()
+		})
+		afterEach(() => {
+			vitest.useRealTimers()
+		})
+
+		// vitest.setup.ts が HTMLElement.prototype.focus を何もしない関数に差し替えているため、
+		// 実際の focus ではなく、その要素の focus が呼ばれたことを確かめる。
+		it("focuses the rename input once rename mode opens", () => {
+			render(<ApiConfigManager {...defaultProps} />)
+			fireEvent.click(screen.getByTestId("rename-profile-button"))
+			const input = screen.getByTestId("rename-form").querySelector("input")!
+			const focus = vitest.fn()
+			input.focus = focus
+			expect(focus).not.toHaveBeenCalled()
+
+			act(() => {
+				vitest.runAllTimers()
+			})
+
+			expect(focus).toHaveBeenCalledTimes(1)
+		})
+
+		it("focuses the new profile input once the dialog opens", () => {
+			render(<ApiConfigManager {...defaultProps} />)
+			fireEvent.click(screen.getByTestId("add-profile-button"))
+			const input = screen.getByTestId("new-profile-input")
+			const focus = vitest.fn()
+			input.focus = focus
+			expect(focus).not.toHaveBeenCalled()
+
+			act(() => {
+				vitest.runAllTimers()
+			})
+
+			expect(focus).toHaveBeenCalledTimes(1)
+		})
+	})
+
+	describe("keys other than Enter and Escape", () => {
+		it("neither saves nor abandons a rename", () => {
+			render(<ApiConfigManager {...defaultProps} />)
+			fireEvent.click(screen.getByTestId("rename-profile-button"))
+			const input = screen.getByTestId("rename-form").querySelector("input")!
+			fireEvent.input(input, { target: { value: "New Name" } })
+
+			fireEvent.keyDown(input, { key: "Tab" })
+
+			expect(mockOnRenameConfig).not.toHaveBeenCalled()
+			expect(screen.getByTestId("rename-form")).toBeInTheDocument()
+			expect(screen.getByDisplayValue("New Name")).toBeInTheDocument()
+		})
+
+		it("neither creates nor dismisses a new profile", () => {
+			render(<ApiConfigManager {...defaultProps} />)
+			fireEvent.click(screen.getByTestId("add-profile-button"))
+			const input = screen.getByTestId("new-profile-input")
+			fireEvent.input(input, { target: { value: "New Profile" } })
+
+			fireEvent.keyDown(input, { key: "Tab" })
+
+			expect(mockOnUpsertConfig).not.toHaveBeenCalled()
+			expect(screen.getByTestId("dialog")).toBeVisible()
+			expect(input).toHaveValue("New Profile")
 		})
 	})
 

@@ -2,7 +2,9 @@
 
 import { useMcpToolTool } from "../UseMcpToolTool"
 import { Task } from "../../task/Task"
-import { ToolUse } from "../../../shared/tools"
+import type { Mock } from "vitest"
+
+import { ToolUse, type AskApproval, type HandleError, type PushToolResult } from "../../../shared/tools"
 import { makeMockTask } from "../../task/__tests__/makeMockTask"
 
 // Mock dependencies
@@ -44,9 +46,9 @@ vi.mock("../../../i18n", () => ({
 
 describe("useMcpToolTool", () => {
 	let mockTask: Partial<Task>
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
+	let mockAskApproval: Mock<AskApproval>
+	let mockHandleError: Mock<HandleError>
+	let mockPushToolResult: Mock<PushToolResult>
 	let mockProviderRef: any
 
 	beforeEach(() => {
@@ -878,9 +880,9 @@ describe("useMcpToolTool", () => {
 
 describe("useMcpToolTool - 検証フォールバック/結果整形/無効ツール", () => {
 	let task: any
-	let askApproval: ReturnType<typeof vi.fn>
-	let handleError: ReturnType<typeof vi.fn>
-	let pushToolResult: ReturnType<typeof vi.fn>
+	let askApproval: Mock<AskApproval>
+	let handleError: Mock<HandleError>
+	let pushToolResult: Mock<PushToolResult>
 	let callTool: ReturnType<typeof vi.fn>
 	let postMessageToWebview: ReturnType<typeof vi.fn>
 

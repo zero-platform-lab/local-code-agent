@@ -62,7 +62,9 @@ vi.mock("vscode", () => ({
 		showInformationMessage: vi.fn(),
 		showWarningMessage: vi.fn(),
 	},
-	RelativePattern: vi.fn((base: string, pattern: string) => ({ base, pattern })),
+	RelativePattern: vi.fn(function (base: string, pattern: string) {
+		return { base, pattern }
+	}),
 	Disposable: {
 		from: vi.fn().mockReturnValue({ dispose: vi.fn() }),
 	},
@@ -174,8 +176,12 @@ function stubSdkConnect() {
 		getInstructions: vi.fn().mockReturnValue("instructions"),
 		request: vi.fn().mockResolvedValue({ tools: [], resources: [], resourceTemplates: [] }),
 	}
-	vi.mocked(StdioClientTransport).mockImplementation(() => transport as never)
-	vi.mocked(Client).mockImplementation(() => client as never)
+	vi.mocked(StdioClientTransport).mockImplementation(function () {
+		return transport as never
+	})
+	vi.mocked(Client).mockImplementation(function () {
+		return client as never
+	})
 	return { transport, client }
 }
 

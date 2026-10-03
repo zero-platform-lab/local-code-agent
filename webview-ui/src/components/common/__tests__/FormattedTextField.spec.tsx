@@ -94,6 +94,26 @@ describe("FormattedTextField", () => {
 			expect(mockOnChange).toHaveBeenCalledWith(456)
 		})
 
+		it("passes the input through unchanged when the formatter has no filter", () => {
+			const mockOnChange = vi.fn()
+			const parse = vi.fn((input: string) => input || undefined)
+			const noFilterFormatter = { parse, format: (value: string | undefined) => value ?? "" }
+			render(
+				<FormattedTextField
+					value={undefined}
+					onValueChange={mockOnChange}
+					formatter={noFilterFormatter}
+					data-testid="test-input"
+				/>,
+			)
+
+			const input = screen.getByTestId("test-input") as HTMLInputElement
+			fireEvent.change(input, { target: { value: "12ab" } })
+
+			expect(parse).toHaveBeenCalledWith("12ab")
+			expect(mockOnChange).toHaveBeenCalledWith("12ab")
+		})
+
 		it("should apply input filtering", () => {
 			const mockOnChange = vi.fn()
 			render(
@@ -139,6 +159,10 @@ describe("FormattedTextField", () => {
 		it("should filter non-numeric characters except dots", () => {
 			expect(unlimitedDecimalFormatter.filter?.("123.45abc")).toBe("123.45")
 			expect(unlimitedDecimalFormatter.filter?.("a1b2.c3")).toBe("12.3")
+		})
+
+		it("keeps a dot-free value as digits only", () => {
+			expect(unlimitedDecimalFormatter.filter?.("12a3")).toBe("123")
 		})
 
 		it("should handle multiple dots by keeping only the first one", () => {

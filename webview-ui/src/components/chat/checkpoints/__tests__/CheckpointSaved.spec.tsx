@@ -202,6 +202,14 @@ describe("CheckpointSaved popover visibility", () => {
 
 		expect(onJumpToPreviousCheckpoint).toHaveBeenCalledTimes(1)
 	})
+	it("現在のチェックポイントなら「現在」の印を付け、そうでなければ付けない", () => {
+		const { rerender } = render(<CheckpointSaved {...baseProps} currentHash="abc123" />)
+		expect(screen.getByText("(chat:checkpoint.current)")).toBeInTheDocument()
+
+		rerender(<CheckpointSaved {...baseProps} />)
+		expect(screen.queryByText("(chat:checkpoint.current)")).not.toBeInTheDocument()
+	})
+
 	it("renders nothing when the message carries no checkpoint", () => {
 		const { container } = render(<CheckpointSaved {...baseProps} checkpoint={undefined} />)
 

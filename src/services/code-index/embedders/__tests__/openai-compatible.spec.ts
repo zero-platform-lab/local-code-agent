@@ -65,7 +65,9 @@ describe("OpenAICompatibleEmbedder", () => {
 			},
 		}
 
-		MockedOpenAI.mockImplementation(() => mockOpenAIInstance)
+		MockedOpenAI.mockImplementation(function () {
+			return mockOpenAIInstance
+		})
 
 		// Reset global rate limit state to prevent interference between tests
 		const tempEmbedder = new OpenAICompatibleEmbedder(testBaseUrl, testApiKey, testModelId)

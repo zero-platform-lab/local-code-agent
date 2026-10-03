@@ -153,7 +153,8 @@ export const usePromptHistory = ({
 						if (historyIndex > 0) {
 							// Keep cursor position consistent with where we started
 							return navigateToHistory(historyIndex - 1, textarea, isAtBeginning ? "start" : "end")
-						} else if (historyIndex === 0) {
+						} else {
+							// 外側の条件で historyIndex >= 0、直前の if で > 0 を除いているので、ここは historyIndex === 0
 							returnToCurrentInput(textarea, isAtBeginning ? "start" : "end")
 							return true
 						}

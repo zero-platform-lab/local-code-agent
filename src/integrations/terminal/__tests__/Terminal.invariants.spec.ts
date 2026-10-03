@@ -55,7 +55,10 @@ class FakeTerminalProcess extends EventEmitter {
 }
 
 vi.mock("../TerminalProcess", () => ({
-	TerminalProcess: vi.fn((owner: unknown) => new FakeTerminalProcess(owner)),
+	// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+	TerminalProcess: vi.fn(function (owner: unknown) {
+		return new FakeTerminalProcess(owner)
+	}),
 }))
 
 // --- p-wait-for モック（shell integration 待ちの成否をテストごとに切り替え） ----------

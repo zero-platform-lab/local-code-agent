@@ -39,6 +39,7 @@ function HighlightMatch({ text, positions }: HighlightMatchProps) {
 		if (isHighlighted === currentHighlighted) {
 			currentSegment += text[i]
 		} else {
+			/* v8 ignore else -- 到達不能: i=0 は currentHighlighted と必ず一致して上へ進むため、切り替わる時点の currentSegment は 1 文字以上ある。防御は残す */
 			if (currentSegment) {
 				segments.push({ text: currentSegment, highlighted: currentHighlighted })
 			}

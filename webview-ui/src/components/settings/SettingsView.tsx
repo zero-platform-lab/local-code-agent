@@ -298,6 +298,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 	const isSettingValid = !errorMessage
 
 	const handleSubmit = () => {
+		/* v8 ignore else -- 到達不能: 呼び出し元は保存ボタンだけで、設定が不正なときは disabled のため押せない。防御は残す */
 		if (isSettingValid) {
 			vscode.postMessage({
 				type: "updateSettings",
@@ -394,6 +395,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone, t
 	// Handle tab changes with unsaved changes check
 	const handleTabChange = useCallback(
 		(newTab: SectionName) => {
+			/* v8 ignore else -- 到達不能: contentRef は常に描く TabContent（forwardRef）に付くため、タブを押せる時点で必ず埋まっている。防御は残す */
 			if (contentRef.current) {
 				scrollPositions.current[activeTab] = contentRef.current.scrollTop
 			}

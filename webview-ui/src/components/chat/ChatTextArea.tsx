@@ -325,6 +325,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 				setShowContextMenu(false)
 				setSelectedType(null)
 
+				/* v8 ignore else -- 到達不能: 候補の選択はテキストエリアと同じ描画ツリーのメニューからしか来ないため、ref は常に付いている。防御は残す */
 				if (textAreaRef.current) {
 					// URL / File / Folder / Git / Command は値をそのまま入れる（値付きの
 					// Command と値なしの File/Folder/Git はここへ来る前に返している）。
@@ -677,7 +678,14 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 			// Process the text to highlight mentions and valid commands
 			let processedText = text
 				.replace(/\n$/, "\n\n")
-				.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] || c)
+				.replace(
+					/[<>&]/g,
+					(c) =>
+						({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c] ||
+						// v8 ignore start -- 到達不能: 正規表現は < > & にしか当たらず、3 つとも表にあるので `|| c` は踏まない
+						c,
+					// v8 ignore stop
+				)
 				.replace(mentionRegexGlobal, '<mark class="mention-context-textarea-highlight">$&</mark>')
 
 			// Custom replacement for commands - only highlight valid ones
@@ -710,6 +718,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 		}, [inputValue, updateHighlights])
 
 		const updateCursorPosition = useCallback(() => {
+			/* v8 ignore else -- 到達不能: テキストエリア自身のキー・マウスのイベントからしか呼ばれないため、ref は常に付いている。防御は残す */
 			if (textAreaRef.current) {
 				setCursorPosition(textAreaRef.current.selectionStart)
 			}
@@ -782,6 +791,7 @@ export const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 								[...prevImages, ...dataUrls].slice(0, MAX_IMAGES_PER_MESSAGE),
 							)
 
+							/* v8 ignore else -- 到達不能: vscode は import したモジュールの値で、undefined にならない。防御は残す */
 							if (typeof vscode !== "undefined") {
 								vscode.postMessage({ type: "draggedImages", dataUrls: dataUrls })
 							}

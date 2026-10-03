@@ -31,10 +31,11 @@ function readTodos(message: ClineMessage): TodoItem[] {
 	try {
 		/* v8 ignore next -- 到達不能: isUpdateTodoListAsk が text の parse 成功を保証するので `|| "{}"` は踏めない */
 		return JSON.parse(message.text || "{}").todos || []
-		/* v8 ignore next 3 -- 到達不能: isUpdateTodoListAsk が同じ text の parse 成功を保証 */
+		/* v8 ignore start -- 到達不能: isUpdateTodoListAsk が同じ text の parse 成功を保証 */
 	} catch {
 		return []
 	}
+	/* v8 ignore stop */
 }
 
 /**

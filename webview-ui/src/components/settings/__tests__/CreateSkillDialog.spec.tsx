@@ -551,6 +551,26 @@ describe("CreateSkillDialog", () => {
 			expect(screen.getByTestId("checkbox-create-mode-any")).toBeChecked()
 		})
 
+		it("keeps the remaining modes when one of several is unticked", async () => {
+			renderDialog()
+			fillIn()
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-code"))
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))
+
+			fireEvent.click(screen.getByTestId("checkbox-create-mode-code"))
+
+			expect(screen.getByTestId("checkbox-create-mode-any")).not.toBeChecked()
+			expect(screen.getByTestId("checkbox-create-mode-research")).toBeChecked()
+
+			create()
+
+			await waitFor(() =>
+				expect(vscode.postMessage).toHaveBeenCalledWith(
+					expect.objectContaining({ skillModeSlugs: ["research"] }),
+				),
+			)
+		})
+
 		it("clears the specific modes when 'any mode' is ticked again", () => {
 			renderDialog()
 			fireEvent.click(screen.getByTestId("checkbox-create-mode-research"))

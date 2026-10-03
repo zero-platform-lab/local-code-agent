@@ -47,7 +47,9 @@ describe("QdrantVectorStore (coverage 補完)", () => {
 
 	beforeEach(() => {
 		vitest.clearAllMocks()
-		;(QdrantClient as any).mockImplementation(() => mockClient)
+		;(QdrantClient as any).mockImplementation(function () {
+			return mockClient
+		})
 		;(createHash as any).mockReturnValue(mockHash)
 		mockHash.update.mockReturnValue(mockHash)
 		mockHash.digest.mockReturnValue(hashed)

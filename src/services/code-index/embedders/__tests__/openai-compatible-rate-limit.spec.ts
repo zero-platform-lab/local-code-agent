@@ -43,7 +43,9 @@ describe("OpenAICompatibleEmbedder - Global Rate Limiting", () => {
 			},
 		}
 
-		MockedOpenAI.mockImplementation(() => mockOpenAIInstance)
+		MockedOpenAI.mockImplementation(function () {
+			return mockOpenAIInstance
+		})
 
 		// Reset global rate limit state
 		const embedder = new OpenAICompatibleEmbedder(testBaseUrl, testApiKey, testModelId)

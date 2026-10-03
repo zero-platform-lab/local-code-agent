@@ -924,6 +924,17 @@ describe("ChatView wiring", () => {
 			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-editable", "true")
 		})
 
+		it("JSON として読めず、todo リストの名前も含まないツール行は読み取り専用にする", () => {
+			renderChatView({
+				clineMessages: [
+					task(),
+					{ ts: 1001, type: "ask", ask: "tool", text: "not json readFile" } as ClineMessage,
+				],
+			})
+
+			expect(screen.getByTestId("chat-row-1001")).toHaveAttribute("data-editable", "false")
+		})
+
 		it("leaves other tool rows read-only", () => {
 			renderChatView({
 				clineMessages: [

@@ -33,7 +33,9 @@ describe("OpenAICompatibleEmbedder (coverage 補完)", () => {
 		vitest.spyOn(console, "error").mockImplementation(() => {})
 
 		mockEmbeddingsCreate = vitest.fn()
-		MockedOpenAI.mockImplementation(() => ({ embeddings: { create: mockEmbeddingsCreate } }) as any)
+		MockedOpenAI.mockImplementation(function () {
+			return { embeddings: { create: mockEmbeddingsCreate } } as any
+		})
 
 		global.fetch = vitest.fn() as any
 

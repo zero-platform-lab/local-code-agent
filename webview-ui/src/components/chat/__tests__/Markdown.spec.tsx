@@ -70,6 +70,22 @@ describe("Markdown", () => {
 		await new Promise((r) => setTimeout(r, 250))
 	})
 
+	it("フォーカス中の要素が無ければ（activeElement が null）、強調を飛ばしてコピーだけ済ませる", async () => {
+		const activeElement = vi.spyOn(document, "activeElement", "get").mockReturnValue(null)
+		try {
+			const { container } = render(<Markdown markdown="hello" />)
+			fireEvent.mouseEnter(container.firstChild as HTMLElement)
+			const button = screen.getByTestId("copy-button")
+			fireEvent.click(button)
+
+			await waitFor(() => expect(copyWithFeedback).toHaveBeenCalledWith("hello"))
+			await waitFor(() => expect(activeElement).toHaveBeenCalled())
+			expect(button.style.background).toBe("")
+		} finally {
+			activeElement.mockRestore()
+		}
+	})
+
 	it("skips the highlight side-effect when copy reports failure", async () => {
 		copyWithFeedback.mockResolvedValue(false)
 		const { container } = render(<Markdown markdown="hello" />)

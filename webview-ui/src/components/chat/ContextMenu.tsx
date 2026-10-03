@@ -52,6 +52,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 	}, [searchQuery, selectedType, queryItems, dynamicSearchResults, modes, commands])
 
 	useEffect(() => {
+		/* v8 ignore else -- 到達不能: menuRef の div は常に描画され、effect は描画の確定後に走るため ref は必ず付いている。防御は残す */
 		if (menuRef.current) {
 			const selectedElement = menuRef.current.children[selectedIndex] as HTMLElement
 			if (selectedElement) {

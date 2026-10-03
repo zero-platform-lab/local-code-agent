@@ -149,6 +149,7 @@ const ApiConfigManager = ({
 			return
 		}
 
+		/* v8 ignore else -- 到達不能: 呼び出し元は名前変更の欄（isRenaming のときだけ描く）で、欄は currentApiConfigName があるときだけ開け、名前が変われば効果で閉じる。防御は残す */
 		if (isRenaming && currentApiConfigName) {
 			if (currentApiConfigName === trimmedValue) {
 				resetRenameState()

@@ -108,6 +108,16 @@ describe("SettingsSearch", () => {
 		expect(screen.queryByTestId("results")).not.toBeInTheDocument()
 	})
 
+	it("leaves the results and highlight alone on other keys", () => {
+		const { input, onNavigate } = setup()
+		openWithQuery(input, "browser")
+
+		fireEvent.keyDown(input, { key: "Tab" })
+
+		expect(onNavigate).not.toHaveBeenCalled()
+		expect(screen.getByTestId("results")).toHaveAttribute("data-highlighted", "a")
+	})
+
 	it("closes the dropdown on Escape", () => {
 		const { input } = setup()
 		openWithQuery(input, "browser")

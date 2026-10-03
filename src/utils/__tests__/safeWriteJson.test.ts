@@ -1,10 +1,14 @@
-import * as actualFsPromises from "fs/promises"
 import * as fsSyncActual from "fs"
 import { Writable } from "stream"
 import * as path from "path"
 import * as os from "os"
 
 import { safeWriteJson } from "../safeWriteJson"
+
+// `import * from "fs/promises"` は下の vi.mock で差し替えた側（vi.fn）を返す。vitest 4 では
+// vi.spyOn が既存の vi.fn をそのまま返すため、そこから「本物」を取ると mockImplementation の中で
+// 自分自身を呼んで無限再帰になる。本物は importActual で取る。
+const actualFsPromises = await vi.importActual<typeof import("fs/promises")>("fs/promises")
 
 const originalFsPromisesRename = actualFsPromises.rename
 const originalFsPromisesUnlink = actualFsPromises.unlink
@@ -77,6 +81,9 @@ describe("safeWriteJson", () => {
 		await fs.rm(tempDir, { recursive: true, force: true })
 
 		// Reset all mocks to their actual implementations
+		// vitest 4 の restoreAllMocks は vi.spyOn で作った spy しか戻さない。vi.mock 内の
+		// vi.fn(actual.xxx) の実装を本物へ戻すのは resetAllMocks である。
+		vi.resetAllMocks()
 		vi.restoreAllMocks()
 	})
 

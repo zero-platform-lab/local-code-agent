@@ -72,6 +72,7 @@ export const OpenAICompatible = ({
 		setCustomHeaders((prev) => {
 			const updated = [...prev]
 
+			/* v8 ignore else -- 到達不能: 行は customHeaders（この部品だけが持つ状態）から index で描くため、入力された行の index は必ず範囲内にある。防御は残す */
 			if (updated[index]) {
 				updated[index] = [newKey, updated[index][1]]
 			}
@@ -84,6 +85,7 @@ export const OpenAICompatible = ({
 		setCustomHeaders((prev) => {
 			const updated = [...prev]
 
+			/* v8 ignore else -- 到達不能: 行は customHeaders（この部品だけが持つ状態）から index で描くため、入力された行の index は必ず範囲内にある。防御は残す */
 			if (updated[index]) {
 				updated[index] = [updated[index][0], newValue]
 			}

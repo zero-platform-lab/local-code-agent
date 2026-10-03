@@ -99,6 +99,7 @@ export function SearchableSelect({
 	// Reset search when value changes
 	React.useEffect(() => {
 		const timeoutId = setTimeout(() => {
+			/* v8 ignore else -- 到達不能: アンマウント時はこの effect の cleanup が timeoutId を clearTimeout するため、isMountedRef が false の状態でこの callback は動かない。防御ガードは残す */
 			if (isMountedRef.current) {
 				setSearchValue("")
 			}

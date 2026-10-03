@@ -198,6 +198,35 @@ describe("CodeBlock — highlighting", () => {
 		expect(screen.queryByTestId("highlighted")).not.toBeInTheDocument()
 	})
 
+	it("does not fall back to plain text when highlighting fails after the block is unmounted", async () => {
+		const error = vi.spyOn(console, "error").mockImplementation(() => {})
+		let rejectHighlighter: (reason: unknown) => void = () => {}
+		vi.mocked(getHighlighter).mockReturnValue(
+			new Promise((_, reject) => {
+				rejectHighlighter = reject
+			}) as never,
+		)
+
+		const { unmount } = render(<CodeBlock source="const a = 1" language="typescript" />)
+		unmount()
+
+		await act(async () => {
+			rejectHighlighter(new Error("no highlighter"))
+			await Promise.resolve()
+			await Promise.resolve()
+		})
+
+		// The failure is still reported even though the block is gone.
+		expect(error).toHaveBeenCalledWith(
+			"[CodeBlock] Syntax highlighting error:",
+			expect.any(Error),
+			"\nStack trace:",
+			expect.any(String),
+		)
+		expect(screen.queryByText("const a = 1")).not.toBeInTheDocument()
+		error.mockRestore()
+	})
+
 	it("renders nothing at all for an empty source", async () => {
 		const { container } = await renderBlock(<CodeBlock source="" language="typescript" />)
 
@@ -516,6 +545,30 @@ describe("CodeBlock — scroll chaining and collapsing", () => {
 			// 摩擦で閾値を下回り、次のフレームを要求しなくなる = 自分で止まった。
 			expect(frames).toHaveLength(0)
 			expect(advanced).toBeLessThan(500)
+		} finally {
+			window.requestAnimationFrame = originalRaf
+		}
+	})
+
+	it("adds a second boundary wheel to the running inertia instead of starting another animation", async () => {
+		const { pre } = await setup()
+		sizePre(pre, { scrollHeight: 300, clientHeight: 100, scrollTop: 200 })
+
+		const frames: FrameRequestCallback[] = []
+		const originalRaf = window.requestAnimationFrame
+		window.requestAnimationFrame = ((callback: FrameRequestCallback) =>
+			frames.push(callback)) as typeof window.requestAnimationFrame
+
+		try {
+			wheel(pre, { deltaY: 40 })
+			wheel(pre, { deltaY: 40 })
+
+			// One animation for both wheels.
+			expect(frames).toHaveLength(1)
+
+			frames.shift()!(0)
+			// Both wheels' momentum lands in the first step: (40 + 40) * 0.15.
+			expect(scroller.scrollBy).toHaveBeenCalledWith(0, 12)
 		} finally {
 			window.requestAnimationFrame = originalRaf
 		}

@@ -10,9 +10,9 @@ mode: code
 全廃済みで、`gh pr checks` は常に空を返す。以下は全て手動で実行する。
 `pnpm ci:local --strict` が唯一のゲート。
 
-changesets（`.changeset/`, `@changesets/cli`）は upstream Roo Code 由来の足場が
-残っているだけで、この fork では一度も使っていない。バージョンは
-`src/package.json` を直接編集する。
+changesets（`.changeset/`, `@changesets/cli`）は upstream Roo Code 由来の足場で、
+この fork では一度も使わなかったため、vitest 4 への移行と同じ PR で削除した。
+バージョンは `src/package.json` を直接編集する。
 
 ## 1. 前回リリースと変更内容を確認
 

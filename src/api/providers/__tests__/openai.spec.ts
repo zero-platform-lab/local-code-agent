@@ -13,48 +13,24 @@ vitest.mock("openai", () => {
 	const mockConstructor = vitest.fn()
 	return {
 		__esModule: true,
-		default: mockConstructor.mockImplementation(() => ({
-			chat: {
-				completions: {
-					create: mockCreate.mockImplementation(async (options) => {
-						if (!options.stream) {
-							return {
-								id: "test-completion",
-								choices: [
-									{
-										message: {
-											type: "message" as const,
-											role: "assistant",
-											content: "Test response",
-											refusal: null,
-										},
-										finish_reason: "stop",
-										index: 0,
-									},
-								],
-								usage: {
-									prompt_tokens: 10,
-									completion_tokens: 5,
-									total_tokens: 15,
-								},
-							}
-						}
-
-						return {
-							[Symbol.asyncIterator]: async function* () {
-								yield {
+		// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+		default: mockConstructor.mockImplementation(function () {
+			return {
+				chat: {
+					completions: {
+						create: mockCreate.mockImplementation(async (options) => {
+							if (!options.stream) {
+								return {
+									id: "test-completion",
 									choices: [
 										{
-											delta: { content: "Test response" },
-											index: 0,
-										},
-									],
-									usage: null,
-								}
-								yield {
-									choices: [
-										{
-											delta: {},
+											message: {
+												type: "message" as const,
+												role: "assistant",
+												content: "Test response",
+												refusal: null,
+											},
+											finish_reason: "stop",
 											index: 0,
 										},
 									],
@@ -64,12 +40,39 @@ vitest.mock("openai", () => {
 										total_tokens: 15,
 									},
 								}
-							},
-						}
-					}),
+							}
+
+							return {
+								[Symbol.asyncIterator]: async function* () {
+									yield {
+										choices: [
+											{
+												delta: { content: "Test response" },
+												index: 0,
+											},
+										],
+										usage: null,
+									}
+									yield {
+										choices: [
+											{
+												delta: {},
+												index: 0,
+											},
+										],
+										usage: {
+											prompt_tokens: 10,
+											completion_tokens: 5,
+											total_tokens: 15,
+										},
+									}
+								},
+							}
+						}),
+					},
 				},
-			},
-		})),
+			}
+		}),
 	}
 })
 

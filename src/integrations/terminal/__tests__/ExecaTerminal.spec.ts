@@ -48,12 +48,13 @@ import { execa } from "execa"
 import { ExecaTerminal } from "../ExecaTerminal"
 import { BaseTerminal } from "../BaseTerminal"
 import type { AgentTerminalCallbacks } from "../types"
+import type { Mock } from "vitest"
 
 function makeCallbacks(): AgentTerminalCallbacks & {
-	onLine: ReturnType<typeof vi.fn>
-	onCompleted: ReturnType<typeof vi.fn>
-	onShellExecutionStarted: ReturnType<typeof vi.fn>
-	onShellExecutionComplete: ReturnType<typeof vi.fn>
+	onLine: Mock<AgentTerminalCallbacks["onLine"]>
+	onCompleted: Mock<AgentTerminalCallbacks["onCompleted"]>
+	onShellExecutionStarted: Mock<AgentTerminalCallbacks["onShellExecutionStarted"]>
+	onShellExecutionComplete: Mock<AgentTerminalCallbacks["onShellExecutionComplete"]>
 } {
 	return {
 		onLine: vi.fn(),

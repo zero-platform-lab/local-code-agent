@@ -29,6 +29,7 @@ export function useDebounceEffect(effect: VoidFn, delay: number, deps: any[]) {
 
 		// Cleanup on unmount or next effect
 		return () => {
+			/* v8 ignore else -- 到達不能: この cleanup を返す直前に同じ effect が timeoutRef.current へ setTimeout の戻り値（真値）を入れ、null に戻す箇所は無い。防御ガードは残す */
 			if (timeoutRef.current) {
 				clearTimeout(timeoutRef.current)
 			}

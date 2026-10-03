@@ -351,6 +351,57 @@ describe("SearchableSelect", () => {
 		expect(input.value).toBe("")
 	})
 
+	it("opening the popover keeps the search text and schedules no reset", () => {
+		render(
+			<SearchableSelect
+				options={baseOptions}
+				onValueChange={vi.fn()}
+				placeholder="Select"
+				searchPlaceholder="Search..."
+				emptyMessage="None"
+			/>,
+		)
+
+		const input = screen.getByTestId("search-input") as HTMLInputElement
+		act(() => {
+			vi.advanceTimersByTime(100)
+		})
+		fireEvent.change(input, { target: { value: "ban" } })
+
+		fireEvent.click(screen.getByTestId("popover-open"))
+		act(() => {
+			vi.advanceTimersByTime(200)
+		})
+
+		expect(screen.getByTestId("popover")).toHaveAttribute("data-open", "true")
+		expect(input.value).toBe("ban")
+	})
+
+	it("closes the popover when the Escape handler fires", async () => {
+		const { useEscapeKey } = await import("@/hooks/useEscapeKey")
+		render(
+			<SearchableSelect
+				options={baseOptions}
+				onValueChange={vi.fn()}
+				placeholder="Select"
+				searchPlaceholder="Search..."
+				emptyMessage="None"
+			/>,
+		)
+
+		fireEvent.click(screen.getByTestId("popover-open"))
+		expect(screen.getByTestId("popover")).toHaveAttribute("data-open", "true")
+		// The latest render passes the current open state and the close callback to the hook.
+		const [isOpen, onEscape] = vi.mocked(useEscapeKey).mock.lastCall!
+		expect(isOpen).toBe(true)
+
+		act(() => {
+			onEscape()
+		})
+
+		expect(screen.getByTestId("popover")).toHaveAttribute("data-open", "false")
+	})
+
 	it("handles disabled prop", () => {
 		render(
 			<SearchableSelect

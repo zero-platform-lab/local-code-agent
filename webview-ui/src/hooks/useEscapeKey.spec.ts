@@ -1,16 +1,21 @@
 import { renderHook } from "@testing-library/react"
+import type { Mock } from "vitest"
 
 import { useEscapeKey } from "./useEscapeKey"
 
 describe("useEscapeKey", () => {
-	let mockOnEscape: ReturnType<typeof vi.fn>
+	let mockOnEscape: Mock<() => void>
 
 	beforeEach(() => {
-		mockOnEscape = vi.fn()
+		mockOnEscape = vi.fn<() => void>()
 	})
 
 	afterEach(() => {
 		vi.clearAllMocks()
+		// vitest 4 の vi.spyOn は、既に spy になっているメソッドへ再び当てると同じ spy を返す。
+		// 前の試験で付けた window の spy を戻さないと、前の試験のアンマウント（RTL の cleanup）で
+		// 呼ばれた removeEventListener が次の試験の回数に混ざる。
+		vi.restoreAllMocks()
 	})
 
 	it("should call onEscape when Escape key is pressed and isOpen is true", () => {

@@ -131,7 +131,9 @@ vi.mock("vscode", () => {
 			uriScheme: "vscode",
 			language: "en",
 		},
-		EventEmitter: vi.fn().mockImplementation(() => mockEventEmitter),
+		EventEmitter: vi.fn().mockImplementation(function () {
+			return mockEventEmitter
+		}),
 		Disposable: {
 			from: vi.fn(),
 		},
@@ -452,8 +454,11 @@ describe("Cline", () => {
 	describe("launcher / attemptApiRequest wiring", () => {
 		it("history 起動なら launcher.start() が resumeTaskFromHistory を呼ぶ", async () => {
 			const resumeSpy = vi
-				.spyOn(Task.prototype as never, "resumeTaskFromHistory")
-				.mockResolvedValue(undefined as never)
+				.spyOn(
+					Task.prototype as unknown as { resumeTaskFromHistory: () => Promise<void> },
+					"resumeTaskFromHistory",
+				)
+				.mockResolvedValue(undefined)
 
 			const cline = new Task({
 				provider: mockProvider,
@@ -533,7 +538,9 @@ describe("Cline", () => {
 				processQueuedMessages: vi.fn(),
 				postCondenseTaskContext: vi.fn(async () => {}),
 			}
-			vi.spyOn(cline as never, "buildApiRequestDeps").mockReturnValue(fakeDeps as never)
+			vi.spyOn(cline as unknown as { buildApiRequestDeps: () => unknown }, "buildApiRequestDeps").mockReturnValue(
+				fakeDeps,
+			)
 
 			const chunks: unknown[] = []
 			for await (const c of cline.attemptApiRequest(0)) chunks.push(c)

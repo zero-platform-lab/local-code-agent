@@ -30,7 +30,10 @@ const mocks = vi.hoisted(() => ({
 	registerTerminalActions: vi.fn(),
 	registerPiiCommands: vi.fn((..._args: unknown[]) => {}),
 	registerFileMappingCommands: vi.fn((..._args: unknown[]) => {}),
-	API: vi.fn().mockImplementation((...args: unknown[]) => ({ api: true, args })),
+	// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+	API: vi.fn().mockImplementation(function (...args: unknown[]) {
+		return { api: true, args }
+	}),
 	providerInstance: {
 		resolveWebviewView: vi.fn(),
 		providerSettingsManager: { psm: true },
@@ -70,7 +73,9 @@ vi.mock("vscode", () => ({
 	},
 	env: { language: "ja" },
 	Uri: { file: (p: string) => ({ fsPath: p, path: p, scheme: "file" }) },
-	RelativePattern: vi.fn().mockImplementation((base: unknown, pattern: string) => ({ base, pattern })),
+	RelativePattern: vi.fn().mockImplementation(function (base: unknown, pattern: string) {
+		return { base, pattern }
+	}),
 }))
 
 vi.mock("../utils/networkProxy", () => ({ initializeNetworkProxy: mocks.initializeNetworkProxy }))

@@ -11,9 +11,11 @@ import { FileWatcher } from "../file-watcher"
 
 vi.mock("../../cache-manager")
 vi.mock("../../../core/ignore/AgentIgnoreController", () => ({
-	AgentIgnoreController: vi.fn().mockImplementation(() => ({
-		validateAccess: vi.fn().mockReturnValue(true),
-	})),
+	AgentIgnoreController: vi.fn().mockImplementation(function () {
+		return {
+			validateAccess: vi.fn().mockReturnValue(true),
+		}
+	}),
 }))
 vi.mock("ignore")
 vi.mock("../parser", () => ({
@@ -35,9 +37,13 @@ vi.mock("vscode", () => ({
 			readFile: vi.fn().mockResolvedValue(Buffer.from("test content")),
 		},
 	},
-	RelativePattern: vi.fn().mockImplementation((base, pattern) => ({ base, pattern })),
+	RelativePattern: vi.fn().mockImplementation(function (base, pattern) {
+		return { base, pattern }
+	}),
 	Uri: { file: vi.fn().mockImplementation((p) => ({ fsPath: p })) },
-	EventEmitter: vi.fn().mockImplementation(() => ({ event: vi.fn(), fire: vi.fn(), dispose: vi.fn() })),
+	EventEmitter: vi.fn().mockImplementation(function () {
+		return { event: vi.fn(), fire: vi.fn(), dispose: vi.fn() }
+	}),
 	ExtensionContext: vi.fn(),
 }))
 

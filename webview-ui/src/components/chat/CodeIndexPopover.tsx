@@ -346,9 +346,11 @@ export const CodeIndexPopover: React.FC<CodeIndexPopoverProps> = ({
 			setFormErrors({})
 			return true
 		} catch (error) {
+			/* v8 ignore else -- 到達不能: try の中で投げるのは schema.parse だけで、parse は ZodError しか投げない。防御は残す */
 			if (error instanceof z.ZodError) {
 				const errors: Record<string, string> = {}
 				error.errors.forEach((err) => {
+					/* v8 ignore else -- 到達不能: スキーマは平らなオブジェクトで、検査は各フィールドにしか付いていないため path[0] は必ずある。防御は残す */
 					if (err.path[0]) {
 						errors[err.path[0] as string] = err.message
 					}
@@ -678,9 +680,11 @@ export const CodeIndexPopover: React.FC<CodeIndexPopoverProps> = ({
 											})}
 										/>
 										{formErrors.codeIndexQdrantApiKey && (
+											// v8 ignore start -- 到達不能: この欄は z.string().optional() で、入力欄からは常に文字列が入るため検査で落ちない。防御は残す
 											<p className="text-xs text-vscode-errorForeground mt-1 mb-0">
 												{formErrors.codeIndexQdrantApiKey}
 											</p>
+											// v8 ignore stop
 										)}
 									</div>
 								</div>

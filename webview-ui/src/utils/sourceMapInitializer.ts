@@ -134,6 +134,7 @@ export function exposeSourceMapsForDebugging(): void {
 				const obj: any = undefined
 				obj.nonExistentMethod()
 			} catch (e) {
+				/* v8 ignore else -- 到達不能: 直前の try は undefined のメソッド呼び出しで必ず TypeError（Error の派生）を投げる。防御ガードは残す */
 				if (e instanceof Error) {
 					console.log("Original error:", e)
 					;(window as any).__applySourceMaps(e).then((enhanced: Error) => {

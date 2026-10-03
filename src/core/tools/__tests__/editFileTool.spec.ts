@@ -1,7 +1,7 @@
 import * as path from "path"
 import fs from "fs/promises"
 
-import type { MockedFunction } from "vitest"
+import type { Mock, MockedFunction } from "vitest"
 
 import { DEFAULT_WRITE_DELAY_MS } from "@openai-agent/types"
 
@@ -10,7 +10,7 @@ import { isPathOutsideWorkspace } from "../../../utils/pathUtils"
 import { getReadablePath } from "../../../utils/path"
 import { formatResponse } from "../../prompts/responses"
 import { computeDiffStats } from "../../diff/stats"
-import { ToolUse, ToolResponse } from "../../../shared/tools"
+import { ToolUse, ToolResponse, type AskApproval, type HandleError, type PushToolResult } from "../../../shared/tools"
 import {
 	editFileTool,
 	countOccurrences,
@@ -103,9 +103,9 @@ describe("editFileTool", () => {
 	const mockedComputeDiffStats = computeDiffStats as MockedFunction<typeof computeDiffStats>
 
 	let mockTask: any
-	let mockAskApproval: ReturnType<typeof vi.fn>
-	let mockHandleError: ReturnType<typeof vi.fn>
-	let mockPushToolResult: ReturnType<typeof vi.fn>
+	let mockAskApproval: Mock<AskApproval>
+	let mockHandleError: Mock<HandleError>
+	let mockPushToolResult: Mock<PushToolResult>
 	let toolResult: ToolResponse | undefined
 
 	beforeEach(() => {

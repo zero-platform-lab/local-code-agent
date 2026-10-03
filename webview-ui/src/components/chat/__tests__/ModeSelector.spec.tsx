@@ -401,6 +401,17 @@ describe("ModeSelector", () => {
 			expect(screen.getByTestId("mode-selector-trigger").className).not.toContain("bg-primary")
 		})
 
+		test("一度開いたことがあれば、開いても初回の記録を送り直さない", () => {
+			extensionState.hasOpenedModeSelector = true
+			render(<ModeSelector title="Mode" value={"mode-0" as Mode} onChange={vi.fn()} modeShortcutText="Ctrl+M" />)
+
+			fireEvent.click(screen.getByTestId("mode-selector-trigger"))
+
+			expect(screen.getAllByTestId("mode-selector-item").length).toBeGreaterThan(0)
+			expect(mockSetHasOpenedModeSelector).not.toHaveBeenCalled()
+			expect(mockPostMessage).not.toHaveBeenCalledWith({ type: "hasOpenedModeSelector", bool: true })
+		})
+
 		test("opens the mode settings and closes the list", () => {
 			render(<ModeSelector title="Mode" value={"mode-0" as Mode} onChange={vi.fn()} modeShortcutText="Ctrl+M" />)
 			fireEvent.click(screen.getByTestId("mode-selector-trigger"))

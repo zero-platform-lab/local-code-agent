@@ -17,6 +17,7 @@ export const OpenMarkdownPreviewButton = memo(({ markdown, className }: OpenMark
 
 	const handleClick = (e: React.MouseEvent) => {
 		e.stopPropagation()
+		/* v8 ignore else -- 到達不能: ボタンは hasComplexMarkdown(markdown) が真のとき（markdown が空でないとき）だけ描かれる。防御は残す */
 		if (markdown) {
 			vscode.postMessage({
 				type: "openMarkdownPreview",

@@ -58,7 +58,9 @@ vi.mock("vscode", () => ({
 			return h.state.workspaceFolders
 		},
 	},
-	RelativePattern: vi.fn((base: string, pattern: string) => ({ base, pattern })),
+	RelativePattern: vi.fn(function (base: string, pattern: string) {
+		return { base, pattern }
+	}),
 	Disposable: {
 		from: (...ds: Array<{ dispose?: () => void }>) => ({ dispose: () => ds.forEach((d) => d?.dispose?.()) }),
 	},

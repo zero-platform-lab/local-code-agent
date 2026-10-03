@@ -17,7 +17,8 @@ const mockAzureOpenAIConstructor = vitest.fn()
 vitest.mock("openai", () => {
 	return {
 		__esModule: true,
-		default: vitest.fn().mockImplementation((config) => {
+		// vitest 4 では `new` で呼ぶ vi.fn にアロー関数の実装を渡せない
+		default: vitest.fn().mockImplementation(function (config) {
 			mockOpenAIConstructor(config)
 			return {
 				chat: {
@@ -27,7 +28,7 @@ vitest.mock("openai", () => {
 				},
 			}
 		}),
-		AzureOpenAI: vitest.fn().mockImplementation((config) => {
+		AzureOpenAI: vitest.fn().mockImplementation(function (config) {
 			mockAzureOpenAIConstructor(config)
 			return {
 				chat: {

@@ -106,6 +106,15 @@ function askPatch(message: ClineMessage, ctx: ChatAskUiContext): ChatAskUiPatch 
 	const isPartial = message.partial === true
 	const base: ChatAskUiPatch = {}
 
+	// 承認済み（自動承認を含む）の承認待ちは、もう答えを待っていない。ボタンを出すと、
+	// 自動承認したコマンドの実行中に「実行／拒否」が残る。入力欄の可否は変えない。
+	if (
+		message.isAnswered &&
+		(message.ask === "tool" || message.ask === "command" || message.ask === "use_mcp_server")
+	) {
+		return { clineAsk: null, enableButtons: false, primaryButtonKey: null, secondaryButtonKey: null }
+	}
+
 	switch (message.ask) {
 		case "api_req_failed":
 			return {

@@ -56,7 +56,7 @@ describe("handleWebviewAskResponse", () => {
 		const messages: TestMsg[] = [
 			{ type: "ask", ask: "tool", isAnswered: false }, // マッチ
 			{ type: "ask", ask: "tool", isAnswered: true }, // 既回答 tool
-			{ type: "ask", ask: "command", isAnswered: false }, // ask!=tool
+			{ type: "ask", ask: "completion_result", isAnswered: false }, // 承認待ちではない ask
 			{ type: "say", say: "hello" }, // type!=ask
 		]
 		const { host, checkpointSave, updateClineMessage, saveClineMessages } = makeHost(messages)
@@ -69,6 +69,32 @@ describe("handleWebviewAskResponse", () => {
 		expect(updateClineMessage).toHaveBeenCalledWith(messages[0])
 		// followup は不在なので保存は tool 1 回のみ
 		expect(saveClineMessages).toHaveBeenCalledTimes(1)
+	})
+
+	it.each(["command", "use_mcp_server"] as const)(
+		"yesButtonClicked: %s の承認待ちも回答済みにする（自動承認の後に画面へ「実行／拒否」を残さない）",
+		(ask) => {
+			const messages: TestMsg[] = [{ type: "ask", ask, isAnswered: false }]
+			const { host, updateClineMessage } = makeHost(messages)
+
+			handleWebviewAskResponse({ host }, "yesButtonClicked", undefined, undefined)
+
+			expect(messages[0].isAnswered).toBe(true)
+			expect(updateClineMessage).toHaveBeenCalledWith(messages[0])
+		},
+	)
+
+	it("noButtonClicked: 拒否した承認待ちは回答済みにしない（承認したファイル変更の数え上げに使うため）", () => {
+		const messages: TestMsg[] = [
+			{ type: "ask", ask: "tool", isAnswered: false },
+			{ type: "ask", ask: "command", isAnswered: false },
+		]
+		const { host, updateClineMessage } = makeHost(messages)
+
+		handleWebviewAskResponse({ host }, "noButtonClicked", undefined, undefined)
+
+		expect(messages.map((m) => m.isAnswered)).toEqual([false, false])
+		expect(updateClineMessage).not.toHaveBeenCalled()
 	})
 
 	it("yesButtonClicked: 未回答の followup と tool が両方あれば双方を answered にし、保存を2回呼ぶ", () => {

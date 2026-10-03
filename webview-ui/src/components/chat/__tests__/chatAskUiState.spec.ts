@@ -264,3 +264,29 @@ describe("isCompletedSubtask", () => {
 		expect(isCompletedSubtask({ parentTaskId: "parent", messages })).toBe(true)
 	})
 })
+
+describe("deriveChatAskUiPatch — 承認済みの承認待ち", () => {
+	it.each([
+		["command", ask("command", { text: "sleep 300", isAnswered: true })],
+		["use_mcp_server", ask("use_mcp_server", { text: "{}", isAnswered: true })],
+		["tool", toolAsk({ tool: "readFile", path: "a.ts" }, { isAnswered: true })],
+	])("%s が承認済みなら、ボタンを引っ込める（入力欄の可否は変えない）", (_kind, message) => {
+		expect(deriveChatAskUiPatch(message, ctx())).toEqual({
+			clineAsk: null,
+			enableButtons: false,
+			primaryButtonKey: null,
+			secondaryButtonKey: null,
+		})
+	})
+
+	it("未回答の command には、これまでどおり実行と拒否を出す", () => {
+		const patch = deriveChatAskUiPatch(ask("command", { text: "sleep 300" }), ctx())
+		expect(patch.enableButtons).toBe(true)
+		expect(patch.primaryButtonKey).toBe("chat:runCommand.title")
+	})
+
+	it("承認済みでも、承認待ちではない ask（followup）はそのまま扱う", () => {
+		const patch = deriveChatAskUiPatch(ask("followup", { text: "{}", isAnswered: true }), ctx())
+		expect(patch.clineAsk).toBe("followup")
+	})
+})

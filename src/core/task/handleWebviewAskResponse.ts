@@ -33,6 +33,10 @@ export interface HandleWebviewAskResponseDeps {
  * 「answered にマーク → 保存」の副作用は failure がユーザー体験を壊さないよう、
  * catch でログに落とすだけの構造をそのまま維持する（元コードの意図）。
  */
+/** 実行の承認を求める ask。承認されたら回答済みの印を付ける。 */
+const APPROVAL_ASKS: readonly string[] = ["tool", "command", "use_mcp_server"]
+const isApprovalAsk = (ask: string | undefined) => !!ask && APPROVAL_ASKS.includes(ask)
+
 export function handleWebviewAskResponse(
 	deps: HandleWebviewAskResponseDeps,
 	askResponse: ClineAskResponse,
@@ -71,12 +75,16 @@ export function handleWebviewAskResponse(
 		}
 	}
 
-	// Mark the last tool-approval ask as answered when user approves (or auto-approval)
+	// 承認した（自動承認を含む）承認待ちの ask を、回答済みにする。
+	// tool だけでなく command と use_mcp_server も印を付ける。付けないと、自動承認した
+	// コマンドの実行中も、画面に「実行／拒否」が残る（chatAskUiState の askPatch が見る）。
+	// 拒否では付けない。tool の回答済みは「承認したファイルの変更」の数え上げに使う
+	// （fileChangesFromMessages）ため、拒否したものまで数えてしまう。
 	if (askResponse === "yesButtonClicked") {
 		const messages = host.messageStore.clineMessages
 		const lastToolAskIndex = findLastIndex(
 			messages,
-			(msg) => msg.type === "ask" && msg.ask === "tool" && !msg.isAnswered,
+			(msg) => msg.type === "ask" && isApprovalAsk(msg.ask) && !msg.isAnswered,
 		)
 		if (lastToolAskIndex !== -1) {
 			messages[lastToolAskIndex].isAnswered = true

@@ -25,6 +25,12 @@ describe("groupEntryArraySchema", () => {
 		expect(groupEntryArraySchema.parse([["browser", { fileRegex: ".*" }], "read"])).toEqual(["read"])
 	})
 
+	it("文字列でもタプルでもない値は、取り除かずに検証で落とす", () => {
+		// 取り除くのは廃止済みグループだけ。知らない形を黙って捨てると、壊れた設定に気づけない。
+		expect(groupEntryArraySchema.safeParse([42]).success).toBe(false)
+		expect(groupEntryArraySchema.safeParse([[], "read"]).success).toBe(false)
+	})
+
 	it("重複したグループを拒否する", () => {
 		expect(() => groupEntryArraySchema.parse(["read", "read"])).toThrow(/Duplicate groups/)
 	})
